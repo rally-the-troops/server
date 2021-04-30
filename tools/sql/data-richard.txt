@@ -1,0 +1,3 @@
+INSERT OR REPLACE INTO titles VALUES ( 'richard-iii', 'Richard III', 25277 );
+INSERT OR REPLACE INTO roles VALUES ( 'richard-iii', 'York' );
+INSERT OR REPLACE INTO roles VALUES ( 'richard-iii', 'Lancaster' );
