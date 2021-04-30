@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+<% if (typeof refresh != 'undefined' && refresh > 0) { %><meta http-equiv="refresh" content="<%= refresh %>"><% } %>
+<link rel="icon" href="/images/rally-the-troops.png">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/style.css">
+<title><%= title %></title>
+</head>
+<body>
+<div class="header">
+<div><a href="/"><img src="/images/rally-the-troops.svg" width="48" height="48"></a></div>
+<div>
+<span><a href="/about">About</a></span>
+<%
+	if (user) {
+		%><span><a href="/profile">Profile (<%= user.name %>)</a></span><%
+	} else {
+		%><span><a href="/signup">Signup</a></span><%
+		%><span><a href="/login">Login</a></span><%
+	}
+%>
+</div>
+</div>
+<div class="main">
+<h1><%= title %></h1>
+<%
+	if (typeof message != 'undefined' && message.length > 0) {
+		%><p class="error"><%= Array.isArray(message) ? message.join("\n") : message %></p><%
+	}
+%>

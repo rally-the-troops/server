@@ -1,0 +1,15 @@
+<%- include('header', { title: "Login" }) %>
+<% if (user) { %>
+<p>You're already logged in!
+<% } else { %>
+<form action="/login" method="post">
+<p>
+<label for="username">Name: </label><br>
+<input type="text" id="username" name="username" required>
+<p>
+<label for="password">Password: </label><br>
+<input type="password" id="password" name="password" required>
+<p>
+<button type="submit">Login</button>
+</form>
+<% } %>

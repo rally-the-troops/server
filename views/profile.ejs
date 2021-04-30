@@ -1,0 +1,84 @@
+<%- include('header', { title: "Rally the Troops!", refresh: (active_games.length > 0 ? 300 : 0) }) %>
+<style>td.nowrap a { color: black; text-decoration: none; }</style>
+
+<img class="logo" src="<%= avatar %>" width="80" height="80">
+<p>
+Welcome, <%= user.name %>!
+<p>
+Your mail address is <%= user.mail %>.
+
+<br clear=left>
+
+<p>
+<a href="/change_password">Change password</a>
+
+<p>
+<a href="/logout">Logout</a>
+
+<% if (open_games.length > 0) { %>
+<h2>Open Games</h2>
+<table class="wide">
+<tr><th>ID<th>Game<th>Scenario<th>Players<th>Description<th>Created<th>
+<% open_games.forEach((row) => { %>
+<tr>
+<td><%= row.game_id %>
+<td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
+<td><%= row.scenario %>
+<td><%= row.players.join(", ") %>
+<td><%= row.description %>
+<td class="nowrap"><%= row.ctime %>
+<td><a href="/join/<%= row.game_id %>">Join</a>
+<% }); %>
+</table>
+<% } %>
+
+<% if (active_games.length > 0) { %>
+<h2>Active Games</h2>
+<table class="wide">
+<tr><th>ID<th>Game<th>Scenario<th>Players<th>Description<th>Changed<th>Turn<th>
+<% active_games.forEach((row) => { %>
+<tr>
+<td><%= row.game_id %>
+<td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
+<td><%= row.scenario %>
+<td><%= row.players.join(", ") %>
+<td><%= row.description %>
+<td class="nowrap"><%= row.mtime %>
+<%
+	if (row.your_turn) {
+		%><td class="your_turn"><%= row.active %><%
+	} else {
+		%><td><%= row.active %><%
+	}
+	if (row.players.reduce((n,p) => n + (p === user.name ? 1 : 0), 0) == 1) {
+		%><td><a href="/play/<%= row.game_id %>">Play</a><%
+	} else {
+		%><td><a href="/join/<%= row.game_id %>">Play</a><%
+	}
+%>
+<% }); %>
+</table>
+<% } %>
+
+<% if (finished_games.length > 0) { %>
+<h2>Finished Games</h2>
+<table class="wide">
+<tr><th>ID<th>Game<th>Scenario<th>Players<th>Description<th>Finished<th>Result<th>
+<% finished_games.forEach((row) => { %>
+<tr>
+<td><%= row.game_id %>
+<td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
+<td><%= row.scenario %>
+<td><%= row.players.join(", ") %>
+<td><%= row.description %>
+<td class="nowrap"><%= row.mtime %>
+<td><%= row.result %>
+<td><a href="/join/<%= row.game_id %>">View</a>
+<% }); %>
+</table>
+<% } %>
+
+<% if (open_games.length == 0 && active_games.length == 0 && finished_games.length == 0) { %>
+<p>
+You don't have any current or finished games.
+<% } %>

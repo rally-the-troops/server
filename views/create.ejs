@@ -1,0 +1,22 @@
+<%- include('header', { title: title.title_name }) %>
+<style>form{display:block;margin-left:200px;}</style>
+<a href="/info/<%= title.title_id %>"><img class="logo" src="/<%= title.title_id %>/cover.jpg"></a>
+<form action="/create/<%= title.title_id %>" method="post">
+<p>
+Scenario:<br>
+<select id="scenario" name="scenario">
+<% scenarios.forEach((scenario) => { %>
+<option value="<%= scenario %>"><%= scenario %></option>
+<% }); %>
+</select>
+<p>
+Description:<br>
+<input type="text" autocomplete="off" id="description" name="description" size="50">
+<p>
+<label>
+<input type="checkbox" id="private" name="private" value="private">
+<span>Private</span>
+</label>
+<p>
+<button type="submit">Create</button>
+</form>

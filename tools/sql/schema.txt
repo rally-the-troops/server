@@ -1,0 +1,86 @@
+CREATE TABLE IF NOT EXISTS users (
+	user_id INTEGER PRIMARY KEY,
+	name TEXT UNIQUE,
+	mail TEXT UNIQUE,
+	password TEXT,
+	salt TEXT,
+	ctime TIMESTAMP,
+	cip TEXT,
+	atime TIMESTAMP,
+	aip TEXT
+);
+
+CREATE TABLE IF NOT EXISTS blacklist_ip ( ip TEXT PRIMARY KEY );
+CREATE TABLE IF NOT EXISTS blacklist_mail ( mail TEXT PRIMARY KEY );
+
+CREATE TABLE IF NOT EXISTS titles (
+	title_id TEXT UNIQUE,
+	title_name TEXT,
+	bgg INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+	title_id TEXT,
+	role TEXT,
+	UNIQUE ( title_id, role )
+);
+
+CREATE TABLE IF NOT EXISTS games (
+	game_id INTEGER PRIMARY KEY,
+	title_id TEXT,
+	scenario TEXT,
+	owner INTEGER,
+	private BOOLEAN,
+	ctime TIMESTAMP,
+	mtime TIMESTAMP,
+	description TEXT,
+	status INTEGER,
+	active TEXT,
+	result TEXT,
+	state TEXT,
+	chat TEXT
+);
+
+CREATE TABLE IF NOT EXISTS players (
+	user_id INTEGER,
+	game_id INTEGER,
+	role TEXT,
+	UNIQUE ( game_id, user_id, role ),
+	UNIQUE ( game_id, role )
+);
+
+DROP TRIGGER IF EXISTS no_part_on_active_game;
+CREATE TRIGGER no_part_on_active_game BEFORE DELETE ON players
+BEGIN
+	SELECT CASE
+	WHEN ( SELECT status FROM games WHERE game_id = old.game_id ) > 0
+	THEN RAISE(ABORT, "Cannot remove players from started games.")
+	END;
+END;
+
+DROP TRIGGER IF EXISTS no_join_on_active_game;
+CREATE TRIGGER no_join_on_active_game BEFORE INSERT ON players
+BEGIN
+	SELECT CASE
+	WHEN ( SELECT status FROM games WHERE game_id = new.game_id ) > 0
+	THEN RAISE(ABORT, "Cannot add players to started games.")
+	END;
+END;
+
+DROP TRIGGER IF EXISTS must_be_valid_role;
+CREATE TRIGGER must_be_valid_role BEFORE INSERT ON players
+BEGIN
+	SELECT CASE
+	WHEN ( SELECT COUNT(*) FROM roles, games WHERE
+		roles.title_id = games.title_id AND
+		games.game_id = new.game_id AND
+		roles.role = new.role ) <> 1
+	THEN RAISE(ABORT, "Invalid role for that title.")
+	END;
+END;
+
+DROP TRIGGER IF EXISTS purge_players;
+CREATE TRIGGER purge_players AFTER DELETE ON games
+BEGIN
+	DELETE FROM players WHERE game_id = old.game_id;
+END;
