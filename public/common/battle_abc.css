@@ -40,6 +40,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;
+	margin: 10px;
 }
 
 .battle_separator {
@@ -51,7 +52,7 @@
 }
 
 .battle_menu {
-	padding: 5px;
+	width: 80px;
 }
 
 .battle_menu .action {
@@ -70,8 +71,10 @@
 .battle_menu_list {
 	margin-top: 5px;
 	min-height: 26px;
-	width: 78px;
+	width: 80px;
 	text-align: center;
+	font-size: 1px;
+	line-height: 1px;
 }
 
 .battle_reserves .battle_menu_list {
