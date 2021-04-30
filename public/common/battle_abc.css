@@ -1,0 +1,87 @@
+/* ABC BATTLE DISPLAY FOR COLUMBIA BLOCK GAMES */
+
+.battle {
+	position: absolute;
+	left: 100px;
+	top: 100px;
+	z-index: 50;
+	border-collapse: collapse;
+	border: 1px solid black;
+	background-color: white;
+	box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.5);
+	visibility: hidden;
+}
+.battle.show {
+	visibility: visible;
+}
+.battle th {
+	font-weight: normal;
+	padding: 0;
+	border: 1px solid black;
+}
+.battle td {
+	padding: 0;
+	border: 1px solid black;
+	vertical-align: top;
+}
+.battle .battle_header {
+	height: 2em;
+	line-height: 2em;
+	font-weight: bold;
+	user-select: none;
+	cursor: move;
+}
+.battle .battle_message {
+	height: 2em;
+	line-height: 2em;
+	padding: 0 8px;
+}
+#FA, #FB, #FC, #FD, #FR, #EA, #EB, #EC, #ED, #ER {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.battle_separator {
+	height: 15px;
+}
+
+.battle_menu .block {
+	margin: 0 auto;
+}
+
+.battle_menu {
+	padding: 5px;
+}
+
+.battle_menu .action {
+	width: 20px;
+	height: 20px;
+	border-radius: 5px;
+	padding: 3px;
+	display: none;
+}
+
+.battle_menu .action:hover {
+	background-color: red;
+	cursor: pointer;
+}
+
+.battle_menu_list {
+	margin-top: 5px;
+	min-height: 26px;
+	width: 78px;
+	text-align: center;
+}
+
+.battle_reserves .battle_menu_list {
+	display: none;
+}
+
+.battle_menu.fire .action.fire { display: inline; }
+.battle_menu.retreat .action.retreat { display: inline; }
+.battle_menu.pass .action.pass { display: inline; }
+.battle_menu.charge .action.charge { display: inline; }
+.battle_menu.treachery .action.treachery { display: inline; }
+.battle_menu.harry .action.harry { display: inline; }
+.battle_menu.hit .action.hit { display: inline; }
