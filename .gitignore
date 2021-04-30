@@ -1,0 +1,9 @@
+package-lock.json
+node_modules
+db
+sessions
+.env
+*.pem
+vassal
+tmp
+HIRES
