@@ -20,7 +20,7 @@ h2 { margin-left: -1px; }
 .header span { margin: 0 1em; }
 .header a { color: black; }
 .main { margin: 2em; }
-.main p { max-width: 50rem; }
+.main p, .main dl { max-width: 50rem; }
 .main hr { max-width: 50rem; margin-right: auto; margin-left: 0; }
 .main hr { border: none; border-top: 2px dotted brown; }
 .main hr + p { font-style: italic; }
