@@ -2,6 +2,7 @@ package-lock.json
 node_modules
 db
 sessions
+log
 .env
 *.pem
 vassal

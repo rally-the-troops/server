@@ -18,7 +18,7 @@ const SESSION_SECRET = "Caesar has a big head!";
 
 const MAX_OPEN_GAMES = 3;
 
-let sessionStore = new SQLiteStore();
+let session_store = new SQLiteStore();
 let db = new sqlite3(process.env.DATABASE || "./db");
 let app = express();
 let http_port = process.env.PORT || 8080;
@@ -36,6 +36,11 @@ let io = {
 	on: function (ev,fn) { io1.on(ev,fn); io2.on(ev,fn); },
 };
 
+const morgan = require('morgan');
+const rfs = require('rotating-file-stream');
+const log_file = rfs.createStream('access.log', { interval: '1d', path: 'log' });
+app.use(morgan('combined', {stream: log_file}));
+
 app.disable('etag');
 app.set('view engine', 'ejs');
 app.use(body_parser.urlencoded({extended:false}));
@@ -43,7 +48,7 @@ app.use(express_session({
 	secret: SESSION_SECRET,
 	resave: false,
 	saveUninitialized: true,
-	store: sessionStore,
+	store: session_store,
 	cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }
 }));
 app.use(connect_flash());
@@ -51,7 +56,7 @@ app.use(connect_flash());
 io.use(passport_socket.authorize({
 	key: 'connect.sid',
 	secret: SESSION_SECRET,
-	store: sessionStore,
+	store: session_store,
 }));
 
 const is_immutable = /\.(svg|png|jpg|jpeg|woff2)$/;
