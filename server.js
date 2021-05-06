@@ -919,13 +919,18 @@ io.on('connection', (socket) => {
 			socket.on('save', () => on_save(socket));
 			socket.on('restore', (state) => on_restore(socket, state));
 			socket.on('restart', (scenario) => {
-				let state = socket.rules.setup(scenario, players);
-				for (let other of clients[socket.game_id]) {
-					other.log_length = 0;
-					send_state(other, state);
+				try {
+					let state = socket.rules.setup(scenario, players);
+					for (let other of clients[socket.game_id]) {
+						other.log_length = 0;
+						send_state(other, state);
+					}
+					let state_text = JSON.stringify(state);
+					QUERY_RESTART_GAME.run(state_text, socket.game_id);
+				} catch (err) {
+					console.log(err);
+					return socket.emit('error', err.toString());
 				}
-				let state_text = JSON.stringify(state);
-				QUERY_RESTART_GAME.run(state_text, socket.game_id);
 			});
 		}
 
