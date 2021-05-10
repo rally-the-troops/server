@@ -1,5 +1,9 @@
 /* COMMON GRID LAYOUT */
 
+html {
+	image-rendering: -webkit-optimize-contrast; /* try to fix chromium's terrible image rescaling */
+}
+
 html, button, input, select {
 	font-family: "Source Sans", "Circled Numbers", "Dingbats", "Noto Emoji", "Verdana", sans-serif;
 	font-size: 16px;
