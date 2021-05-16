@@ -47,7 +47,8 @@ app.use(body_parser.urlencoded({extended:false}));
 app.use(express_session({
 	secret: SESSION_SECRET,
 	resave: false,
-	saveUninitialized: true,
+	rolling: true,
+	saveUninitialized: false,
 	store: session_store,
 	cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }
 }));
