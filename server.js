@@ -362,6 +362,8 @@ const QUERY_LIST_ONE_GAME = db.prepare(`
 		games.mtime,
 		games.description,
 		games.status,
+		games.private,
+		games.random,
 		games.result,
 		games.active
 	FROM games
@@ -433,7 +435,6 @@ const QUERY_LIST_ALL_GAMES = db.prepare(`
 
 const QUERY_PLAYERS = db.prepare(`
 	SELECT
-		players.game_id,
 		players.user_id,
 		players.role,
 		users.name
@@ -452,21 +453,22 @@ const QUERY_PLAYER_NAMES = db.prepare(`
 `).pluck();
 
 const QUERY_TITLE = db.prepare("SELECT * FROM titles WHERE title_id = ?");
-const QUERY_ROLES = db.prepare("SELECT * FROM roles WHERE title_id = ?");
+const QUERY_ROLES = db.prepare("SELECT role FROM roles WHERE title_id = ?").pluck();
 const QUERY_GAME_OWNER = db.prepare("SELECT * FROM games WHERE game_id = ? AND owner = ?");
 const QUERY_TITLE_FROM_GAME = db.prepare("SELECT title_id FROM games WHERE game_id = ?");
 const QUERY_ROLE_FROM_GAME_AND_USER = db.prepare("SELECT role FROM players WHERE game_id = ? AND user_id = ?");
 
 const QUERY_JOIN_GAME = db.prepare("INSERT INTO players (user_id, game_id, role) VALUES (?,?,?)");
 const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND user_id = ? AND role = ?");
-const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ? WHERE game_id = ?");
+const QUERY_START_GAME = db.prepare("UPDATE games SET random = 0, status = 1, state = ?, active = ? WHERE game_id = ?");
 const QUERY_CREATE_GAME = db.prepare(`
 	INSERT INTO games
-	(owner,title_id,scenario,private,ctime,mtime,description,status,state,chat)
+	(owner,title_id,scenario,private,random,ctime,mtime,description,status,state,chat)
 	VALUES
-	(?,?,?,?,datetime('now'),datetime('now'),?,0,NULL,'[]')
+	(?,?,?,?,?,datetime('now'),datetime('now'),?,0,NULL,'[]')
 `);
 const QUERY_UPDATE_GAME_SET_PRIVATE = db.prepare("UPDATE games SET private = 1 WHERE game_id = ?");
+const QUERY_ASSIGN_ROLE = db.prepare("UPDATE players SET role = ? WHERE game_id = ? AND user_id = ? AND role = ?");
 
 const QUERY_IS_PLAYER = db.prepare("SELECT COUNT(*) FROM players WHERE game_id = ? AND user_id = ?").pluck();
 const QUERY_IS_ACTIVE = db.prepare("SELECT COUNT(*) FROM players WHERE game_id = ? AND role = ? AND user_id = ?").pluck();
@@ -559,6 +561,7 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 	let title_id = req.params.title_id;
 	let descr = req.body.description;
 	let priv = req.body.private == 'private';
+	let rand = req.body.random == 'random';
 	let scenario = req.body.scenario;
 	let user_id = req.user.user_id;
 	LOG(req, "POST /create/" + req.params.title_id, scenario, priv, JSON.stringify(descr));
@@ -576,7 +579,7 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 			req.flash('message', "That scenario doesn't exist.");
 			return res.redirect('/create/'+title_id);
 		}
-		let info = QUERY_CREATE_GAME.run(user_id, title_id, scenario, priv ? 1 : 0, descr);
+		let info = QUERY_CREATE_GAME.run(user_id, title_id, scenario, priv ? 1 : 0, rand ? 1 : 0, descr);
 		res.redirect('/join/'+info.lastInsertRowid);
 	} catch (err) {
 		req.flash('message', err.toString());
@@ -610,6 +613,9 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 		return res.redirect('/');
 	}
 	let roles = QUERY_ROLES.all(game.title_id);
+	if (game.random)
+		for (let i = 0; i < roles.length; ++i)
+			roles[i] = "Random " + (i+1);
 	let players = QUERY_PLAYERS.all(game_id);
 	res.set("Cache-Control", "no-store");
 	res.render('join.ejs', {
@@ -649,6 +655,21 @@ app.get('/part/:game_id/:part_id/:role', must_be_logged_in, function (req, res) 
 	}
 });
 
+function assign_random_roles(game, players) {
+	function pick_random_item(list) {
+		let k = Math.floor(Math.random() * list.length);
+		let r = list[k];
+		list.splice(k, 1);
+		return r;
+	}
+	let roles = QUERY_ROLES.all(game.title_id);
+	for (let p of players) {
+		let old_role = p.role;
+		p.role = pick_random_item(roles);
+		QUERY_ASSIGN_ROLE.run(p.role, game.game_id, p.user_id, old_role);
+	}
+}
+
 app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /start/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
@@ -663,6 +684,8 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 			return res.redirect('/join/'+game_id);
 		}
 		let players = QUERY_PLAYERS.all(game_id);
+		if (game.random)
+			assign_random_roles(game, players);
 		let state = RULES[game.title_id].setup(game.scenario, players);
 		QUERY_START_GAME.run(JSON.stringify(state), state.active, game_id);
 		let is_solo = players.every(p => p.user_id == players[0].user_id);

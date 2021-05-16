@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS games (
 	scenario TEXT,
 	owner INTEGER,
 	private BOOLEAN,
+	random BOOLEAN,
 	ctime TIMESTAMP,
 	mtime TIMESTAMP,
 	description TEXT,
@@ -45,7 +46,6 @@ CREATE TABLE IF NOT EXISTS players (
 	user_id INTEGER,
 	game_id INTEGER,
 	role TEXT,
-	UNIQUE ( game_id, user_id, role ),
 	UNIQUE ( game_id, role )
 );
 
@@ -75,6 +75,12 @@ BEGIN
 		roles.title_id = games.title_id AND
 		games.game_id = new.game_id AND
 		roles.role = new.role ) <> 1
+	AND new.role <> 'Random 1'
+	AND new.role <> 'Random 2'
+	AND new.role <> 'Random 3'
+	AND new.role <> 'Random 4'
+	AND new.role <> 'Random 5'
+	AND new.role <> 'Random 6'
 	THEN RAISE(ABORT, "Invalid role for that title.")
 	END;
 END;

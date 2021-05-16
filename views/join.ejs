@@ -11,9 +11,11 @@ function confirm_delete(status) {
 
 <p>
 Owner: <%= game.owner_name %>
-<p>
+<br>
+Private: <%= game.private ? "yes" : "no" %>
+<br>
 Scenario: <%= game.scenario %>
-<p>
+<br>
 Description: <%= game.description || "No description." %>
 
 <br clear=left>
@@ -23,18 +25,18 @@ Description: <%= game.description || "No description." %>
 <tr>
 <%
 	roles.forEach((role) => {
-		%><th><%= role.role %><%
+		%><th><%= role %><%
 	});
 %>
 <tr>
 <%
 	roles.forEach((role) => {
-		if (game.active == role.role || game.active == "Both" || game.active == "All") {
+		if (game.active == role || game.active == "Both" || game.active == "All") {
 			%><td style="min-width:9em" class="your_turn"><%
 		} else {
 			%><td style="min-width:9em"><%
 		}
-		let p = players.find(p => p.role == role.role);
+		let p = players.find(p => p.role == role);
 		if (game.status == 0) {
 			if (p) {
 				if ((p.user_id == user.user_id) || (game.owner_id == user.user_id)) {
@@ -44,7 +46,7 @@ Description: <%= game.description || "No description." %>
 					%><%= p.name %><%
 				}
 			} else {
-				%><a href="/join/<%= game.game_id %>/<%= role.role %>">Join</a><%
+				%><a href="/join/<%= game.game_id %>/<%= role %>">Join</a><%
 			}
 		} else {
 			if (p) {
