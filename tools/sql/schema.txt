@@ -32,12 +32,12 @@ CREATE TABLE IF NOT EXISTS games (
 	owner INTEGER,
 	private BOOLEAN,
 	random BOOLEAN,
+	description TEXT,
 	ctime TIMESTAMP,
 	mtime TIMESTAMP,
-	description TEXT,
 	status INTEGER,
-	active TEXT,
 	result TEXT,
+	active TEXT,
 	state TEXT,
 	chat TEXT
 );
