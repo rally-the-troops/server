@@ -121,6 +121,16 @@ function clean_user_name(name) {
 	return name;
 }
 
+const USER_NAME_RE = /^[\p{Alpha}\p{Number}'_-]+( [\p{Alpha}\p{Number}'_-]+)*$/u;
+
+function is_valid_user_name(name) {
+	if (name.length < 2)
+		return false;
+	if (name.length > 50)
+		return false;
+	return USER_NAME_RE.test(name);
+}
+
 function hash_password(password, salt) {
 	let hash = crypto.createHash('sha256');
 	hash.update(password);
@@ -198,6 +208,8 @@ function local_signup(req, name, password, done) {
 	try {
 		let mail = req.body.mail;
 		name = clean_user_name(name);
+		if (!is_valid_user_name(name))
+			return done(null, false, req.flash('message', "Invalid user name!"));
 		LOG(req, "POST /signup", name, mail);
 		if (is_blacklisted(req.connection.remoteAddress, mail))
 			return setTimeout(() => done(null, false, req.flash('message', "Sorry, but this IP or account has been banned.")), 1000);
