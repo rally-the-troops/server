@@ -311,6 +311,20 @@ app.get('/users', function (req, res) {
 	res.render('users.ejs', { user: req.user, message: req.flash('message'), userList: rows });
 });
 
+const QUERY_STATS = db.prepare(`
+	SELECT title_name, scenario, result, count(*) AS count
+	FROM games
+	JOIN titles ON games.title_id=titles.title_id
+	WHERE status=2 AND private=0
+	GROUP BY title_name, scenario, result
+	`);
+
+app.get('/stats', function (req, res) {
+	LOG(req, "GET /stats");
+	let stats = QUERY_STATS.all();
+	res.render('stats.ejs', { user: req.user, message: req.flash('message'), stats: stats });
+});
+
 app.get('/change_password', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change_password");
 	res.render('change_password.ejs', { user: req.user, message: req.flash('message') });

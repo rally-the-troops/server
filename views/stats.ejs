@@ -1,0 +1,36 @@
+<%- include('header', { title: "Game Statistics" }) -%>
+<style>tr.blank{height:2rem;border:none;}</style>
+<table class="wide">
+<%
+	let total = {};
+	let results = {};
+	for (let { title_name, scenario, result, count } of stats) {
+		if (total[title_name] == undefined)
+			total[title_name] = {};
+		if (total[title_name][scenario] == undefined)
+			total[title_name][scenario] = 0;
+		total[title_name][scenario] += count;
+		if (results[title_name] == undefined)
+			results[title_name] = [];
+		if (!results[title_name].includes(result))
+			results[title_name].push(result);
+	}
+	let last_title = null;
+	let last_scenario = null;
+	for (let { title_name, scenario, result, count } of stats) {
+		if (title_name != last_title) {
+			if (last_title != null) {
+				%><tr class="blank"><%
+			}
+			%><tr><th><%= title_name %><%
+			results[title_name].forEach(item => { %><th><%= item %><% });
+		}
+		if (scenario != last_scenario) {
+			%><tr><td><%= scenario %> (<%= total[title_name][scenario] %>)<%
+		}
+		%><td><%= Math.round(count * 100 / total[title_name][scenario]) %>%<%
+		last_title = title_name;
+		last_scenario = scenario;
+	}
+%>
+</table>
