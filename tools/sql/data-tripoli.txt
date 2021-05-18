@@ -1,0 +1,3 @@
+INSERT OR REPLACE INTO titles VALUES ( 'shores-of-tripoli', 'The Shores of Tripoli', 237860 );
+INSERT OR REPLACE INTO roles VALUES ( 'shores-of-tripoli', 'Tripolitania' );
+INSERT OR REPLACE INTO roles VALUES ( 'shores-of-tripoli', 'United States' );
