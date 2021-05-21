@@ -318,8 +318,33 @@ function toggle_chat() {
 		show_chat();
 }
 
+function zoom_map() {
+	let grid = document.querySelector(".grid_center");
+	let mapwrap = document.querySelector(".mapwrap");
+	let map = document.querySelector(".map");
+	map.style.transform = 'none';
+	mapwrap.style.height = 'auto';
+	if (mapwrap.classList.contains("fit")) {
+		let { width: ww, height: wh } = mapwrap.getBoundingClientRect();
+		let { width: cw, height: ch } = map.getBoundingClientRect();
+		let scale = ww / cw;
+		if (scale < 1) {
+			map.style.transform = "scale(" + scale + ")";
+			mapwrap.style.height = (ch * scale) + "px";
+		}
+	}
+}
+
+window.addEventListener('resize', zoom_map);
+
+function toggle_zoom() {
+	document.querySelector(".mapwrap").classList.toggle('fit');
+	zoom_map();
+}
+
 function toggle_log() {
 	document.querySelector(".grid_window").classList.toggle("hide_log");
+	zoom_map();
 }
 
 function show_action_button(sel, action, use_label = false) {
