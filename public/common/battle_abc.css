@@ -63,10 +63,9 @@
 	display: none;
 }
 
-.battle_menu .action:hover {
-	background-color: red;
-	cursor: pointer;
-}
+.battle_menu .action:hover { background-color: red; }
+.battle_menu .action.retreat:hover { background-color: #eee; }
+.battle_menu .action.pass:hover { background-color: gray; }
 
 .battle_menu_list {
 	margin-top: 5px;
