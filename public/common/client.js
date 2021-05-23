@@ -335,11 +335,24 @@ function zoom_map() {
 	}
 }
 
-window.addEventListener('resize', zoom_map);
-
 function toggle_zoom() {
 	document.querySelector(".mapwrap").classList.toggle('fit');
 	zoom_map();
+}
+
+function init_map_zoom() {
+	window.addEventListener('resize', zoom_map);
+}
+
+function init_shift_zoom() {
+	window.addEventListener("keydown", (evt) => {
+		if (evt.key === "Shift")
+			document.querySelector("body").classList.add("shift");
+	});
+	window.addEventListener("keyup", (evt) => {
+		if (evt.key === "Shift")
+			document.querySelector("body").classList.remove("shift");
+	});
 }
 
 function toggle_log() {
