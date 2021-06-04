@@ -26,7 +26,7 @@ h2 { margin-left: -1px; }
 .main hr + p { font-style: italic; }
 table.wide { min-width: 50rem; }
 .error { color: brown; font-style: italic; white-space: pre-wrap; }
-.logo { float: left; margin: 0 20px 5px 0; box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5); }
+.logo { float: left; margin: 0 20px 5px 0; box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5); height: 150px; }
 table { border-collapse: collapse; }
 th { text-align: left; background-color: gainsboro; }
 th, td { border: 1px solid black; }
