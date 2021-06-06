@@ -189,7 +189,7 @@ function init_client(roles) {
 
 	socket.on('roles', (me, players) => {
 		console.log("ROLES", me, JSON.stringify(players));
-		player = me;
+		player = me.replace(/ /g, '_');
 		if (player == "Observer")
 			document.querySelector(".chat_button").style.display = "none";
 		document.querySelector(".grid_top").classList.add(player);
