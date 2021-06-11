@@ -207,9 +207,6 @@ html, body, div {
 .card.enabled {
 	cursor: pointer;
 }
-.card.enabled:hover {
-	transform: scale(1.1);
-}
 .card.disabled {
 	filter: grayscale(100%);
 }
