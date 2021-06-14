@@ -827,6 +827,8 @@ function on_resign(socket) {
 }
 
 function send_chat(socket, chat) {
+	if (socket.role == "Observer")
+		return;
 	if (chat && socket.chat_length < chat.length) {
 		SLOG(socket, "<-- CHAT LOG", socket.chat_length, "..", chat.length);
 		socket.emit('chat', socket.chat_length, chat.slice(socket.chat_length));
