@@ -175,7 +175,7 @@ html, body, div {
 .grid_top button {
 	margin: 0 10px;
 }
-.grid_top button.hide {
+.grid_top .hide {
 	display: none;
 }
 

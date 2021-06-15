@@ -501,6 +501,21 @@ const QUERY_IS_ACTIVE = db.prepare("SELECT COUNT(*) FROM players WHERE game_id =
 const QUERY_COUNT_OPEN_GAMES = db.prepare("SELECT COUNT(*) FROM games WHERE owner = ? AND status = 0").pluck();
 const QUERY_DELETE_GAME = db.prepare("DELETE FROM games WHERE game_id = ?");
 
+const QUERY_REMATCH_FIND = db.prepare(`
+	SELECT game_id FROM games WHERE status=0 AND description=?
+`).pluck();
+
+const QUERY_REMATCH_CREATE = db.prepare(`
+	INSERT INTO games
+		(owner, title_id, scenario, private, random, ctime, mtime, description, status, state, chat)
+	SELECT
+		$user_id, title_id, scenario, private, random, datetime('now'), datetime('now'), $magic, 0, NULL, '[]'
+	FROM games
+	WHERE game_id = $game_id AND NOT EXISTS (
+		SELECT * FROM games WHERE status=0 AND description=$magic
+	)
+`);
+
 app.get('/', function (req, res) {
 	res.render('index.ejs', { user: req.user, message: req.flash('message') });
 });
@@ -627,6 +642,25 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 	} catch (err) {
 		req.flash('message', err.toString());
 		return res.redirect('/join/'+game_id);
+	}
+});
+
+app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /rematch/" + req.params.old_game_id);
+	let old_game_id = req.params.old_game_id | 0;
+	try {
+		let magic = "\u{1F503} " + old_game_id;
+		let info = QUERY_REMATCH_CREATE.run({user_id: req.user.user_id, game_id: old_game_id, magic: magic});
+		if (info.changes == 1)
+			return res.redirect('/join/'+info.lastInsertRowid);
+		let new_game_id = QUERY_REMATCH_FIND.get(magic);
+		if (new_game_id)
+			return res.redirect('/join/'+new_game_id);
+		req.flash('message', "Can't create or find rematch game!");
+		return res.redirect('/join/'+old_game_id);
+	} catch (err) {
+		req.flash('message', err.toString());
+		return res.redirect('/join/'+old_game_id);
 	}
 });
 
@@ -776,7 +810,7 @@ function send_state(socket, state) {
 			view.log_start = view.log.length;
 		socket.log_length = view.log.length;
 		view.log = view.log.slice(view.log_start);
-		socket.emit('state', view);
+		socket.emit('state', view, state.state == 'game_over');
 	} catch (err) {
 		console.log(err);
 		return socket.emit('error', err.toString());

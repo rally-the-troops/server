@@ -1,4 +1,7 @@
+let game = null;
+let player = null;
 let socket = null;
+
 let chat_is_visible = false;
 let chat_text = null;
 let chat_key = null;
@@ -103,8 +106,8 @@ function add_chat_lines(log) {
 	}
 }
 
-function load_chat(game) {
-	chat_key = "chat/" + game;
+function load_chat(game_id) {
+	chat_key = "chat/" + game_id;
 	chat_text = document.querySelector(".chat_text");
 	chat_last_day = null;
 	chat_log = [];
@@ -137,9 +140,11 @@ function update_chat(log_start, log) {
 function init_client(roles) {
 	let params = new URLSearchParams(window.location.search);
 	let title = window.location.pathname.split("/")[1];
-	let game = params.get("game");
+	let game_id = params.get("game");
 	let role = params.get("role");
-	let player = null;
+
+	game = null;
+	player = null;
 
 	const ROLE_SEL = [
 		".role.one",
@@ -161,13 +166,13 @@ function init_client(roles) {
 		".role.seven .role_user",
 	];
 
-	load_chat(game);
+	load_chat(game_id);
 
-	console.log("JOINING game", game, "role", role);
+	console.log("JOINING game", game_id, "role", role);
 
 	socket = io({
 		transports: ['websocket'],
-		query: { title: title, game: game, role: role },
+		query: { title: title, game: game_id, role: role },
 	});
 
 	socket.on('connect', () => {
@@ -205,11 +210,13 @@ function init_client(roles) {
 		}
 	});
 
-	socket.on('state', (state) => {
+	socket.on('state', (state, game_over) => {
 		console.log("STATE");
-		on_update_log(state);
-		on_update_bar(state, player);
-		on_update(state, player);
+		game = state;
+		on_update_log();
+		on_update_bar();
+		on_update();
+		on_game_over(game_over);
 	});
 
 	socket.on('save', (msg) => {
@@ -264,22 +271,22 @@ function init_client(roles) {
 	drag_element_with_mouse(".chat_window", ".chat_header");
 }
 
-function on_update_bar(state, player) {
-	document.getElementById("prompt").textContent = state.prompt;
-	if (state.actions)
+function on_update_bar() {
+	document.getElementById("prompt").textContent = game.prompt;
+	if (game.actions)
 		document.querySelector(".grid_top").classList.add("your_turn");
 	else
 		document.querySelector(".grid_top").classList.remove("your_turn");
 }
 
-function on_update_log(state) {
+function on_update_log() {
 	let parent = document.getElementById("log");
-	let to_delete = parent.children.length - state.log_start;
+	let to_delete = parent.children.length - game.log_start;
 	while (to_delete > 0) {
 		parent.removeChild(parent.firstChild);
 		--to_delete;
 	}
-	for (let entry of state.log) {
+	for (let entry of game.log) {
 		let p = document.createElement("div");
 		p.textContent = entry;
 		parent.prepend(p);
@@ -410,4 +417,23 @@ function send_restore() {
 
 function send_restart(scenario) {
 	socket.emit('restart', scenario);
+}
+
+function on_game_over(game_over) {
+	if (player && player != "Observer") {
+		let rematch_button = document.querySelector("#rematch_button");
+		if (rematch_button)
+		{
+			if (game_over)
+				rematch_button.classList.remove("hide");
+			else
+				rematch_button.classList.add("hide");
+		}
+	}
+}
+
+function send_rematch() {
+	let params = new URLSearchParams(window.location.search);
+	let game = params.get("game");
+	window.location = '/rematch/' + game;
 }

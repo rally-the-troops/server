@@ -81,6 +81,9 @@ Description: <%= game.description || "No description." %>
 			%>Waiting for players to join the game.<%
 		}
 	}
+	if (game.status == 2 && players.some(p => p.user_id == user.user_id)) {
+		%><form action="/rematch/<%= game.game_id %>"><button type="submit">Rematch</button></form><%
+	}
 	if (game.owner_id == user.user_id && (game.status == 0 || solo)) {
 		%><p><br><button onclick="confirm_delete()">Delete</button><%
 	}
