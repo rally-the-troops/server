@@ -7,7 +7,15 @@ CREATE TABLE IF NOT EXISTS users (
 	ctime TIMESTAMP,
 	cip TEXT,
 	atime TIMESTAMP,
-	aip TEXT
+	aip TEXT,
+	notifications INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+	user_id INTEGER,
+	game_id INTEGER,
+	time TIMESTAMP,
+	UNIQUE ( user_id, game_id )
 );
 
 CREATE TABLE IF NOT EXISTS blacklist_ip ( ip TEXT PRIMARY KEY );
@@ -89,4 +97,5 @@ DROP TRIGGER IF EXISTS purge_players;
 CREATE TRIGGER purge_players AFTER DELETE ON games
 BEGIN
 	DELETE FROM players WHERE game_id = old.game_id;
+	DELETE FROM notifications WHERE game_id = old.game_id;
 END;

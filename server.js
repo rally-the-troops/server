@@ -36,6 +36,18 @@ let io = {
 	on: function (ev,fn) { io1.on(ev,fn); io2.on(ev,fn); },
 };
 
+let mailer = null;
+if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
+	mailer = require('nodemailer').createTransport({
+		host: process.env.MAIL_HOST,
+		port: process.env.MAIL_PORT,
+		ignoreTLS: true
+	});
+	console.log("Mail notifications enabled: ", mailer.options);
+} else {
+	console.log("Mail notifications disabled.");
+}
+
 const morgan = require('morgan');
 const rfs = require('rotating-file-stream');
 const log_file = rfs.createStream('access.log', { interval: '1d', path: 'log' });
@@ -160,9 +172,12 @@ function is_blacklisted(ip, mail) {
 	return false;
 }
 
-const sql_deserialize_user = db.prepare("SELECT user_id, name, mail FROM users WHERE user_id = ?");
+const sql_deserialize_user = db.prepare("SELECT user_id, name, mail, notifications FROM users WHERE user_id = ?");
 const sql_update_last_seen = db.prepare("UPDATE users SET aip = ?, atime = datetime('now') WHERE user_id = ?");
 const sql_login_select = db.prepare("SELECT user_id, name, mail, password, salt FROM users WHERE name = ? OR mail = ?");
+
+const sql_subscribe = db.prepare("UPDATE users SET notifications = 1 WHERE user_id = ?");
+const sql_unsubscribe = db.prepare("UPDATE users SET notifications = 0 WHERE user_id = ?");
 
 passport.serializeUser(function (user, done) {
 	return done(null, user.user_id);
@@ -201,7 +216,7 @@ function local_login(req, name_or_mail, password, done) {
 }
 
 const sql_signup_check = db.prepare("SELECT user_id, name FROM users WHERE name = ? OR mail = ?");
-const sql_signup_insert = db.prepare("INSERT INTO users (name, mail, password, salt, ctime, cip, atime, aip) VALUES (?,?,?,?,datetime('now'),?,datetime('now'),?)");
+const sql_signup_insert = db.prepare("INSERT INTO users (name, mail, password, salt, ctime, cip, atime, aip, notifications) VALUES (?,?,?,?,datetime('now'),?,datetime('now'),?,0)");
 const sql_signup_login = db.prepare("SELECT user_id, name FROM users WHERE name = ? AND password = ?");
 
 function local_signup(req, name, password, done) {
@@ -330,6 +345,18 @@ app.get('/change_password', must_be_logged_in, function (req, res) {
 	res.render('change_password.ejs', { user: req.user, message: req.flash('message') });
 });
 
+app.get('/subscribe', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /subscribe");
+	sql_subscribe.run(req.user.user_id);
+	res.redirect('/profile');
+});
+
+app.get('/unsubscribe', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /unsubscribe");
+	sql_unsubscribe.run(req.user.user_id);
+	res.redirect('/profile');
+});
+
 app.post('/change_password', must_be_logged_in, function (req, res) {
 	try {
 		let name = clean_user_name(req.user.name);
@@ -367,10 +394,13 @@ app.post('/change_password', must_be_logged_in, function (req, res) {
  */
 
 let RULES = {};
+let PLAYER_COUNT = {};
+let QUERY_PLAYER_COUNT = db.prepare("SELECT COUNT(*) FROM roles WHERE title_id = ?").pluck();
 for (let title_id of db.prepare("SELECT * FROM titles").pluck().all()) {
 	console.log("Loading rules for " + title_id);
 	try {
 		RULES[title_id] = require("./public/" + title_id + "/rules.js");
+		PLAYER_COUNT[title_id] = QUERY_PLAYER_COUNT.get(title_id);
 	} catch (err) {
 		console.log(err);
 	}
@@ -469,6 +499,18 @@ const QUERY_PLAYERS = db.prepare(`
 	WHERE players.game_id = ?
 `);
 
+const QUERY_PLAYERS_FULL = db.prepare(`
+	SELECT
+		players.user_id,
+		players.role,
+		users.name,
+		users.mail,
+		users.notifications
+	FROM players
+	JOIN users ON players.user_id = users.user_id
+	WHERE players.game_id = ?
+`);
+
 const QUERY_PLAYER_NAMES = db.prepare(`
 	SELECT
 		users.name AS name
@@ -481,8 +523,9 @@ const QUERY_PLAYER_NAMES = db.prepare(`
 const QUERY_TITLE = db.prepare("SELECT * FROM titles WHERE title_id = ?");
 const QUERY_ROLES = db.prepare("SELECT role FROM roles WHERE title_id = ?").pluck();
 const QUERY_GAME_OWNER = db.prepare("SELECT * FROM games WHERE game_id = ? AND owner = ?");
-const QUERY_TITLE_FROM_GAME = db.prepare("SELECT title_id FROM games WHERE game_id = ?");
-const QUERY_ROLE_FROM_GAME_AND_USER = db.prepare("SELECT role FROM players WHERE game_id = ? AND user_id = ?");
+const QUERY_TITLE_FROM_GAME = db.prepare("SELECT title_id FROM games WHERE game_id = ?").pluck();
+const QUERY_ROLE_FROM_GAME_AND_USER = db.prepare("SELECT role FROM players WHERE game_id = ? AND user_id = ?").pluck();
+const QUERY_IS_SOLO = db.prepare("SELECT COUNT(DISTINCT user_id) = 1 FROM players WHERE game_id = ?").pluck();
 
 const QUERY_JOIN_GAME = db.prepare("INSERT INTO players (user_id, game_id, role) VALUES (?,?,?)");
 const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND user_id = ? AND role = ?");
@@ -766,7 +809,7 @@ app.get('/play/:game_id/:role', must_be_logged_in, function (req, res) {
 		let title = QUERY_TITLE_FROM_GAME.get(game_id);
 		if (!title)
 			return res.redirect('/join/'+game_id);
-		res.redirect('/'+title.title_id+'/play.html?game='+game_id+'&role='+role);
+		res.redirect('/'+title+'/play.html?game='+game_id+'&role='+role);
 	} catch (err) {
 		req.flash('message', err.toString());
 		return res.redirect('/join/'+game_id);
@@ -781,12 +824,136 @@ app.get('/play/:game_id', must_be_logged_in, function (req, res) {
 		let role = QUERY_ROLE_FROM_GAME_AND_USER.get(game_id, user_id);
 		if (!role)
 			return res.redirect('/play/'+game_id+'/Observer');
-		return res.redirect('/play/'+game_id+'/'+role.role);
+		return res.redirect('/play/'+game_id+'/'+role);
 	} catch (err) {
 		req.flash('message', err.toString());
 		return res.redirect('/join/'+game_id);
 	}
 });
+
+/*
+ * MAIL NOTIFICATIONS
+ */
+
+const MAIL_FROM = process.env.MAIL_FROM || "Rally the Troops! <noreply@rally-the-troops.com>";
+const MAIL_FOOTER = "\nYou can disable mail notifications on your profile page.\n\nhttps://rally-the-troops.com/profile";
+
+const sql_notify_too_soon = db.prepare("SELECT datetime('now') < datetime(time, ?) FROM notifications WHERE user_id = ? AND game_id = ?").pluck();
+const sql_notify_update = db.prepare("INSERT OR REPLACE INTO notifications VALUES ( ?, ?, datetime('now') )");
+const sql_offline_user = db.prepare("SELECT * FROM users WHERE user_id = ? AND datetime('now') > datetime(atime, ?)");
+
+const QUERY_LIST_YOUR_TURN = db.prepare(`
+	SELECT games.game_id, games.title_id, players.user_id, users.name, users.mail, users.notifications
+	FROM games
+	JOIN players ON games.game_id = players.game_id AND ( games.active = players.role OR games.active = 'All' OR games.active = 'Both' )
+	JOIN users ON users.user_id = players.user_id
+	WHERE games.status = 1 AND datetime('now') > datetime(games.mtime, '+1 hour')
+`);
+
+const QUERY_LIST_READY_TO_START = db.prepare(`
+	SELECT games.game_id, games.title_id, games.owner, COUNT(*) AS joined
+	FROM games
+	JOIN players ON games.game_id = players.game_id
+	WHERE games.status = 0
+	GROUP BY games.game_id
+`);
+
+function mail_callback(err, info) {
+	console.log("MAIL SENT", err, info);
+}
+
+function mail_your_turn_notification(user, game_id, interval) {
+	let too_soon = sql_notify_too_soon.get(interval, user.user_id, game_id);
+	console.log("YOUR TURN (OFFLINE):", game_id, user.name, user.mail, too_soon);
+	if (!too_soon) {
+		sql_notify_update.run(user.user_id, game_id);
+		let game = QUERY_LIST_ONE_GAME.get(game_id);
+		let subject = game.title_name + " - " + game_id + " - Your turn!";
+		let body = "Go to game:\n\nhttps://rally-the-troops.com/play/" + game_id + "\n" + MAIL_FOOTER;
+		mailer.sendMail({ from: MAIL_FROM, to: user.mail, subject: subject, text: body }, mail_callback);
+	}
+}
+
+function reset_your_turn_notification(user, game_id) {
+	console.log("YOUR TURN (ONLINE):", game_id, user.name, user.mail);
+	sql_notify_update.run(user.user_id, game_id);
+}
+
+function mail_ready_to_start_notification(user, game_id, interval) {
+	let too_soon = sql_notify_too_soon.get(interval, user.user_id, game_id);
+	console.log("READY TO START:", game_id, user.name, user.mail, too_soon);
+	if (!too_soon) {
+		sql_notify_update.run(user.user_id, game_id);
+		let game = QUERY_LIST_ONE_GAME.get(game_id);
+		let subject = game.title_name + " - " + game_id + " - Ready to start!";
+		let body = "Go to game:\n\nhttps://rally-the-troops.com/join/" + game_id + "\n" + MAIL_FOOTER;
+		mailer.sendMail({ from: MAIL_FROM, to: user.mail, subject: subject, text: body }, mail_callback);
+	}
+}
+
+function mail_your_turn_notification_to_offline_users(game_id, old_active, new_active) {
+	if (!mailer)
+		return;
+	if (new_active == old_active)
+		return;
+
+	function is_active(active, role) {
+		return active == "Both" || active == "All" || active == role;
+	}
+
+	function is_online(game_id, user_id) {
+		for (let other of clients[game_id])
+			if (other.user_id == user_id)
+				return true;
+		return false;
+	}
+
+	let users = {};
+	let online = {};
+	for (let p of QUERY_PLAYERS_FULL.all(game_id)) {
+		if (p.notifications && !is_active(old_active, p.role) && is_active(new_active, p.role)) {
+			users[p.user_id] = p;
+			if (is_online(game_id, p.user_id))
+				online[p.user_id] = 1;
+		}
+	}
+
+	for (let u in users) {
+		if (online[u])
+			reset_your_turn_notification(users[u], game_id);
+		else
+			mail_your_turn_notification(users[u], game_id, '+1 minute');
+	}
+}
+
+function notify_your_turn_reminder() {
+	for (let item of QUERY_LIST_YOUR_TURN.all()) {
+		if (!QUERY_IS_SOLO.get(item.game_id)) {
+			console.log("REMINDER: YOUR TURN", item.title_id, item.game_id, item.name, item.mail, item.notifications);
+			if (item.notifications)
+				mail_your_turn_notification(item, item.game_id, '+25 hours');
+		}
+	}
+}
+
+function notify_ready_to_start_reminder() {
+	for (let game of QUERY_LIST_READY_TO_START.all()) {
+		if (game.joined == PLAYER_COUNT[game.title_id]) {
+			let owner = sql_offline_user.get(game.owner, '+3 minutes');
+			if (owner) {
+				console.log("REMINDER: READY TO START", game.title_id, game.game_id, owner.name, owner.mail, owner.notifications);
+				if (owner.notifications)
+					mail_ready_to_start_notification(owner, game.game_id, '+25 hours');
+			}
+		}
+	}
+}
+
+// Check and send 'your turn' reminders quarterly.
+setInterval(notify_your_turn_reminder, 15 * 60 * 1000);
+
+// Check and send ready to start notifications once a minute.
+setInterval(notify_ready_to_start_reminder, 60 * 1000);
 
 /*
  * GAME PLAYING
@@ -824,7 +991,7 @@ function get_game_state(game_id) {
 	return JSON.parse(row.state);
 }
 
-function put_game_state(game_id, state) {
+function put_game_state(game_id, state, old_active) {
 	let status = 1;
 	let result = null;
 	if (state.state == 'game_over') {
@@ -834,14 +1001,16 @@ function put_game_state(game_id, state) {
 	QUERY_UPDATE_GAME_STATE.run(JSON.stringify(state), state.active, status, result, game_id);
 	for (let other of clients[game_id])
 		send_state(other, state);
+	mail_your_turn_notification_to_offline_users(game_id, old_active, state.active);
 }
 
 function on_action(socket, action, arg) {
 	SLOG(socket, "--> ACTION", action, arg);
 	try {
 		let state = get_game_state(socket.game_id);
+		let old_active = state.active;
 		socket.rules.action(state, socket.role, action, arg);
-		put_game_state(socket.game_id, state);
+		put_game_state(socket.game_id, state, old_active);
 	} catch (err) {
 		console.log(err);
 		return socket.emit('error', err.toString());
@@ -852,8 +1021,9 @@ function on_resign(socket) {
 	SLOG(socket, "--> RESIGN");
 	try {
 		let state = get_game_state(socket.game_id);
+		let old_active = state.active;
 		socket.rules.resign(state, socket.role);
-		put_game_state(socket.game_id, state);
+		put_game_state(socket.game_id, state, old_active);
 	} catch (err) {
 		console.log(err);
 		return socket.emit('error', err.toString());

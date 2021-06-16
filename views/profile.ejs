@@ -13,6 +13,15 @@ Your mail address is <%= user.mail %>.
 <br clear=left>
 
 <p>
+<%
+	if (user.notifications) {
+		%><a href="/unsubscribe">Disable mail notifications</a><%
+	} else {
+		%><a href="/subscribe">Enable mail notifications</a><%
+	}
+%>
+
+<p>
 <a href="/change_password">Change password</a>
 
 <p>
