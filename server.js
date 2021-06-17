@@ -286,7 +286,7 @@ app.get('/signup', function (req, res) {
 
 app.post('/login',
 	passport.authenticate('local-login', {
-		successRedirect: '/',
+		successRedirect: '/profile',
 		failureRedirect: '/login',
 		failureFlash: true
 	})
@@ -294,7 +294,7 @@ app.post('/login',
 
 app.post('/signup',
 	passport.authenticate('local-signup', {
-		successRedirect: '/',
+		successRedirect: '/profile',
 		failureRedirect: '/signup',
 		failureFlash: true
 	})
