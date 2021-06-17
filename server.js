@@ -486,7 +486,7 @@ const QUERY_ROLE_FROM_GAME_AND_USER = db.prepare("SELECT role FROM players WHERE
 
 const QUERY_JOIN_GAME = db.prepare("INSERT INTO players (user_id, game_id, role) VALUES (?,?,?)");
 const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND user_id = ? AND role = ?");
-const QUERY_START_GAME = db.prepare("UPDATE games SET random = 0, status = 1, state = ?, active = ? WHERE game_id = ?");
+const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ? WHERE game_id = ?");
 const QUERY_CREATE_GAME = db.prepare(`
 	INSERT INTO games
 	(owner,title_id,scenario,private,random,ctime,mtime,description,status,state,chat)
@@ -673,7 +673,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 		return res.redirect('/');
 	}
 	let roles = QUERY_ROLES.all(game.title_id);
-	if (game.random)
+	if (game.random && game.status == 0)
 		for (let i = 0; i < roles.length; ++i)
 			roles[i] = "Random " + (i+1);
 	let players = QUERY_PLAYERS.all(game_id);
