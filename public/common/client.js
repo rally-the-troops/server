@@ -349,6 +349,7 @@ function toggle_zoom() {
 
 function init_map_zoom() {
 	window.addEventListener('resize', zoom_map);
+	zoom_map();
 }
 
 function init_shift_zoom() {
