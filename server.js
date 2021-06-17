@@ -447,6 +447,26 @@ const QUERY_LIST_PUBLIC_GAMES = db.prepare(`
 	ORDER BY status ASC, mtime DESC
 `);
 
+const QUERY_LIST_OPEN_GAMES = db.prepare(`
+	SELECT
+		games.game_id,
+		games.title_id AS title_id,
+		games.scenario AS scenario,
+		games.owner AS owner_id,
+		users.name AS owner_name,
+		games.ctime,
+		games.mtime,
+		games.description,
+		games.status,
+		games.result,
+		games.active,
+		titles.title_name
+	FROM games
+	LEFT JOIN users ON games.owner = users.user_id
+	LEFT JOIN titles ON games.title_id = titles.title_id
+	WHERE private = 0 AND status < 2
+`);
+
 const QUERY_LIST_USER_GAMES = db.prepare(`
 	SELECT DISTINCT
 		games.game_id,
@@ -588,6 +608,24 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 		open_games: open_games,
 		active_games: active_games,
 		finished_games: finished_games,
+		message: req.flash('message')
+	});
+});
+
+app.get('/games', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /join");
+	let games = QUERY_LIST_OPEN_GAMES.all();
+	humanize(games);
+	for (let game of games) {
+		game.players = QUERY_PLAYER_NAMES.all(game.game_id);
+		game.your_turn = is_your_turn(game, req.user);
+	}
+	let open_games = games.filter(game => game.status == 0);
+	let active_games = games.filter(game => game.status == 1);
+	res.set("Cache-Control", "no-store");
+	res.render('games.ejs', { user: req.user,
+		open_games: open_games,
+		active_games: active_games,
 		message: req.flash('message')
 	});
 });
