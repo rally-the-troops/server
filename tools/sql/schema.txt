@@ -18,6 +18,12 @@ CREATE TABLE IF NOT EXISTS notifications (
 	UNIQUE ( user_id, game_id )
 );
 
+CREATE TABLE IF NOT EXISTS forgot_password (
+	user_id INTEGER PRIMARY KEY,
+	token TEXT,
+	time TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS blacklist_ip ( ip TEXT PRIMARY KEY );
 CREATE TABLE IF NOT EXISTS blacklist_mail ( mail TEXT PRIMARY KEY );
 

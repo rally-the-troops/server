@@ -357,9 +357,114 @@ app.get('/unsubscribe', must_be_logged_in, function (req, res) {
 	res.redirect('/profile');
 });
 
+/*
+ * FORGOT AND CHANGE PASSWORD
+ */
+
+const sql_select_salt = db.prepare("SELECT salt FROM users WHERE user_id = ?").pluck();
+const sql_find_user_by_mail = db.prepare("SELECT user_id FROM users WHERE mail = ?").pluck();
+
+const sql_find_forgot_password_token = db.prepare(`
+	SELECT token FROM forgot_password WHERE user_id = ? AND datetime('now') < datetime(time, '+5 minutes')
+	`).pluck();
+const sql_verify_forgot_password_token = db.prepare(`
+	SELECT COUNT(*) FROM forgot_password WHERE user_id = ? AND datetime('now') < datetime(time, '+20 minutes') AND token = ?
+	`).pluck();
+const sql_create_forgot_password_token = db.prepare(`
+	INSERT OR REPLACE INTO forgot_password VALUES ( ?, lower(hex(randomblob(16))), datetime('now') )
+	`);
+
+app.get('/forgot_password', function (req, res) {
+	LOG(req, "GET /forgot_password");
+	res.render('forgot_password.ejs', { user: req.user, message: req.flash('message') });
+});
+
+app.get('/reset_password', function (req, res) {
+	LOG(req, "GET /reset_password");
+	res.render('reset_password.ejs', { user: null, mail: "", token: "", message: req.flash('message') });
+});
+
+app.get('/reset_password/:mail', function (req, res) {
+	let mail = req.params.mail;
+	LOG(req, "GET /reset_password", mail);
+	res.render('reset_password.ejs', { user: null, mail: mail, token: "", message: req.flash('message') });
+});
+
+app.get('/reset_password/:mail/:token', function (req, res) {
+	let mail = req.params.mail;
+	let token = req.params.token;
+	LOG(req, "GET /reset_password", mail, token);
+	res.render('reset_password.ejs', { user: null, mail: mail, token: token, message: req.flash('message') });
+});
+
+app.post('/forgot_password', function (req, res) {
+	LOG(req, "POST /forgot_password");
+	try {
+		if (sql_blacklist_ip.get(req.connection.remoteAddress)[0] != 0)
+			return res.redirect('/banned');
+		let mail = req.body.mail;
+		let user_id = sql_find_user_by_mail.get(mail);
+		if (user_id) {
+			let token = sql_find_forgot_password_token.get(user_id);
+			if (!token) {
+				sql_create_forgot_password_token.run(user_id);
+				token = sql_find_forgot_password_token.get(user_id);
+				console.log("FORGOT - create and mail token", token);
+				mail_password_reset_token(mail, token);
+			} else {
+				console.log("FORGOT - existing token - ignore request", token);
+			}
+			req.flash('message', "A password reset token has been sent to " + mail + ".");
+			if (is_email(mail))
+				return res.redirect('/reset_password/' + mail);
+			return res.redirect('/reset_password/');
+		}
+		req.flash('message', "User not found.");
+		return res.redirect('/forgot_password');
+	} catch (err) {
+		console.log(err);
+		req.flash('message', err.message);
+		return res.redirect('/forgot_password');
+	}
+});
+
+app.post('/reset_password', function (req, res) {
+	let mail = req.body.mail;
+	let token = req.body.token;
+	let password = req.body.password;
+	try {
+		LOG(req, "POST /reset_password", mail, token);
+		let user_id = sql_find_user_by_mail.get(mail);
+		if (!user_id) {
+			req.flash('message', "User not found.");
+			return res.redirect('/reset_password/'+mail+'/'+token);
+		}
+		if (password.length < 4) {
+			req.flash('message', "Password is too short!");
+			return res.redirect('/reset_password/'+mail+'/'+token);
+		}
+		if (!sql_verify_forgot_password_token.get(user_id, token)) {
+			req.flash('message', "Invalid or expired token!");
+			return res.redirect('/reset_password/'+mail);
+		}
+		let salt = sql_select_salt.get(user_id);
+		if (!salt) {
+			req.flash('message', "User not found.");
+			return res.redirect('/reset_password/'+mail+'/'+token);
+		}
+		let hash = hash_password(password, salt);
+		db.prepare("UPDATE users SET password = ? WHERE user_id = ?").run(hash, user_id);
+		req.flash('message', "Your password has been updated.");
+		return res.redirect('/login');
+	} catch (err) {
+		console.log(err);
+		req.flash('message', err.message);
+		return res.redirect('/reset_password/'+mail+'/'+token);
+	}
+});
+
 app.post('/change_password', must_be_logged_in, function (req, res) {
 	try {
-		let name = clean_user_name(req.user.name);
 		let password = req.body.password;
 		let newpass = req.body.newpass;
 		LOG(req, "POST /change_password", name);
@@ -367,12 +472,11 @@ app.post('/change_password', must_be_logged_in, function (req, res) {
 			req.flash('message', "Password is too short!");
 			return res.redirect('/change_password');
 		}
-		let salt_row = db.prepare("SELECT salt FROM users WHERE name = ?").get(name);
-		if (!salt_row) {
+		let salt = sql_select_salt.get(req.user.user_id);
+		if (!salt) {
 			req.flash('message', "User not found.");
 			return res.redirect('/change_password');
 		}
-		let salt = salt_row.salt;
 		let hash = hash_password(password, salt);
 		let user_row = db.prepare("SELECT user_id, name FROM users WHERE name = ? AND password = ?").get(name, hash);
 		if (!user_row) {
@@ -381,6 +485,7 @@ app.post('/change_password', must_be_logged_in, function (req, res) {
 		}
 		hash = hash_password(newpass, salt);
 		db.prepare("UPDATE users SET password = ? WHERE user_id = ?").run(hash, user_row.user_id);
+		req.flash('message', "Your password has been updated.");
 		return res.redirect('/profile');
 	} catch (err) {
 		console.log(err);
@@ -898,6 +1003,14 @@ const QUERY_LIST_READY_TO_START = db.prepare(`
 
 function mail_callback(err, info) {
 	console.log("MAIL SENT", err, info);
+}
+
+function mail_password_reset_token(mail, token) {
+	let subject = "Rally the Troops - Password reset request";
+	let body = "Your password reset token is: " + token + "\n\n";
+	body += "https://rally-the-troops.com/reset_password/" + mail + "/" + token + "\n\n"
+	body += "If you did not request a password reset you can ignore this mail.\n\n";
+	mailer.sendMail({ from: MAIL_FROM, to: mail, subject: subject, text: body }, mail_callback);
 }
 
 function mail_your_turn_notification(user, game_id, interval) {
