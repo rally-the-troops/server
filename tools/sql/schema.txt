@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
 	user_id INTEGER PRIMARY KEY,
-	name TEXT UNIQUE,
-	mail TEXT UNIQUE,
+	name TEXT UNIQUE COLLATE NOCASE,
+	mail TEXT UNIQUE COLLATE NOCASE,
 	password TEXT,
 	salt TEXT,
 	ctime TIMESTAMP,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 	UNIQUE ( user_id, game_id )
 );
 
-CREATE TABLE IF NOT EXISTS forgot_password (
+CREATE TABLE IF NOT EXISTS tokens (
 	user_id INTEGER PRIMARY KEY,
 	token TEXT,
 	time TIMESTAMP

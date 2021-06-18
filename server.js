@@ -364,14 +364,14 @@ app.get('/unsubscribe', must_be_logged_in, function (req, res) {
 const sql_select_salt = db.prepare("SELECT salt FROM users WHERE user_id = ?").pluck();
 const sql_find_user_by_mail = db.prepare("SELECT user_id FROM users WHERE mail = ?").pluck();
 
-const sql_find_forgot_password_token = db.prepare(`
-	SELECT token FROM forgot_password WHERE user_id = ? AND datetime('now') < datetime(time, '+5 minutes')
+const sql_find_token = db.prepare(`
+	SELECT token FROM tokens WHERE user_id = ? AND datetime('now') < datetime(time, '+5 minutes')
 	`).pluck();
-const sql_verify_forgot_password_token = db.prepare(`
-	SELECT COUNT(*) FROM forgot_password WHERE user_id = ? AND datetime('now') < datetime(time, '+20 minutes') AND token = ?
+const sql_verify_token = db.prepare(`
+	SELECT COUNT(*) FROM tokens WHERE user_id = ? AND datetime('now') < datetime(time, '+20 minutes') AND token = ?
 	`).pluck();
-const sql_create_forgot_password_token = db.prepare(`
-	INSERT OR REPLACE INTO forgot_password VALUES ( ?, lower(hex(randomblob(16))), datetime('now') )
+const sql_create_token = db.prepare(`
+	INSERT OR REPLACE INTO tokens VALUES ( ?, lower(hex(randomblob(16))), datetime('now') )
 	`);
 
 app.get('/forgot_password', function (req, res) {
@@ -405,10 +405,10 @@ app.post('/forgot_password', function (req, res) {
 		let mail = req.body.mail;
 		let user_id = sql_find_user_by_mail.get(mail);
 		if (user_id) {
-			let token = sql_find_forgot_password_token.get(user_id);
+			let token = sql_find_token.get(user_id);
 			if (!token) {
-				sql_create_forgot_password_token.run(user_id);
-				token = sql_find_forgot_password_token.get(user_id);
+				sql_create_token.run(user_id);
+				token = sql_find_token.get(user_id);
 				console.log("FORGOT - create and mail token", token);
 				mail_password_reset_token(mail, token);
 			} else {
@@ -443,7 +443,7 @@ app.post('/reset_password', function (req, res) {
 			req.flash('message', "Password is too short!");
 			return res.redirect('/reset_password/'+mail+'/'+token);
 		}
-		if (!sql_verify_forgot_password_token.get(user_id, token)) {
+		if (!sql_verify_token.get(user_id, token)) {
 			req.flash('message', "Invalid or expired token!");
 			return res.redirect('/reset_password/'+mail);
 		}
