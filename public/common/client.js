@@ -425,14 +425,17 @@ function send_action(verb, noun) {
 			game.actions = null;
 			console.log("SEND ACTION", verb, noun);
 			socket.emit('action', verb, noun);
+			return true;
 		}
 	} else {
 		if (game.actions && game.actions[verb]) {
 			game.actions = null;
 			console.log("SEND ACTION", verb, noun);
 			socket.emit('action', verb);
+			return true;
 		}
 	}
+	return false;
 }
 
 function send_save() {
