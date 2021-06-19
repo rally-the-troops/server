@@ -17,6 +17,10 @@ html, button, input, select {
 	font-family: "Source Serif SmText", "Circled Numbers", "Dingbats", "Noto Emoji", "Georgia", serif;
 }
 
+body:not(.shift) .debug {
+	display: none;
+}
+
 html, body, div {
 	margin: 0;
 	padding: 0;
