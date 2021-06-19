@@ -680,7 +680,7 @@ const QUERY_REMATCH_CREATE = db.prepare(`
 		$user_id, title_id, scenario, private, random, datetime('now'), datetime('now'), $magic, 0, NULL, '[]'
 	FROM games
 	WHERE game_id = $game_id AND NOT EXISTS (
-		SELECT * FROM games WHERE status=0 AND description=$magic
+		SELECT * FROM games WHERE description=$magic
 	)
 `);
 
