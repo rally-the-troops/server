@@ -73,6 +73,29 @@ function drag_element_with_mouse(element_sel, grabber_sel) {
 	grabber.addEventListener('mousedown', md);
 }
 
+/* YOUR TURN BLINKER */
+
+let is_your_turn = false;
+let your_turn_timer = 0;
+let your_turn_title = document.title;
+
+function start_your_turn_blinker() {
+	let tick = true;
+	if (!document.hasFocus()) {
+		your_turn_timer = setInterval(function () {
+			document.title = tick ? "YOUR TURN" : your_turn_title;
+			tick = !tick;
+		}, 1000);
+	}
+}
+
+function stop_your_turn_blinker() {
+	document.title = your_turn_title;
+	clearInterval(your_turn_timer);
+}
+
+window.addEventListener("focus", stop_your_turn_blinker);
+
 function add_chat_lines(log) {
 	function format_time(date) {
 		let mm = date.getMinutes();
@@ -273,10 +296,16 @@ function init_client(roles) {
 
 function on_update_bar() {
 	document.getElementById("prompt").textContent = game.prompt;
-	if (game.actions)
+	if (game.actions) {
 		document.querySelector(".grid_top").classList.add("your_turn");
-	else
+		if (!is_your_turn)
+			start_your_turn_blinker();
+		is_your_turn = true;
+	} else {
 		document.querySelector(".grid_top").classList.remove("your_turn");
+		stop_your_turn_blinker();
+		is_your_turn = false;
+	}
 }
 
 function on_update_log() {
