@@ -87,3 +87,6 @@
 .battle_menu.treachery .action.treachery { display: inline; }
 .battle_menu.harry .action.harry { display: inline; }
 .battle_menu.hit .action.hit { display: inline; }
+.battle_menu.withdraw .action.withdraw { display: inline; }
+.battle_menu.sally .action.sally { display: inline; }
+.battle_menu.storm .action.storm { display: inline; }
