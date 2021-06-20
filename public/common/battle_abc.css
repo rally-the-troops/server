@@ -65,6 +65,7 @@
 
 .battle_menu .action:hover { background-color: red; }
 .battle_menu .action.retreat:hover { background-color: #eee; }
+.battle_menu .action.withdraw:hover { background-color: #eee; }
 .battle_menu .action.pass:hover { background-color: gray; }
 
 .battle_menu_list {
@@ -86,7 +87,5 @@
 .battle_menu.charge .action.charge { display: inline; }
 .battle_menu.treachery .action.treachery { display: inline; }
 .battle_menu.harry .action.harry { display: inline; }
-.battle_menu.hit .action.hit { display: inline; }
 .battle_menu.withdraw .action.withdraw { display: inline; }
-.battle_menu.sally .action.sally { display: inline; }
-.battle_menu.storm .action.storm { display: inline; }
+.battle_menu.hit .action.hit { display: inline; }
