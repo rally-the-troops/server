@@ -36,7 +36,7 @@
 	line-height: 2em;
 	padding: 0 8px;
 }
-#FA, #FB, #FC, #FD, #FR, #EA, #EB, #EC, #ED, #ER {
+#FA, #FB, #FC, #FD, #FF, #FR, #EA, #EB, #EC, #ED, #EF, #ER {
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;
