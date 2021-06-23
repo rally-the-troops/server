@@ -73,28 +73,30 @@ function drag_element_with_mouse(element_sel, grabber_sel) {
 	grabber.addEventListener('mousedown', md);
 }
 
-/* YOUR TURN BLINKER */
+/* TITLE BLINKER */
 
-let is_your_turn = false;
-let your_turn_timer = 0;
-let your_turn_title = document.title;
+let blink_title = document.title;
+let blink_timer = 0;
 
-function start_your_turn_blinker() {
+function start_blinker(message) {
 	let tick = true;
+	if (blink_timer)
+		stop_blinker();
 	if (!document.hasFocus()) {
-		your_turn_timer = setInterval(function () {
-			document.title = tick ? "YOUR TURN" : your_turn_title;
+		blink_timer = setInterval(function () {
+			document.title = tick ? message : blink_title;
 			tick = !tick;
 		}, 1000);
 	}
 }
 
-function stop_your_turn_blinker() {
-	document.title = your_turn_title;
-	clearInterval(your_turn_timer);
+function stop_blinker() {
+	document.title = blink_title;
+	clearInterval(blink_timer);
+	blink_timer = 0;
 }
 
-window.addEventListener("focus", stop_your_turn_blinker);
+window.addEventListener("focus", stop_blinker);
 
 function add_chat_lines(log) {
 	function format_time(date) {
@@ -256,6 +258,7 @@ function init_client(roles) {
 		console.log("CHAT UPDATE", log_start, log.length);
 		update_chat(log_start, log);
 		let button = document.querySelector(".chat_button");
+		start_blinker("NEW MESSAGE");
 		if (!chat_is_visible)
 			button.classList.add("new");
 		else
@@ -294,16 +297,17 @@ function init_client(roles) {
 	drag_element_with_mouse(".chat_window", ".chat_header");
 }
 
+let is_your_turn = false;
+
 function on_update_bar() {
 	document.getElementById("prompt").textContent = game.prompt;
 	if (game.actions) {
 		document.querySelector(".grid_top").classList.add("your_turn");
 		if (!is_your_turn)
-			start_your_turn_blinker();
+			start_blinker("YOUR TURN");
 		is_your_turn = true;
 	} else {
 		document.querySelector(".grid_top").classList.remove("your_turn");
-		stop_your_turn_blinker();
 		is_your_turn = false;
 	}
 }
