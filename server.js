@@ -511,7 +511,7 @@ for (let title_id of db.prepare("SELECT * FROM titles").pluck().all()) {
 	}
 }
 
-const QUERY_LIST_ONE_GAME = db.prepare(`
+const QUERY_GAME = db.prepare(`
 	SELECT
 		games.game_id,
 		games.title_id AS title_id,
@@ -533,26 +533,7 @@ const QUERY_LIST_ONE_GAME = db.prepare(`
 	WHERE game_id = ?
 `);
 
-const QUERY_LIST_PUBLIC_GAMES = db.prepare(`
-	SELECT
-		games.game_id,
-		games.title_id AS title_id,
-		games.scenario AS scenario,
-		games.owner AS owner_id,
-		users.name AS owner_name,
-		games.ctime,
-		games.mtime,
-		games.description,
-		games.status,
-		games.result,
-		games.active
-	FROM games
-	JOIN users ON games.owner = users.user_id
-	WHERE title_id = ? AND private = 0
-	ORDER BY status ASC, mtime DESC
-`);
-
-const QUERY_LIST_OPEN_GAMES = db.prepare(`
+const QUERY_LIST_GAMES = db.prepare(`
 	SELECT
 		games.game_id,
 		games.title_id AS title_id,
@@ -572,7 +553,26 @@ const QUERY_LIST_OPEN_GAMES = db.prepare(`
 	WHERE private = 0 AND status < 2
 `);
 
-const QUERY_LIST_USER_GAMES = db.prepare(`
+const QUERY_LIST_GAMES_OF_TITLE = db.prepare(`
+	SELECT
+		games.game_id,
+		games.title_id AS title_id,
+		games.scenario AS scenario,
+		games.owner AS owner_id,
+		users.name AS owner_name,
+		games.ctime,
+		games.mtime,
+		games.description,
+		games.status,
+		games.result,
+		games.active
+	FROM games
+	JOIN users ON games.owner = users.user_id
+	WHERE title_id = ? AND private = 0
+	ORDER BY status ASC, mtime DESC
+`);
+
+const QUERY_LIST_GAMES_OF_USER = db.prepare(`
 	SELECT DISTINCT
 		games.game_id,
 		games.title_id,
@@ -590,27 +590,6 @@ const QUERY_LIST_USER_GAMES = db.prepare(`
 	LEFT JOIN users ON games.owner = users.user_id
 	LEFT JOIN titles ON games.title_id = titles.title_id
 	WHERE games.owner = ? OR players.user_id = ?
-	ORDER BY status ASC, mtime DESC
-`);
-
-const QUERY_LIST_ALL_GAMES = db.prepare(`
-	SELECT
-		games.game_id,
-		games.title_id AS title_id,
-		titles.title_name,
-		games.scenario AS scenario,
-		games.owner AS owner_id,
-		users.name AS owner_name,
-		games.ctime,
-		games.mtime,
-		games.description,
-		games.status,
-		games.result,
-		games.active,
-		games.private
-	FROM games
-	JOIN users ON games.owner = users.user_id
-	LEFT JOIN titles ON games.title_id = titles.title_id
 	ORDER BY status ASC, mtime DESC
 `);
 
@@ -699,7 +678,7 @@ function is_your_turn(game, user) {
 app.get('/profile', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /profile");
 	let avatar = get_avatar(req.user.mail);
-	let games = QUERY_LIST_USER_GAMES.all(req.user.user_id, req.user.user_id);
+	let games = QUERY_LIST_GAMES_OF_USER.all(req.user.user_id, req.user.user_id);
 	humanize(games);
 	for (let game of games) {
 		game.players = QUERY_PLAYER_NAMES.all(game.game_id);
@@ -719,7 +698,7 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 
 app.get('/games', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /join");
-	let games = QUERY_LIST_OPEN_GAMES.all();
+	let games = QUERY_LIST_GAMES.all();
 	humanize(games);
 	for (let game of games) {
 		game.players = QUERY_PLAYER_NAMES.all(game.game_id);
@@ -744,7 +723,7 @@ app.get('/info/:title_id', function (req, res) {
 		return res.redirect('/');
 	}
 	if (req.isAuthenticated()) {
-		let games = QUERY_LIST_PUBLIC_GAMES.all(title_id);
+		let games = QUERY_LIST_GAMES_OF_TITLE.all(title_id);
 		humanize(games);
 		let open_games = games.filter(game => game.status == 0);
 		let active_games = games.filter(game => game.status == 1);
@@ -853,7 +832,7 @@ app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /join/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
-	let game = QUERY_LIST_ONE_GAME.get(game_id);
+	let game = QUERY_GAME.get(game_id);
 	if (!game) {
 		req.flash('message', "That game doesn't exist.");
 		return res.redirect('/');
@@ -1018,7 +997,7 @@ function mail_your_turn_notification(user, game_id, interval) {
 	console.log("YOUR TURN (OFFLINE):", game_id, user.name, user.mail, too_soon);
 	if (!too_soon) {
 		sql_notify_update.run(user.user_id, game_id);
-		let game = QUERY_LIST_ONE_GAME.get(game_id);
+		let game = QUERY_GAME.get(game_id);
 		let subject = game.title_name + " - " + game_id + " - Your turn!";
 		let body = "Go to game:\n\nhttps://rally-the-troops.com/play/" + game_id + "\n" + MAIL_FOOTER;
 		mailer.sendMail({ from: MAIL_FROM, to: user.mail, subject: subject, text: body }, mail_callback);
@@ -1035,7 +1014,7 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 	console.log("READY TO START:", game_id, user.name, user.mail, too_soon);
 	if (!too_soon) {
 		sql_notify_update.run(user.user_id, game_id);
-		let game = QUERY_LIST_ONE_GAME.get(game_id);
+		let game = QUERY_GAME.get(game_id);
 		let subject = game.title_name + " - " + game_id + " - Ready to start!";
 		let body = "Go to game:\n\nhttps://rally-the-troops.com/join/" + game_id + "\n" + MAIL_FOOTER;
 		mailer.sendMail({ from: MAIL_FROM, to: user.mail, subject: subject, text: body }, mail_callback);
