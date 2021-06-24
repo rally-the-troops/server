@@ -457,11 +457,17 @@ function send_restart(scenario) {
 }
 
 function on_game_over(game_over) {
-	if (player && player != "Observer") {
+	if (player) {
+		let exit_button = document.querySelector("#exit_button");
+		if (exit_button) {
+			if (game_over || player == "Observer")
+				exit_button.classList.remove("hide");
+			else
+				exit_button.classList.add("hide");
+		}
 		let rematch_button = document.querySelector("#rematch_button");
-		if (rematch_button)
-		{
-			if (game_over)
+		if (rematch_button) {
+			if (game_over && player != "Observer")
 				rematch_button.classList.remove("hide");
 			else
 				rematch_button.classList.add("hide");
@@ -473,4 +479,9 @@ function send_rematch() {
 	let params = new URLSearchParams(window.location.search);
 	let game = params.get("game");
 	window.location = '/rematch/' + game;
+}
+
+function send_exit() {
+	let title = window.location.pathname.split("/")[1];
+	window.location = '/info/' + title;
 }

@@ -649,7 +649,7 @@ const QUERY_COUNT_OPEN_GAMES = db.prepare("SELECT COUNT(*) FROM games WHERE owne
 const QUERY_DELETE_GAME = db.prepare("DELETE FROM games WHERE game_id = ?");
 
 const QUERY_REMATCH_FIND = db.prepare(`
-	SELECT game_id FROM games WHERE status=0 AND description=?
+	SELECT game_id FROM games WHERE status<3 AND description=?
 `).pluck();
 
 const QUERY_REMATCH_CREATE = db.prepare(`
