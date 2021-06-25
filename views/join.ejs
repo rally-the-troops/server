@@ -1,14 +1,23 @@
-<%- include('header', { title: game.title_name, refresh: game.status == 0 ? 15 : 0 }) %>
+<%- include('header', { title: game.title_name }) -%>
+<style>
+th, td { min-width: 10em; font-size: 16px; }
+a.red { text-decoration: none; color: brown; font-size: 15px; }
+.hide { display: none; }
+</style>
 <script>
-function confirm_delete(status) {
-	let warning = "Are you sure you want to DELETE this game?";
-	if (window.confirm(warning))
-		window.open("/delete/<%= game.game_id %>");
-}
+let game = <%- JSON.stringify(game) %>;
+let roles = <%- JSON.stringify(roles) %>;
+let players = <%- JSON.stringify(players) %>;
+let user_id = <%- user.user_id %>;
+let solo = <%- solo %>;
+let ready = <%- ready %>;
 </script>
+<script src="/join.js"></script>
+<p id="error" class="error"></p>
 
 <a href="/info/<%= game.title_id %>"><img class="logo" src="/<%= game.title_id %>/cover.jpg"></a>
 
+<div class="info">
 <p>
 Owner: <%= game.owner_name %>
 <br>
@@ -17,74 +26,22 @@ Private: <%= game.private ? "yes" : "no" %>
 Scenario: <%= game.scenario %>
 <br>
 Description: <%= game.description || "No description." %>
+<br>
+Status: <span id="game_status"></span>
+<br>
+Result: <span id="game_result"></span>
 
 <br clear=left>
 
-<p>
 <table>
 <tr>
-<%
-	roles.forEach((role) => {
-		%><th><%= role %><%
-	});
-%>
+<% roles.forEach((role) => { %><th id="role_<%= role.replace(/ /g, '_') %>_name"><%= role %></th><% }); %>
 <tr>
-<%
-	roles.forEach((role) => {
-		if (game.active == role || game.active == "Both" || game.active == "All") {
-			%><td style="min-width:9em" class="your_turn"><%
-		} else {
-			%><td style="min-width:9em"><%
-		}
-		let p = players.find(p => p.role == role);
-		if (game.status == 0) {
-			if (p) {
-				if ((p.user_id == user.user_id) || (game.owner_id == user.user_id)) {
-					%><a style="color:red;text-decoration:none" href="/part/<%= game.game_id %>/<%= p.user_id %>/<%= p.role %>">&#x274c;</a> <%
-					%><%= p.name %><%
-				} else {
-					%><%= p.name %><%
-				}
-			} else {
-				%><a href="/join/<%= game.game_id %>/<%= role %>">Join</a><%
-			}
-		} else {
-			if (p) {
-				if (p.user_id == user.user_id) {
-					%><a href="/play/<%= game.game_id %>/<%= p.role %>">Play</a><%
-				} else {
-					%><%= p.name %><%
-				}
-			} else {
-				%><i>Empty</i><%
-			}
-		}
-	});
-	if (game.status > 0 && !players.some(p => p.user_id == user.user_id)) {
-		%>
-		<tr><td colspan="<%= roles.length %>"><a href="/play/<%= game.game_id %>/Observer">View</a>
-		<%
-	}
-%>
+<% roles.forEach((role) => { %><td id="role_<%= role.replace(/ /g, '_') %>">-</td><% }); %>
+<tr>
+<td id="message" colspan="<%= roles.length %>">-</td>
 </table>
 
 <p>
-<%
-	if (game.status == 0) {
-		if (players.length == roles.length) {
-			if (game.owner_id == user.user_id) {
-				%><form action="/start/<%= game.game_id %>"><button type="submit">Start!</button></form><%
-			} else {
-				%>Waiting for <%= game.owner_name %> to start the game.<%
-			}
-		} else {
-			%>Waiting for players to join the game.<%
-		}
-	}
-	if (game.status == 2 && players.some(p => p.user_id == user.user_id)) {
-		%><form action="/rematch/<%= game.game_id %>"><button type="submit">Rematch</button></form><%
-	}
-	if (game.owner_id == user.user_id && (game.status == 0 || solo)) {
-		%><p><br><button onclick="confirm_delete()">Delete</button><%
-	}
-%>
+<button class="hide" id="delete_button" onclick="confirm_delete()">Delete</button>
+<button class="hide" id="start_button" onclick="javascript:send('/start/<%= game.game_id %>')" disabled>Start!</button>

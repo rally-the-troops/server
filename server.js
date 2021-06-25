@@ -632,7 +632,7 @@ const QUERY_ROLE_FROM_GAME_AND_USER = db.prepare("SELECT role FROM players WHERE
 const QUERY_IS_SOLO = db.prepare("SELECT COUNT(DISTINCT user_id) = 1 FROM players WHERE game_id = ?").pluck();
 
 const QUERY_JOIN_GAME = db.prepare("INSERT INTO players (user_id, game_id, role) VALUES (?,?,?)");
-const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND user_id = ? AND role = ?");
+const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND role = ?");
 const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ? WHERE game_id = ?");
 const QUERY_CREATE_GAME = db.prepare(`
 	INSERT INTO games
@@ -829,6 +829,39 @@ app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 	}
 });
 
+let join_clients = {};
+
+function update_join_clients_players(game_id) {
+	let list = join_clients[game_id];
+	if (list) {
+		console.log("UPDATE JOIN PLAYERS", game_id, list.length)
+		let players = QUERY_PLAYERS.all(game_id);
+		let ready = RULES[list.title_id].ready(list.scenario, players);
+		for (let res of list) {
+			console.log("PUSH JOIN PLAYERS", game_id);
+			res.write("retry: 10000\n");
+			res.write("event: players\n");
+			res.write("data: " + JSON.stringify(players) + "\n\n");
+			res.write("event: ready\n");
+			res.write("data: " + ready + "\n\n");
+		}
+	}
+}
+
+function update_join_clients_game(game_id) {
+	let list = join_clients[game_id];
+	if (list && list.length > 0) {
+		console.log("UPDATE JOIN GAME", game_id, list.length)
+		let game = QUERY_GAME.get(game_id);
+		for (let res of list) {
+			console.log("PUSH JOIN GAME", game_id);
+			res.write('retry: 10000\n');
+			res.write('event: game\n');
+			res.write('data: ' + JSON.stringify(game) + '\n\n');
+		}
+	}
+}
+
 app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /join/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
@@ -838,10 +871,8 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 		return res.redirect('/');
 	}
 	let roles = QUERY_ROLES.all(game.title_id);
-	if (game.random && game.status == 0)
-		for (let i = 0; i < roles.length; ++i)
-			roles[i] = "Random " + (i+1);
 	let players = QUERY_PLAYERS.all(game_id);
+	let ready = (game.status == 0) && RULES[game.title_id].ready(game.scenario, players);
 	res.set("Cache-Control", "no-store");
 	res.render('join.ejs', {
 		user: req.user,
@@ -849,8 +880,43 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 		roles: roles,
 		players: players,
 		solo: players.every(p => p.user_id == req.user.user_id),
+		ready: players.length == roles.length,
 		message: req.flash('message')
 	});
+});
+
+app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /join-events/" + req.params.game_id);
+	let game_id = req.params.game_id | 0;
+	let players = QUERY_PLAYERS.all(game_id);
+	let game = QUERY_GAME.get(game_id);
+
+	res.setHeader("Cache-Control", "no-store");
+	res.setHeader("Content-Type", "text/event-stream");
+	res.setHeader("Connection", "keep-alive");
+
+	if (!game)
+		return res.end();
+	if (!(game_id in join_clients)) {
+		join_clients[game_id] = [];
+		join_clients[game_id].title_id = game.title_id;
+		join_clients[game_id].scenario = game.scenario;
+	}
+	join_clients[game_id].push(res);
+
+	res.on('close', err => {
+		console.log("CLOSE JOIN EVENTS", err);
+		let list = join_clients[game_id];
+		let i = list.indexOf(res);
+		if (i >= 0)
+			list.splice(i, 1);
+	});
+
+	res.write("retry: 15000\n\n");
+	res.write("event: game\n");
+	res.write("data: " + JSON.stringify(game) + "\n\n");
+	res.write("event: players\n");
+	res.write("data: " + JSON.stringify(players) + "\n\n");
 });
 
 app.get('/join/:game_id/:role', must_be_logged_in, function (req, res) {
@@ -859,24 +925,25 @@ app.get('/join/:game_id/:role', must_be_logged_in, function (req, res) {
 	let role = req.params.role;
 	try {
 		QUERY_JOIN_GAME.run(req.user.user_id, game_id, role);
-		return res.redirect('/join/'+game_id);
+		update_join_clients_players(game_id);
+		res.send("SUCCESS");
 	} catch (err) {
-		req.flash('message', err.toString());
-		return res.redirect('/join/'+game_id);
+		console.log(err);
+		res.send(err.toString());
 	}
 });
 
-app.get('/part/:game_id/:part_id/:role', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /part/" + req.params.game_id + "/" + req.params.part_id + "/" + req.params.role);
+app.get('/part/:game_id/:role', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /part/" + req.params.game_id + "/" + req.params.role);
 	let game_id = req.params.game_id | 0;
-	let part_id = req.params.part_id | 0;
 	let role = req.params.role;
 	try {
-		QUERY_PART_GAME.run(game_id, part_id, role);
-		return res.redirect('/join/'+game_id);
+		QUERY_PART_GAME.run(game_id, role);
+		update_join_clients_players(game_id);
+		res.send("SUCCESS");
 	} catch (err) {
-		req.flash('message', err.toString());
-		return res.redirect('/join/'+game_id);
+		console.log(err);
+		res.send(err.toString());
 	}
 });
 
@@ -900,26 +967,27 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0;
 	try {
 		let game = QUERY_GAME_OWNER.get(game_id, req.user.user_id);
-		if (!game) {
-			req.flash('message', "Only the game owner can start the game!");
-			return res.redirect('/join/'+game_id);
-		}
-		if (game.status != 0) {
-			req.flash('message', "The game is already started!");
-			return res.redirect('/join/'+game_id);
-		}
+		if (!game)
+			return res.send("Only the game owner can start the game!");
+		if (game.status != 0)
+			return res.send("The game is already started!");
 		let players = QUERY_PLAYERS.all(game_id);
-		if (game.random)
+		if (!RULES[game.title_id].ready(game.scenario, players))
+			return res.send("Invalid player configuration!");
+		if (game.random) {
 			assign_random_roles(game, players);
+			update_join_clients_players(game_id);
+		}
 		let state = RULES[game.title_id].setup(game.scenario, players);
 		QUERY_START_GAME.run(JSON.stringify(state), state.active, game_id);
 		let is_solo = players.every(p => p.user_id == players[0].user_id);
 		if (is_solo)
 			QUERY_UPDATE_GAME_SET_PRIVATE.run(game_id);
-		return res.redirect('/join/'+game_id);
+		update_join_clients_game(game_id);
+		res.send("SUCCESS");
 	} catch (err) {
-		req.flash('message', err.toString());
-		return res.redirect('/join/'+game_id);
+		console.log(err);
+		res.send(err.toString());
 	}
 });
 
@@ -1131,6 +1199,7 @@ function put_game_state(game_id, state, old_active) {
 	QUERY_UPDATE_GAME_STATE.run(JSON.stringify(state), state.active, status, result, game_id);
 	for (let other of clients[game_id])
 		send_state(other, state);
+	update_join_clients_game(game_id);
 	mail_your_turn_notification_to_offline_users(game_id, old_active, state.active);
 }
 
