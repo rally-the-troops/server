@@ -1,11 +1,12 @@
 "use strict";
 
 let evtsrc = null;
+let timer = 0;
 
 function confirm_delete(status) {
 	let warning = "Are you sure you want to DELETE this game?";
 	if (window.confirm(warning))
-		window.open("/delete/" + game.game_id);
+		window.location.href = "/delete/" + game.game_id;
 }
 
 function send(url) {
@@ -34,9 +35,15 @@ function start_event_source() {
 		evtsrc.addEventListener("game", function (evt) {
 			console.log("GAME:", evt.data);
 			game = JSON.parse(evt.data);
-			if (game.status > 1)
+			if (game.status > 1) {
+				clearInterval(timer);
 				evtsrc.close();
+			}
 			update();
+		});
+		evtsrc.addEventListener("deleted", function (evt) {
+			console.log("DELETED");
+			window.location.href = '/info/' + game.title_id;
 		});
 		evtsrc.onerror = function (err) {
 			window.message.innerHTML = "Disconnected from server...";
@@ -104,6 +111,6 @@ window.onload = function () {
 	update();
 	if (game.status < 2) {
 		start_event_source();
-		setInterval(start_event_source, 15000);
+		timer = setInterval(start_event_source, 15000);
 	}
 }

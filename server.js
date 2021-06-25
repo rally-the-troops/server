@@ -803,6 +803,7 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 			return res.redirect('/join/'+game_id);
 		}
 		QUERY_DELETE_GAME.run(game_id);
+		update_join_clients_deleted(game_id);
 		res.redirect('/info/'+game.title_id);
 	} catch (err) {
 		req.flash('message', err.toString());
@@ -831,19 +832,15 @@ app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 
 let join_clients = {};
 
-function update_join_clients_players(game_id) {
+function update_join_clients_deleted(game_id) {
 	let list = join_clients[game_id];
-	if (list) {
-		console.log("UPDATE JOIN PLAYERS", game_id, list.length)
-		let players = QUERY_PLAYERS.all(game_id);
-		let ready = RULES[list.title_id].ready(list.scenario, players);
+	if (list && list.length > 0) {
+		console.log("UPDATE JOIN DELETED", game_id, list.length)
 		for (let res of list) {
-			console.log("PUSH JOIN PLAYERS", game_id);
-			res.write("retry: 10000\n");
-			res.write("event: players\n");
-			res.write("data: " + JSON.stringify(players) + "\n\n");
-			res.write("event: ready\n");
-			res.write("data: " + ready + "\n\n");
+			console.log("PUSH JOIN DELETED", game_id);
+			res.write("retry: 15000\n");
+			res.write("event: deleted\n");
+			res.write("data: The game doesn't exist.\n\n");
 		}
 	}
 }
@@ -855,9 +852,26 @@ function update_join_clients_game(game_id) {
 		let game = QUERY_GAME.get(game_id);
 		for (let res of list) {
 			console.log("PUSH JOIN GAME", game_id);
-			res.write('retry: 10000\n');
-			res.write('event: game\n');
-			res.write('data: ' + JSON.stringify(game) + '\n\n');
+			res.write("retry: 15000\n");
+			res.write("event: game\n");
+			res.write("data: " + JSON.stringify(game) + "\n\n");
+		}
+	}
+}
+
+function update_join_clients_players(game_id) {
+	let list = join_clients[game_id];
+	if (list) {
+		console.log("UPDATE JOIN PLAYERS", game_id, list.length)
+		let players = QUERY_PLAYERS.all(game_id);
+		let ready = RULES[list.title_id].ready(list.scenario, players);
+		for (let res of list) {
+			console.log("PUSH JOIN PLAYERS", game_id);
+			res.write("retry: 15000\n");
+			res.write("event: players\n");
+			res.write("data: " + JSON.stringify(players) + "\n\n");
+			res.write("event: ready\n");
+			res.write("data: " + ready + "\n\n");
 		}
 	}
 }
@@ -895,8 +909,10 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	res.setHeader("Content-Type", "text/event-stream");
 	res.setHeader("Connection", "keep-alive");
 
-	if (!game)
-		return res.end();
+	if (!game) {
+		req.flash('message', "That game doesn't exist.");
+		return res.send("event: deleted\ndata: The game doesn't exist.\n\n");
+	}
 	if (!(game_id in join_clients)) {
 		join_clients[game_id] = [];
 		join_clients[game_id].title_id = game.title_id;
