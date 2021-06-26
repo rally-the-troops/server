@@ -1041,8 +1041,8 @@ app.get('/play/:game_id', must_be_logged_in, function (req, res) {
  * MAIL NOTIFICATIONS
  */
 
-const MAIL_FROM = process.env.MAIL_FROM || "Rally the Troops! <noreply@rally-the-troops.com>";
-const MAIL_FOOTER = "\nYou can disable mail notifications on your profile page.\n\nhttps://rally-the-troops.com/profile";
+const MAIL_FROM = process.env.MAIL_FROM || "Rally the Troops! <notifications@rally-the-troops.com>";
+const MAIL_FOOTER = "You can unsubscribe from notifications on your profile page:\n\nhttps://rally-the-troops.com/unsubscribe\n";
 
 const sql_notify_too_soon = db.prepare("SELECT datetime('now') < datetime(time, ?) FROM notifications WHERE user_id = ? AND game_id = ?").pluck();
 const sql_notify_update = db.prepare("INSERT OR REPLACE INTO notifications VALUES ( ?, ?, datetime('now') )");
@@ -1070,9 +1070,10 @@ function mail_callback(err, info) {
 
 function mail_password_reset_token(mail, token) {
 	let subject = "Rally the Troops - Password reset request";
-	let body = "Your password reset token is: " + token + "\n\n";
-	body += "https://rally-the-troops.com/reset_password/" + mail + "/" + token + "\n\n"
-	body += "If you did not request a password reset you can ignore this mail.\n\n";
+	let body =
+		"Your password reset token is: " + token + "\n\n" +
+		"https://rally-the-troops.com/reset_password/" + mail + "/" + token + "\n\n" +
+		"If you did not request a password reset you can ignore this mail.\n";
 	mailer.sendMail({ from: MAIL_FROM, to: mail, subject: subject, text: body }, mail_callback);
 }
 
@@ -1083,7 +1084,10 @@ function mail_your_turn_notification(user, game_id, interval) {
 		sql_notify_update.run(user.user_id, game_id);
 		let game = QUERY_GAME.get(game_id);
 		let subject = game.title_name + " - " + game_id + " - Your turn!";
-		let body = "Go to game:\n\nhttps://rally-the-troops.com/play/" + game_id + "\n" + MAIL_FOOTER;
+		let body =
+			"It's your turn.\n\n" +
+			"https://rally-the-troops.com/play/" + game_id + "\n\n" +
+			MAIL_FOOTER;
 		mailer.sendMail({ from: MAIL_FROM, to: user.mail, subject: subject, text: body }, mail_callback);
 	}
 }
@@ -1100,7 +1104,10 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 		sql_notify_update.run(user.user_id, game_id);
 		let game = QUERY_GAME.get(game_id);
 		let subject = game.title_name + " - " + game_id + " - Ready to start!";
-		let body = "Go to game:\n\nhttps://rally-the-troops.com/join/" + game_id + "\n" + MAIL_FOOTER;
+		let body =
+			"Your game is ready to start.\n\n" +
+			"https://rally-the-troops.com/join/" + game_id + "\n\n" +
+			MAIL_FOOTER;
 		mailer.sendMail({ from: MAIL_FROM, to: user.mail, subject: subject, text: body }, mail_callback);
 	}
 }
