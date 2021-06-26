@@ -636,9 +636,9 @@ const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND ro
 const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ? WHERE game_id = ?");
 const QUERY_CREATE_GAME = db.prepare(`
 	INSERT INTO games
-	(owner,title_id,scenario,private,random,ctime,mtime,description,status,state,chat)
+	(owner,title_id,scenario,private,random,ctime,mtime,description,status,state)
 	VALUES
-	(?,?,?,?,?,datetime('now'),datetime('now'),?,0,NULL,'[]')
+	(?,?,?,?,?,datetime('now'),datetime('now'),?,0,NULL)
 `);
 const QUERY_UPDATE_GAME_SET_PRIVATE = db.prepare("UPDATE games SET private = 1 WHERE game_id = ?");
 const QUERY_ASSIGN_ROLE = db.prepare("UPDATE players SET role = ? WHERE game_id = ? AND user_id = ? AND role = ?");
@@ -654,9 +654,9 @@ const QUERY_REMATCH_FIND = db.prepare(`
 
 const QUERY_REMATCH_CREATE = db.prepare(`
 	INSERT INTO games
-		(owner, title_id, scenario, private, random, ctime, mtime, description, status, state, chat)
+		(owner, title_id, scenario, private, random, ctime, mtime, description, status, state)
 	SELECT
-		$user_id, title_id, scenario, private, random, datetime('now'), datetime('now'), $magic, 0, NULL, '[]'
+		$user_id, title_id, scenario, private, random, datetime('now'), datetime('now'), $magic, 0, NULL
 	FROM games
 	WHERE game_id = $game_id AND NOT EXISTS (
 		SELECT * FROM games WHERE description=$magic
@@ -974,6 +974,7 @@ function assign_random_roles(game, players) {
 	for (let p of players) {
 		let old_role = p.role;
 		p.role = pick_random_item(roles);
+		console.log("ASSIGN ROLE", "(" + p.name + ")", old_role, "->", p.role);
 		QUERY_ASSIGN_ROLE.run(p.role, game.game_id, p.user_id, old_role);
 	}
 }
@@ -1180,8 +1181,8 @@ setInterval(notify_ready_to_start_reminder, 60 * 1000);
  * GAME PLAYING
  */
 
-const QUERY_SELECT_CHAT = db.prepare("SELECT chat FROM games WHERE game_id = ?");
-const QUERY_UPDATE_CHAT = db.prepare("UPDATE games SET chat = ? WHERE game_id = ?");
+const QUERY_SELECT_CHAT = db.prepare("SELECT chat FROM chats WHERE game_id = ?").pluck();
+const QUERY_UPDATE_CHAT = db.prepare("INSERT OR REPLACE INTO chats ( game_id, time, chat ) VALUES ( ?, datetime('now'), ? )");
 const QUERY_SELECT_GAME_STATE = db.prepare("SELECT state FROM games WHERE game_id = ?");
 const QUERY_UPDATE_GAME_STATE = db.prepare("UPDATE games SET state = ?, active = ?, status = ?, result = ?, mtime = datetime('now') WHERE game_id = ?");
 const QUERY_CONNECT_GAME = db.prepare("SELECT title_id, state FROM games WHERE title_id = ? AND game_id = ?");
@@ -1265,12 +1266,11 @@ function send_chat(socket, chat) {
 function on_getchat(socket, old_len) {
 	try {
 		socket.chat_length = old_len;
-		let row = QUERY_SELECT_CHAT.get(socket.game_id);
-		if (!row)
-			return socket.emit('error', "No game with that ID.");
-		let chat = JSON.parse(row.chat);
+		let chat = QUERY_SELECT_CHAT.get(socket.game_id);
 		if (!chat)
 			chat = [];
+		else
+			chat = JSON.parse(chat);
 		send_chat(socket, chat);
 	} catch (err) {
 		console.log(err);
@@ -1282,14 +1282,13 @@ function on_chat(socket, message) {
 	message = message.substring(0,4096);
 	SLOG(socket, "--> CHAT");
 	try {
-		let row = QUERY_SELECT_CHAT.get(socket.game_id);
-		if (!row)
-			return socket.emit('error', "No game with that ID.");
-		let chat = JSON.parse(row.chat);
+		let chat = QUERY_SELECT_CHAT.get(socket.game_id);
 		if (!chat)
 			chat = [];
+		else
+			chat = JSON.parse(chat);
 		chat.push([new Date(), socket.user_name, message]);
-		QUERY_UPDATE_CHAT.run(JSON.stringify(chat), socket.game_id);
+		QUERY_UPDATE_CHAT.run(socket.game_id, JSON.stringify(chat));
 		for (let other of clients[socket.game_id])
 			send_chat(other, chat);
 	} catch (err) {

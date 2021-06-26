@@ -52,7 +52,12 @@ CREATE TABLE IF NOT EXISTS games (
 	status INTEGER,
 	result TEXT,
 	active TEXT,
-	state TEXT,
+	state TEXT
+);
+
+CREATE TABLE IF NOT EXISTS chats (
+	game_id INTEGER PRIMARY KEY,
+	time TIMESTAMP,
 	chat TEXT
 );
 
@@ -104,4 +109,5 @@ CREATE TRIGGER purge_players AFTER DELETE ON games
 BEGIN
 	DELETE FROM players WHERE game_id = old.game_id;
 	DELETE FROM notifications WHERE game_id = old.game_id;
+	DELETE FROM chats WHERE game_id = old.game_id;
 END;
