@@ -93,7 +93,7 @@ function update() {
 		if (ready && (game.owner_id === user_id))
 			message.innerHTML = "Ready to start...";
 		else if (ready)
-			message.innerHTML = "Waiting for game to start...";
+			message.innerHTML = `Waiting for ${game.owner_name} to start the game...`;
 		else
 			message.innerHTML = "Waiting for players to join...";
 	} else {
