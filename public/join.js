@@ -9,6 +9,25 @@ function confirm_delete(status) {
 		window.location.href = "/delete/" + game.game_id;
 }
 
+let blink_title = document.title;
+let blink_timer = 0;
+
+function start_blinker(message) {
+	let tick = true;
+	if (blink_timer)
+		stop_blinker();
+	blink_timer = setInterval(function () {
+		document.title = tick ? message : blink_title;
+		tick = !tick;
+	}, 1000);
+}
+
+function stop_blinker() {
+	document.title = blink_title;
+	clearInterval(blink_timer);
+	blink_timer = 0;
+}
+
 function send(url) {
 	fetch(url)
 		.then(r => r.text())
@@ -105,6 +124,11 @@ function update() {
 		window.start_button.classList = (game.status === 0) ? "" : "hide";
 		window.delete_button.classList = (game.status === 0 || solo) ? "" : "hide";
 	}
+
+	if (game.status === 0 && ready)
+		start_blinker("READY TO START");
+	else
+		stop_blinker();
 }
 
 window.onload = function () {
