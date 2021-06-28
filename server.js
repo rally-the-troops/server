@@ -21,20 +21,21 @@ const MAX_OPEN_GAMES = 3;
 let session_store = new SQLiteStore();
 let db = new sqlite3(process.env.DATABASE || "./db");
 let app = express();
-let http_port = process.env.PORT || 8080;
 let https_port = process.env.HTTPS_PORT || 8443;
-let http = require('http').createServer(app);
 let https = require('https').createServer({
 	key: fs.readFileSync(process.env.SSL_KEY || "key.pem"),
 	cert: fs.readFileSync(process.env.SSL_CERT || "cert.pem")
 	}, app);
-let socket_io = require('socket.io');
-let io1 = socket_io(http);
-let io2 = socket_io(https);
-let io = {
-	use: function (fn) { io1.use(fn); io2.use(fn); },
-	on: function (ev,fn) { io1.on(ev,fn); io2.on(ev,fn); },
-};
+https.listen(https_port, '0.0.0.0', () => { console.log('listening HTTPS on *:' + https_port); });
+
+let io = require('socket.io')(https);
+
+// REDIRECT HTTP TO HTTPS
+let http_port = process.env.HTTP_PORT || 8080;
+let http_app = express();
+let http_server = require('http').createServer(http_app);
+http_app.use((req, res) => res.redirect(301, 'https://' + req.hostname + ":" + https_port + req.path));
+http_server.listen(http_port, '0.0.0.0', () => { console.log('listening HTTP on *:' + http_port); });
 
 let mailer = null;
 if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
@@ -315,31 +316,6 @@ app.post('/signup',
 	})
 );
 
-app.get('/users', function (req, res) {
-	LOG(req, "GET /users");
-	let rows = db.prepare("SELECT name, mail, ctime, atime FROM users ORDER BY atime DESC").all();
-	rows.forEach(row => {
-		row.avatar = get_avatar(row.mail);
-		row.ctime = human_date(row.ctime);
-		row.atime = human_date(row.atime);
-	});
-	res.render('users.ejs', { user: req.user, message: req.flash('message'), userList: rows });
-});
-
-const QUERY_STATS = db.prepare(`
-	SELECT title_name, scenario, result, count(*) AS count
-	FROM games
-	JOIN titles ON games.title_id=titles.title_id
-	WHERE status=2 AND private=0
-	GROUP BY title_name, scenario, result
-	`);
-
-app.get('/stats', function (req, res) {
-	LOG(req, "GET /stats");
-	let stats = QUERY_STATS.all();
-	res.render('stats.ejs', { user: req.user, message: req.flash('message'), stats: stats });
-});
-
 app.get('/change_password', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change_password");
 	res.render('change_password.ejs', { user: req.user, message: req.flash('message') });
@@ -499,115 +475,33 @@ app.post('/change_password', must_be_logged_in, function (req, res) {
  */
 
 let RULES = {};
-let PLAYER_COUNT = {};
-let QUERY_PLAYER_COUNT = db.prepare("SELECT COUNT(*) FROM roles WHERE title_id = ?").pluck();
 for (let title_id of db.prepare("SELECT * FROM titles").pluck().all()) {
 	console.log("Loading rules for " + title_id);
 	try {
 		RULES[title_id] = require("./public/" + title_id + "/rules.js");
-		PLAYER_COUNT[title_id] = QUERY_PLAYER_COUNT.get(title_id);
 	} catch (err) {
 		console.log(err);
 	}
 }
 
-const QUERY_GAME = db.prepare(`
-	SELECT
-		games.game_id,
-		games.title_id AS title_id,
-		titles.title_name AS title_name,
-		games.scenario AS scenario,
-		games.owner AS owner_id,
-		users.name AS owner_name,
-		games.ctime,
-		games.mtime,
-		games.description,
-		games.status,
-		games.private,
-		games.random,
-		games.result,
-		games.active
-	FROM games
-	JOIN users ON games.owner = users.user_id
-	JOIN titles ON games.title_id = titles.title_id
-	WHERE game_id = ?
-`);
-
-const QUERY_LIST_GAMES = db.prepare(`
-	SELECT
-		games.game_id,
-		games.title_id AS title_id,
-		games.scenario AS scenario,
-		games.owner AS owner_id,
-		users.name AS owner_name,
-		games.ctime,
-		games.mtime,
-		games.description,
-		games.status,
-		games.result,
-		games.active,
-		titles.title_name
-	FROM games
-	LEFT JOIN users ON games.owner = users.user_id
-	LEFT JOIN titles ON games.title_id = titles.title_id
-	WHERE private = 0 AND status < 2
-`);
-
+const QUERY_GAME = db.prepare("SELECT * FROM game_view WHERE game_id = ?");
 const QUERY_LIST_GAMES_OF_TITLE = db.prepare(`
-	SELECT
-		games.game_id,
-		games.title_id AS title_id,
-		games.scenario AS scenario,
-		games.owner AS owner_id,
-		users.name AS owner_name,
-		games.ctime,
-		games.mtime,
-		games.description,
-		games.status,
-		games.result,
-		games.active
-	FROM games
-	JOIN users ON games.owner = users.user_id
+	SELECT *, ( active_id = ? OR active_role = 'Both' OR active_role = 'All' ) AS is_your_turn FROM game_view
 	WHERE title_id = ? AND private = 0
 	ORDER BY status ASC, mtime DESC
 `);
-
 const QUERY_LIST_GAMES_OF_USER = db.prepare(`
-	SELECT DISTINCT
-		games.game_id,
-		games.title_id,
-		titles.title_name,
-		games.scenario AS scenario,
-		users.name AS owner_name,
-		games.description,
-		games.ctime,
-		games.mtime,
-		games.status,
-		games.result,
-		games.active
-	FROM games
-	LEFT JOIN players ON games.game_id = players.game_id
-	LEFT JOIN users ON games.owner = users.user_id
-	LEFT JOIN titles ON games.title_id = titles.title_id
-	WHERE games.owner = ? OR players.user_id = ?
+	SELECT DISTINCT game_view.*, ( active_id = $user_id OR active_role = 'Both' OR active_role = 'All' ) AS is_your_turn FROM game_view
+	LEFT JOIN players ON game_view.game_id = players.game_id
+	WHERE game_view.owner_id = $user_id OR players.user_id = $user_id
 	ORDER BY status ASC, mtime DESC
 `);
-
-const QUERY_PLAYERS = db.prepare(`
-	SELECT
-		players.user_id,
-		players.role,
-		users.name
-	FROM players
-	JOIN users ON players.user_id = users.user_id
-	WHERE players.game_id = ?
-`);
-
+const QUERY_PLAYERS = db.prepare("SELECT role, user_id, user_name FROM player_view WHERE game_id = ?");
 const QUERY_PLAYERS_FULL = db.prepare(`
 	SELECT
 		players.user_id,
 		players.role,
-		users.name,
+		users.name AS user_name,
 		users.mail,
 		users.notifications
 	FROM players
@@ -615,18 +509,9 @@ const QUERY_PLAYERS_FULL = db.prepare(`
 	WHERE players.game_id = ?
 `);
 
-const QUERY_PLAYER_NAMES = db.prepare(`
-	SELECT
-		users.name AS name
-	FROM players
-	JOIN users ON players.user_id = users.user_id
-	WHERE players.game_id = ?
-	ORDER BY players.role
-`).pluck();
-
 const QUERY_TITLE = db.prepare("SELECT * FROM titles WHERE title_id = ?");
-const QUERY_ROLES = db.prepare("SELECT role FROM roles WHERE title_id = ?").pluck();
-const QUERY_GAME_OWNER = db.prepare("SELECT * FROM games WHERE game_id = ? AND owner = ?");
+const QUERY_ROLES = db.prepare("SELECT role FROM roles WHERE title_id = ? ORDER BY rowid").pluck();
+const QUERY_GAME_OWNER = db.prepare("SELECT * FROM games WHERE game_id = ? AND owner_id = ?");
 const QUERY_TITLE_FROM_GAME = db.prepare("SELECT title_id FROM games WHERE game_id = ?").pluck();
 const QUERY_ROLE_FROM_GAME_AND_USER = db.prepare("SELECT role FROM players WHERE game_id = ? AND user_id = ?").pluck();
 const QUERY_IS_SOLO = db.prepare("SELECT COUNT(DISTINCT user_id) = 1 FROM players WHERE game_id = ?").pluck();
@@ -636,16 +521,14 @@ const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND ro
 const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ? WHERE game_id = ?");
 const QUERY_CREATE_GAME = db.prepare(`
 	INSERT INTO games
-	(owner,title_id,scenario,private,random,ctime,mtime,description,status,state)
+	(owner_id,title_id,scenario,private,random,ctime,mtime,description,status,state)
 	VALUES
 	(?,?,?,?,?,datetime('now'),datetime('now'),?,0,NULL)
 `);
 const QUERY_UPDATE_GAME_SET_PRIVATE = db.prepare("UPDATE games SET private = 1 WHERE game_id = ?");
 const QUERY_ASSIGN_ROLE = db.prepare("UPDATE players SET role = ? WHERE game_id = ? AND user_id = ? AND role = ?");
 
-const QUERY_IS_PLAYER = db.prepare("SELECT COUNT(*) FROM players WHERE game_id = ? AND user_id = ?").pluck();
-const QUERY_IS_ACTIVE = db.prepare("SELECT COUNT(*) FROM players WHERE game_id = ? AND role = ? AND user_id = ?").pluck();
-const QUERY_COUNT_OPEN_GAMES = db.prepare("SELECT COUNT(*) FROM games WHERE owner = ? AND status = 0").pluck();
+const QUERY_COUNT_OPEN_GAMES = db.prepare("SELECT COUNT(*) FROM games WHERE owner_id = ? AND status = 0").pluck();
 const QUERY_DELETE_GAME = db.prepare("DELETE FROM games WHERE game_id = ?");
 
 const QUERY_REMATCH_FIND = db.prepare(`
@@ -654,7 +537,7 @@ const QUERY_REMATCH_FIND = db.prepare(`
 
 const QUERY_REMATCH_CREATE = db.prepare(`
 	INSERT INTO games
-		(owner, title_id, scenario, private, random, ctime, mtime, description, status, state)
+		(owner_id, title_id, scenario, private, random, ctime, mtime, description, status, state)
 	SELECT
 		$user_id, title_id, scenario, private, random, datetime('now'), datetime('now'), $magic, 0, NULL
 	FROM games
@@ -667,23 +550,11 @@ app.get('/', function (req, res) {
 	res.render('index.ejs', { user: req.user, message: req.flash('message') });
 });
 
-function is_your_turn(game, user) {
-	if (!game.active || game.active == "None")
-		return false;
-	if (game.active == "All" || game.active == "Both")
-		return QUERY_IS_PLAYER.get(game.game_id, user.user_id);
-	return QUERY_IS_ACTIVE.get(game.game_id, game.active, user.user_id);
-}
-
 app.get('/profile', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /profile");
 	let avatar = get_avatar(req.user.mail);
-	let games = QUERY_LIST_GAMES_OF_USER.all(req.user.user_id, req.user.user_id);
+	let games = QUERY_LIST_GAMES_OF_USER.all({user_id: req.user.user_id});
 	humanize(games);
-	for (let game of games) {
-		game.players = QUERY_PLAYER_NAMES.all(game.game_id);
-		game.your_turn = is_your_turn(game, req.user);
-	}
 	let open_games = games.filter(game => game.status == 0);
 	let active_games = games.filter(game => game.status == 1);
 	let finished_games = games.filter(game => game.status == 2);
@@ -692,24 +563,6 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 		open_games: open_games,
 		active_games: active_games,
 		finished_games: finished_games,
-		message: req.flash('message')
-	});
-});
-
-app.get('/games', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /join");
-	let games = QUERY_LIST_GAMES.all();
-	humanize(games);
-	for (let game of games) {
-		game.players = QUERY_PLAYER_NAMES.all(game.game_id);
-		game.your_turn = is_your_turn(game, req.user);
-	}
-	let open_games = games.filter(game => game.status == 0);
-	let active_games = games.filter(game => game.status == 1);
-	res.set("Cache-Control", "no-store");
-	res.render('games.ejs', { user: req.user,
-		open_games: open_games,
-		active_games: active_games,
 		message: req.flash('message')
 	});
 });
@@ -723,17 +576,11 @@ app.get('/info/:title_id', function (req, res) {
 		return res.redirect('/');
 	}
 	if (req.isAuthenticated()) {
-		let games = QUERY_LIST_GAMES_OF_TITLE.all(title_id);
+		let games = QUERY_LIST_GAMES_OF_TITLE.all(req.user.user_id, title_id);
 		humanize(games);
 		let open_games = games.filter(game => game.status == 0);
 		let active_games = games.filter(game => game.status == 1);
-		for (let game of active_games) {
-			game.players = QUERY_PLAYER_NAMES.all(game.game_id);
-			game.your_turn = is_your_turn(game, req.user);
-		}
 		let finished_games = games.filter(game => game.status == 2);
-		for (let game of finished_games)
-			game.players = QUERY_PLAYER_NAMES.all(game.game_id);
 		res.set("Cache-Control", "no-store");
 		res.render('info.ejs', { user: req.user, title: title,
 			open_games: open_games,
@@ -835,9 +682,8 @@ let join_clients = {};
 function update_join_clients_deleted(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
-		console.log("UPDATE JOIN DELETED", game_id, list.length)
+		console.log("JOIN: UPDATE GAME DELETED", game_id, list.title_id, list.length, players.map(p => p.user_name));
 		for (let res of list) {
-			console.log("PUSH JOIN DELETED", game_id);
 			res.write("retry: 15000\n");
 			res.write("event: deleted\n");
 			res.write("data: The game doesn't exist.\n\n");
@@ -848,10 +694,9 @@ function update_join_clients_deleted(game_id) {
 function update_join_clients_game(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
-		console.log("UPDATE JOIN GAME", game_id, list.length)
 		let game = QUERY_GAME.get(game_id);
+		console.log("JOIN: UPDATE GAME STATUS", game_id, list.title_id, list.length, game)
 		for (let res of list) {
-			console.log("PUSH JOIN GAME", game_id);
 			res.write("retry: 15000\n");
 			res.write("event: game\n");
 			res.write("data: " + JSON.stringify(game) + "\n\n");
@@ -861,12 +706,11 @@ function update_join_clients_game(game_id) {
 
 function update_join_clients_players(game_id) {
 	let list = join_clients[game_id];
-	if (list) {
-		console.log("UPDATE JOIN PLAYERS", game_id, list.length)
+	if (list && list.length > 0) {
 		let players = QUERY_PLAYERS.all(game_id);
 		let ready = RULES[list.title_id].ready(list.scenario, players);
+		console.log("JOIN: UPDATE PLAYERS", game_id, list.title_id, list.length, players.map(p => p.role + ": " + p.user_name), ready)
 		for (let res of list) {
-			console.log("PUSH JOIN PLAYERS", game_id);
 			res.write("retry: 15000\n");
 			res.write("event: players\n");
 			res.write("data: " + JSON.stringify(players) + "\n\n");
@@ -893,8 +737,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 		game: game,
 		roles: roles,
 		players: players,
-		solo: players.every(p => p.user_id == req.user.user_id),
-		ready: players.length == roles.length,
+		ready: ready,
 		message: req.flash('message')
 	});
 });
@@ -920,8 +763,8 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	}
 	join_clients[game_id].push(res);
 
-	res.on('close', err => {
-		console.log("CLOSE JOIN EVENTS", err);
+	res.on('close', () => {
+		console.log("JOIN: CLOSE CONNECTION TO", game_id);
 		let list = join_clients[game_id];
 		let i = list.indexOf(res);
 		if (i >= 0)
@@ -974,7 +817,7 @@ function assign_random_roles(game, players) {
 	for (let p of players) {
 		let old_role = p.role;
 		p.role = pick_random_item(roles);
-		console.log("ASSIGN ROLE", "(" + p.name + ")", old_role, "->", p.role);
+		console.log("ASSIGN ROLE", "(" + p.user_name + ")", old_role, "->", p.role);
 		QUERY_ASSIGN_ROLE.run(p.role, game.game_id, p.user_id, old_role);
 	}
 }
@@ -1028,10 +871,13 @@ app.get('/play/:game_id', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0;
 	let user_id = req.user.user_id | 0;
 	try {
+		let title = QUERY_TITLE_FROM_GAME.get(game_id);
+		if (!title)
+			return res.redirect('/join/'+game_id);
 		let role = QUERY_ROLE_FROM_GAME_AND_USER.get(game_id, user_id);
 		if (!role)
-			return res.redirect('/play/'+game_id+'/Observer');
-		return res.redirect('/play/'+game_id+'/'+role);
+			res.redirect('/'+title+'/play.html?game='+game_id+'&role=Observer');
+		return res.redirect('/'+title+'/play.html?game='+game_id+'&role='+role);
 	} catch (err) {
 		req.flash('message', err.toString());
 		return res.redirect('/join/'+game_id);
@@ -1052,18 +898,12 @@ const sql_offline_user = db.prepare("SELECT * FROM users WHERE user_id = ? AND d
 const QUERY_LIST_YOUR_TURN = db.prepare(`
 	SELECT games.game_id, games.title_id, players.user_id, users.name, users.mail, users.notifications
 	FROM games
-	JOIN players ON games.game_id = players.game_id AND ( games.active = players.role OR games.active = 'All' OR games.active = 'Both' )
+	JOIN players ON games.game_id = players.game_id AND ( games.active = players.role OR games.active = 'Both' OR games.active = 'All' )
 	JOIN users ON users.user_id = players.user_id
 	WHERE games.status = 1 AND datetime('now') > datetime(games.mtime, '+1 hour')
 `);
 
-const QUERY_LIST_READY_TO_START = db.prepare(`
-	SELECT games.game_id, games.title_id, games.owner, COUNT(*) AS joined
-	FROM games
-	JOIN players ON games.game_id = players.game_id
-	WHERE games.status = 0
-	GROUP BY games.game_id
-`);
+const QUERY_LIST_UNSTARTED_GAMES = db.prepare("SELECT * FROM game_view WHERE status = 0");
 
 function mail_callback(err, info) {
 	console.log("MAIL SENT", err, info);
@@ -1159,9 +999,10 @@ function notify_your_turn_reminder() {
 }
 
 function notify_ready_to_start_reminder() {
-	for (let game of QUERY_LIST_READY_TO_START.all()) {
-		if (game.joined == PLAYER_COUNT[game.title_id]) {
-			let owner = sql_offline_user.get(game.owner, '+3 minutes');
+	for (let game of QUERY_LIST_UNSTARTED_GAMES.all()) {
+		let players = QUERY_PLAYERS.all(game.game_id);
+		if (RULES[game.title_id].ready(game.scenario, players)) {
+			let owner = sql_offline_user.get(game.owner_id, '+3 minutes');
 			if (owner) {
 				console.log("REMINDER: READY TO START", game.title_id, game.game_id, owner.name, owner.mail, owner.notifications);
 				if (owner.notifications)
@@ -1171,10 +1012,10 @@ function notify_ready_to_start_reminder() {
 	}
 }
 
-// Check and send 'your turn' reminders quarterly.
+// Check and send 'your turn' reminders every 15 minutes.
 setInterval(notify_your_turn_reminder, 15 * 60 * 1000);
 
-// Check and send ready to start notifications once a minute.
+// Check and send ready to start notifications every minute.
 setInterval(notify_ready_to_start_reminder, 60 * 1000);
 
 /*
@@ -1426,5 +1267,45 @@ io.on('connection', (socket) => {
 	}
 });
 
-http.listen(http_port, '0.0.0.0', () => { console.log('listening HTTP on *:' + http_port); });
-https.listen(https_port, '0.0.0.0', () => { console.log('listening HTTPS on *:' + https_port); });
+// EXTRAS
+
+const QUERY_STATS = db.prepare(`
+	SELECT title_name, scenario, result, count(*) AS count
+	FROM games
+	JOIN titles ON games.title_id=titles.title_id
+	WHERE status=2 AND private=0
+	GROUP BY title_name, scenario, result
+	`);
+
+app.get('/stats', function (req, res) {
+	LOG(req, "GET /stats");
+	let stats = QUERY_STATS.all();
+	res.render('stats.ejs', { user: req.user, message: req.flash('message'), stats: stats });
+});
+
+app.get('/users', function (req, res) {
+	LOG(req, "GET /users");
+	let rows = db.prepare("SELECT name, mail, ctime, atime FROM users ORDER BY atime DESC").all();
+	rows.forEach(row => {
+		row.avatar = get_avatar(row.mail);
+		row.ctime = human_date(row.ctime);
+		row.atime = human_date(row.atime);
+	});
+	res.render('users.ejs', { user: req.user, message: req.flash('message'), userList: rows });
+});
+
+const QUERY_LIST_GAMES = db.prepare("SELECT *, ( active_id = ? OR active_role = 'Both' OR active_role = 'All' ) AS is_your_turn FROM game_view WHERE private = 0 AND status < 2");
+
+app.get('/games', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /join");
+	let games = QUERY_LIST_GAMES.all(req.user.user_id);
+	humanize(games);
+	let open_games = games.filter(game => game.status == 0);
+	let active_games = games.filter(game => game.status == 1);
+	res.set("Cache-Control", "no-store");
+	res.render('games.ejs', { user: req.user,
+		open_games: open_games,
+		active_games: active_games,
+		message: req.flash('message')
+	});
+});

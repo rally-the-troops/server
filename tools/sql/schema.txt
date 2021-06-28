@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS games (
 	game_id INTEGER PRIMARY KEY,
 	title_id TEXT,
 	scenario TEXT,
-	owner INTEGER,
+	owner_id INTEGER,
 	private BOOLEAN,
 	random BOOLEAN,
 	description TEXT,
@@ -111,3 +111,54 @@ BEGIN
 	DELETE FROM notifications WHERE game_id = old.game_id;
 	DELETE FROM chats WHERE game_id = old.game_id;
 END;
+
+DROP VIEW IF EXISTS player_view;
+DROP VIEW IF EXISTS player_list_view;
+DROP VIEW IF EXISTS game_view;
+
+CREATE VIEW player_view AS
+	SELECT players.game_id
+		, players.role AS role
+		, players.user_id AS user_id
+		, users.name AS user_name
+	FROM players
+	JOIN users ON players.user_id = users.user_id
+	;
+
+CREATE VIEW player_list_view AS
+	SELECT game_id
+		, group_concat(name, ', ') AS player_names
+		, COUNT(DISTINCT user_id) AS user_count
+		, COUNT(user_id) AS role_count
+	FROM players
+	JOIN users USING ( user_id )
+	GROUP BY game_id
+	;
+
+CREATE VIEW game_view AS
+	SELECT games.game_id
+		, games.title_id
+		, titles.title_name
+		, games.scenario
+		, games.owner_id
+		, owner.name AS owner_name
+		, players.player_names
+		, players.user_count = 1 AS is_solo
+		, players.user_count <> players.role_count AS is_shared
+		, games.private
+		, games.random
+		, games.description
+		, games.ctime
+		, games.mtime
+		, games.status
+		, games.result
+		, games.active AS active_role
+		, active.user_id AS active_id
+		, active.user_name AS active_name
+		-- , games.state
+	FROM games
+	JOIN titles USING ( title_id )
+	JOIN users AS owner ON games.owner_id = owner.user_id
+	LEFT JOIN player_list_view AS players USING ( game_id )
+	LEFT JOIN player_view AS active ON games.game_id = active.game_id AND games.active = active.role
+	;

@@ -220,7 +220,7 @@ function init_client(roles) {
 		document.querySelector(".grid_top").classList.add(player);
 		for (let i = 0; i < roles.length; ++i) {
 			let p = players.find(p => p.role == roles[i]);
-			document.querySelector(USER_SEL[i]).textContent = p ? p.name : "NONE";
+			document.querySelector(USER_SEL[i]).textContent = p ? p.user_name : "NONE";
 		}
 	});
 

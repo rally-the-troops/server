@@ -36,7 +36,7 @@ Your mail address is <%= user.mail %>.
 <td><%= row.game_id %>
 <td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
 <td><%= row.scenario %>
-<td><%= row.players.join(", ") %>
+<td><%= row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.ctime %>
 <td><a href="/join/<%= row.game_id %>">Join</a>
@@ -53,19 +53,19 @@ Your mail address is <%= user.mail %>.
 <td><%= row.game_id %>
 <td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
 <td><%= row.scenario %>
-<td><%= row.players.join(", ") %>
+<td><%= row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.mtime %>
 <%
-	if (row.your_turn) {
-		%><td class="your_turn"><%= row.active %><%
+	if (row.is_your_turn) {
+		%><td class="is_your_turn"><%= row.active_role %><%
 	} else {
-		%><td><%= row.active %><%
+		%><td><%= row.active_role %><%
 	}
-	if (row.players.reduce((n,p) => n + (p === user.name ? 1 : 0), 0) == 1) {
-		%><td><a href="/play/<%= row.game_id %>">Play</a><%
+	if (row.is_shared) {
+		%><td><a href="/join/<%= row.game_id %>">Enter</a><%
 	} else {
-		%><td><a href="/join/<%= row.game_id %>">Play</a><%
+		%><td><a href="/play/<%= row.game_id %>">Play</a><%
 	}
 %>
 <% }); %>
@@ -81,7 +81,7 @@ Your mail address is <%= user.mail %>.
 <td><%= row.game_id %>
 <td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
 <td><%= row.scenario %>
-<td><%= row.players.join(", ") %>
+<td><%= row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.mtime %>
 <td><%= row.result %>

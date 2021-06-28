@@ -84,24 +84,23 @@ function update() {
 		let element = document.getElementById(role_id);
 		if (player) {
 			if (game.status > 0) {
-				if (game.active === role || game.active === "Both" || game.active === "All")
-					element.className = "your_turn";
+				if (game.active_role === role || game.active_role === "Both" || game.active_role === "All")
+					element.className = "is_your_turn";
 				else
 					element.className = "";
 				if (player.user_id === user_id)
 					element.innerHTML = `<a href="/play/${game.game_id}/${role}">Play</a>`;
 				else
-					element.innerHTML = player.name;
+					element.innerHTML = player.user_name;
 			} else {
 				if ((player.user_id === user_id) || (game.owner_id === user_id))
-					element.innerHTML = `<a class="red" href="javascript:send('/part/${game.game_id}/${role}')">\u274c</a> ${player.name}`;
+					element.innerHTML = `<a class="red" href="javascript:send('/part/${game.game_id}/${role}')">\u274c</a> ${player.user_name}`;
 				else
-					element.innerHTML = player.name;
+					element.innerHTML = player.user_name;
 			}
 		} else {
 			if (game.status === 0)
-				//element.innerHTML = `<a class="join" href="javascript:send('/join/${game.game_id}/${role}')">Join</a>`;
-				element.innerHTML = `<a class="join" onclick="send('/join/${game.game_id}/${role}')" href="javascript:void 0">Join</a>`;
+				element.innerHTML = `<a class="join" href="javascript:send('/join/${game.game_id}/${role}')">Join</a>`;
 			else
 				element.innerHTML = "<i>Empty</i>";
 		}
@@ -122,7 +121,7 @@ function update() {
 	if (game.owner_id === user_id) {
 		window.start_button.disabled = !ready;
 		window.start_button.classList = (game.status === 0) ? "" : "hide";
-		window.delete_button.classList = (game.status === 0 || solo) ? "" : "hide";
+		window.delete_button.classList = (game.status === 0 || game.is_solo) ? "" : "hide";
 	}
 
 	if (game.status === 0 && ready)

@@ -9,13 +9,13 @@ Read more about the game on
 
 <h2>Open Games</h2>
 <table class="wide">
-<tr><th>ID<th>Scenario<th>Owner<th>Description<th>Created<th>
+<tr><th>ID<th>Scenario<th>Players<th>Description<th>Created<th>
 <% if (open_games.length > 0) { %>
 <% open_games.forEach((row) => { %>
 <tr>
 <td><%= row.game_id %>
 <td><%= row.scenario %>
-<td><%= row.owner_name %>
+<td><%= row.player_names || row.owner_name %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.ctime %>
 <td><a href="/join/<%= row.game_id %>">Join</a>
@@ -35,23 +35,16 @@ Read more about the game on
 <tr>
 <td><%= row.game_id %>
 <td><%= row.scenario %>
-<td><%= row.players.join(", ") %>
+<td><%= row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.mtime %>
 <%
-	if (row.your_turn) {
-		%><td class="your_turn"><%= row.active %><%
+	if (row.is_your_turn) {
+		%><td class="is_your_turn"><%= row.active_role %><%
 	} else {
-		%><td><%= row.active %><%
+		%><td><%= row.active_role %><%
 	}
-	let me = row.players.reduce((n,p) => n + (p === user.name ? 1 : 0), 0);
-	if (me == 1) {
-		%><td><a href="/play/<%= row.game_id %>">Play</a><%
-	} else if (me > 1) {
-		%><td><a href="/join/<%= row.game_id %>">Play</a><%
-	} else {
-		%><td><a href="/join/<%= row.game_id %>">View</a><%
-	}
+	%><td><a href="/join/<%= row.game_id %>">Enter</a><%
 %>
 <% }); %>
 </table>
@@ -65,7 +58,7 @@ Read more about the game on
 <tr>
 <td><%= row.game_id %>
 <td><%= row.scenario %>
-<td><%= row.players.join(", ") %>
+<td><%= row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.mtime %>
 <td><%= row.result %>
