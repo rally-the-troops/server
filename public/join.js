@@ -1,5 +1,6 @@
 "use strict";
 
+let start_status = game.status;
 let evtsrc = null;
 let timer = 0;
 
@@ -122,12 +123,16 @@ function update() {
 		window.start_button.disabled = !ready;
 		window.start_button.classList = (game.status === 0) ? "" : "hide";
 		window.delete_button.classList = (game.status === 0 || game.is_solo) ? "" : "hide";
+		if (game.status === 0 && ready)
+			start_blinker("READY TO START");
+		else
+			stop_blinker();
+	} else {
+		if (start_status === 0 && game.status === 1)
+			start_blinker("STARTED");
+		else
+			stop_blinker();
 	}
-
-	if (game.status === 0 && ready)
-		start_blinker("READY TO START");
-	else
-		stop_blinker();
 }
 
 window.onload = function () {
