@@ -441,6 +441,7 @@ app.post('/reset_password', function (req, res) {
 
 app.post('/change_password', must_be_logged_in, function (req, res) {
 	try {
+		let name = req.user.name;
 		let password = req.body.password;
 		let newpass = req.body.newpass;
 		LOG(req, "POST /change_password", name);
