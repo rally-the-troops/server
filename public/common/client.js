@@ -298,18 +298,20 @@ function init_client(roles) {
 }
 
 let is_your_turn = false;
+let old_active = null;
 
 function on_update_bar() {
 	document.getElementById("prompt").textContent = game.prompt;
 	if (game.actions) {
 		document.querySelector(".grid_top").classList.add("your_turn");
-		if (!is_your_turn)
+		if (!is_your_turn || old_active != game.active)
 			start_blinker("YOUR TURN");
 		is_your_turn = true;
 	} else {
 		document.querySelector(".grid_top").classList.remove("your_turn");
 		is_your_turn = false;
 	}
+	old_active = game.active;
 }
 
 function on_update_log() {
