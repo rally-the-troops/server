@@ -58,23 +58,28 @@ html, body, div {
 	grid-column: 2;
 	grid-row: 2;
 	border-left: 1px solid black;
-	overflow-y: clip;
+	overflow: clip;
 	width: 209px;
-}
-
-.role_vp {
-	padding-top: 3px;
-	padding-right: 5px;
-	padding-left: 3px;
-	float: right;
 }
 
 .role_name {
 	padding-top: 3px;
 	padding-bottom: 3px;
-	padding-left: 25px;
-	text-indent: -20px;
+	padding-left: 5px;
+	padding-right: 5px;
 	border-bottom: 1px solid black;
+}
+
+.role_vp {
+	float: right;
+}
+
+.role_user {
+	font-style: italic;
+	text-align: right;
+	overflow: clip;
+	text-overflow: "...";
+	white-space: nowrap;
 }
 
 .role .role_name::before { content: "\25cb  "; opacity: 0.6; }
