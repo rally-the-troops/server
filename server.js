@@ -20,22 +20,29 @@ const MAX_OPEN_GAMES = 3;
 
 let session_store = new SQLiteStore();
 let db = new sqlite3(process.env.DATABASE || "./db");
+
 let app = express();
-let https_port = process.env.HTTPS_PORT || 8443;
-let https = require('https').createServer({
-	key: fs.readFileSync(process.env.SSL_KEY || "key.pem"),
-	cert: fs.readFileSync(process.env.SSL_CERT || "cert.pem")
-	}, app);
-https.listen(https_port, '0.0.0.0', () => { console.log('listening HTTPS on *:' + https_port); });
-
-let io = require('socket.io')(https);
-
-// REDIRECT HTTP TO HTTPS
+let server = null;
 let http_port = process.env.HTTP_PORT || 8080;
-let http_app = express();
-let http_server = require('http').createServer(http_app);
-http_app.use((req, res) => res.redirect(301, 'https://' + req.hostname + ":" + https_port + req.path));
-http_server.listen(http_port, '0.0.0.0', () => { console.log('listening HTTP on *:' + http_port); });
+let https_port = process.env.HTTPS_PORT;
+if (https_port) {
+	server = require('https').createServer({
+		key: fs.readFileSync(process.env.SSL_KEY || "key.pem"),
+		cert: fs.readFileSync(process.env.SSL_CERT || "cert.pem")
+	}, app);
+	server.listen(https_port, '0.0.0.0', () => { console.log('listening HTTPS on *:' + https_port); });
+
+	// Redirect HTTP to HTTPS if we're running HTTPS
+	let http_app = express();
+	let http_server = require('http').createServer(http_app);
+	http_app.use((req, res) => res.redirect(301, 'https://' + req.hostname + req.originalUrl));
+	http_server.listen(http_port, '0.0.0.0', () => { console.log('listening HTTP on *:' + http_port); });
+} else {
+	server = require('http').createServer(app);
+	server.listen(http_port, '0.0.0.0', () => { console.log('listening HTTP on *:' + http_port); });
+}
+
+let io = require('socket.io')(server);
 
 let mailer = null;
 if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
