@@ -345,7 +345,7 @@ app.get('/unsubscribe', must_be_logged_in, function (req, res) {
  */
 
 const sql_select_salt = db.prepare("SELECT salt FROM users WHERE user_id = ?").pluck();
-const sql_find_user_by_mail = db.prepare("SELECT user_id FROM users WHERE mail = ?").pluck();
+const sql_find_user_by_mail = db.prepare("SELECT * FROM users WHERE mail = ?");
 
 const sql_find_token = db.prepare(`
 	SELECT token FROM tokens WHERE user_id = ? AND datetime('now') < datetime(time, '+5 minutes')
@@ -386,14 +386,14 @@ app.post('/forgot_password', function (req, res) {
 		if (sql_blacklist_ip.get(req.connection.remoteAddress)[0] != 0)
 			return res.redirect('/banned');
 		let mail = req.body.mail;
-		let user_id = sql_find_user_by_mail.get(mail);
-		if (user_id) {
-			let token = sql_find_token.get(user_id);
+		let user = sql_find_user_by_mail.get(mail);
+		if (user) {
+			let token = sql_find_token.get(user.user_id);
 			if (!token) {
-				sql_create_token.run(user_id);
-				token = sql_find_token.get(user_id);
+				sql_create_token.run(user.user_id);
+				token = sql_find_token.get(user.user_id);
 				console.log("FORGOT - create and mail token", token);
-				mail_password_reset_token(mail, token);
+				mail_password_reset_token(user, token);
 			} else {
 				console.log("FORGOT - existing token - ignore request", token);
 			}
@@ -417,8 +417,8 @@ app.post('/reset_password', function (req, res) {
 	let password = req.body.password;
 	try {
 		LOG(req, "POST /reset_password", mail, token);
-		let user_id = sql_find_user_by_mail.get(mail);
-		if (!user_id) {
+		let user = sql_find_user_by_mail.get(mail);
+		if (!user) {
 			req.flash('message', "User not found.");
 			return res.redirect('/reset_password/'+mail+'/'+token);
 		}
@@ -426,17 +426,17 @@ app.post('/reset_password', function (req, res) {
 			req.flash('message', "Password is too short!");
 			return res.redirect('/reset_password/'+mail+'/'+token);
 		}
-		if (!sql_verify_token.get(user_id, token)) {
+		if (!sql_verify_token.get(user.user_id, token)) {
 			req.flash('message', "Invalid or expired token!");
 			return res.redirect('/reset_password/'+mail);
 		}
-		let salt = sql_select_salt.get(user_id);
+		let salt = sql_select_salt.get(user.user_id);
 		if (!salt) {
 			req.flash('message', "User not found.");
 			return res.redirect('/reset_password/'+mail+'/'+token);
 		}
 		let hash = hash_password(password, salt);
-		db.prepare("UPDATE users SET password = ? WHERE user_id = ?").run(hash, user_id);
+		db.prepare("UPDATE users SET password = ? WHERE user_id = ?").run(hash, user.user_id);
 		req.flash('message', "Your password has been updated.");
 		return res.redirect('/login');
 	} catch (err) {
@@ -509,7 +509,7 @@ const QUERY_PLAYERS_FULL = db.prepare(`
 	SELECT
 		players.user_id,
 		players.role,
-		users.name AS user_name,
+		users.name,
 		users.mail,
 		users.notifications
 	FROM players
@@ -917,6 +917,10 @@ function mail_callback(err, info) {
 	console.log("MAIL SENT", err, info);
 }
 
+function mail_addr(user) {
+	return user.name + " <" + user.mail + ">";
+}
+
 function mail_describe(game) {
 	let desc = `Game: ${game.title_name}\n`;
 	desc += `Scenario: ${game.scenario}\n`;
@@ -926,13 +930,13 @@ function mail_describe(game) {
 	return desc + "\n";
 }
 
-function mail_password_reset_token(mail, token) {
+function mail_password_reset_token(user, token) {
 	let subject = "Rally the Troops - Password reset request";
 	let body =
 		"Your password reset token is: " + token + "\n\n" +
-		"https://rally-the-troops.com/reset_password/" + mail + "/" + token + "\n\n" +
+		"https://rally-the-troops.com/reset_password/" + user.mail + "/" + token + "\n\n" +
 		"If you did not request a password reset you can ignore this mail.\n";
-	mailer.sendMail({ from: MAIL_FROM, to: mail, subject: subject, text: body }, mail_callback);
+	mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 }
 
 function mail_your_turn_notification(user, game_id, interval) {
@@ -946,7 +950,7 @@ function mail_your_turn_notification(user, game_id, interval) {
 			"It's your turn.\n\n" +
 			"https://rally-the-troops.com/play/" + game_id + "\n\n" +
 			MAIL_FOOTER;
-		mailer.sendMail({ from: MAIL_FROM, to: user.mail, subject: subject, text: body }, mail_callback);
+		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 	}
 }
 
@@ -966,7 +970,7 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 			"Your game is ready to start.\n\n" +
 			"https://rally-the-troops.com/join/" + game_id + "\n\n" +
 			MAIL_FOOTER;
-		mailer.sendMail({ from: MAIL_FROM, to: user.mail, subject: subject, text: body }, mail_callback);
+		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 	}
 }
 
