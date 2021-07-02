@@ -89,6 +89,16 @@ html, body, div {
 	border-bottom: 1px solid black;
 }
 
+.turn_info {
+	padding: 8px 0px 8px 8px;
+	border-bottom: 1px solid black;
+	white-space: pre-line;
+	font-style: italic;
+	font-size: 12px;
+	line-height: 18px;
+	font-family: "Source Serif SmText";
+}
+
 .grid_log {
 	grid-column: 2;
 	grid-row: 3;
