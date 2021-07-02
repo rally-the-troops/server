@@ -364,14 +364,17 @@ function zoom_map() {
 	let grid = document.querySelector(".grid_center");
 	let mapwrap = document.querySelector(".mapwrap");
 	let map = document.querySelector(".map");
-	map.style.transform = 'none';
-	mapwrap.style.height = 'auto';
+	map.style.transform = null;
+	mapwrap.style.width = null;
+	mapwrap.style.height = null;
 	if (mapwrap.classList.contains("fit")) {
+		let { width: gw, height: gh } = grid.getBoundingClientRect();
 		let { width: ww, height: wh } = mapwrap.getBoundingClientRect();
 		let { width: cw, height: ch } = map.getBoundingClientRect();
-		let scale = ww / cw;
+		let scale = Math.min(ww / cw, gh / ch);
 		if (scale < 1) {
 			map.style.transform = "scale(" + scale + ")";
+			mapwrap.style.width = (cw * scale) + "px";
 			mapwrap.style.height = (ch * scale) + "px";
 		}
 	}

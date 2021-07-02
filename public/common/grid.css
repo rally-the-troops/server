@@ -240,14 +240,16 @@ html, body, div {
 	transform: scale(2.0) translate(0,-35px);
 }
 
+.mapwrap {
+	margin: 0 auto;
+}
+
 .mapwrap.fit {
-	overflow: hidden;
+	overflow: clip;
 	max-width: 100%;
 }
 
 .map {
-	margin: 0 auto;
-	box-shadow: 0px 1px 10px rgba(0,0,0,0.5);
 	transform-origin: 0 0;
 }
 
