@@ -703,7 +703,7 @@ function update_join_clients_game(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
 		let game = QUERY_GAME.get(game_id);
-		console.log("JOIN: UPDATE GAME STATUS", game_id, list.title_id, list.length, game)
+		console.log("JOIN: UPDATE GAME STATUS", game_id, list.title_id, list.length)
 		for (let res of list) {
 			res.write("retry: 15000\n");
 			res.write("event: game\n");
@@ -897,7 +897,7 @@ app.get('/play/:game_id', must_be_logged_in, function (req, res) {
  */
 
 const MAIL_FROM = process.env.MAIL_FROM || "Rally the Troops! <notifications@rally-the-troops.com>";
-const MAIL_FOOTER = "You can unsubscribe from notifications on your profile page:\n\nhttps://rally-the-troops.com/unsubscribe\n";
+const MAIL_FOOTER = "You can unsubscribe from notifications on your profile page:\n\nhttps://rally-the-troops.com/profile\n";
 
 const sql_notify_too_soon = db.prepare("SELECT datetime('now') < datetime(time, ?) FROM notifications WHERE user_id = ? AND game_id = ?").pluck();
 const sql_notify_update = db.prepare("INSERT OR REPLACE INTO notifications VALUES ( ?, ?, datetime('now') )");
@@ -917,6 +917,15 @@ function mail_callback(err, info) {
 	console.log("MAIL SENT", err, info);
 }
 
+function mail_describe(game) {
+	let desc = `Game: ${game.title_name}\n`;
+	desc += `Scenario: ${game.scenario}\n`;
+	desc += `Players: ${game.player_names}\n`;
+	if (game.description.length > 0)
+		desc += `Description: ${game.description}\n`;
+	return desc + "\n";
+}
+
 function mail_password_reset_token(mail, token) {
 	let subject = "Rally the Troops - Password reset request";
 	let body =
@@ -933,7 +942,7 @@ function mail_your_turn_notification(user, game_id, interval) {
 		sql_notify_update.run(user.user_id, game_id);
 		let game = QUERY_GAME.get(game_id);
 		let subject = game.title_name + " - " + game_id + " - Your turn!";
-		let body =
+		let body = mail_describe(game) +
 			"It's your turn.\n\n" +
 			"https://rally-the-troops.com/play/" + game_id + "\n\n" +
 			MAIL_FOOTER;
@@ -953,7 +962,7 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 		sql_notify_update.run(user.user_id, game_id);
 		let game = QUERY_GAME.get(game_id);
 		let subject = game.title_name + " - " + game_id + " - Ready to start!";
-		let body =
+		let body = mail_describe(game) +
 			"Your game is ready to start.\n\n" +
 			"https://rally-the-troops.com/join/" + game_id + "\n\n" +
 			MAIL_FOOTER;
