@@ -22,6 +22,10 @@ html, body, div {
 	padding: 0;
 }
 
+html {
+	overflow: clip;
+}
+
 .status {
 	position:absolute;
 	z-index: 100;
@@ -58,7 +62,6 @@ html, body, div {
 	grid-column: 2;
 	grid-row: 2;
 	border-left: 1px solid black;
-	overflow: clip;
 	width: 209px;
 }
 
@@ -87,6 +90,7 @@ html, body, div {
 
 .role_info {
 	border-bottom: 1px solid black;
+	overflow: clip; /* clip dropshadow from filter:grayscale() stacking context */
 }
 
 .turn_info {
@@ -130,7 +134,7 @@ html, body, div {
 }
 
 .grid_top.disconnected {
-	background-color: red;
+	background-color: red !important;
 }
 
 .menu {
@@ -227,17 +231,11 @@ html, body, div {
 }
 
 .small_card {
-	margin: 15px;
+	margin: 0 auto;
 	background-size: cover;
 	background-repeat: no-repeat;
 	transition: 100ms;
 	box-shadow: 1px 1px 5px rgba(0,0,0,0.5);
-}
-.one .small_card:hover {
-	transform: scale(2.0) translate(0,35px);
-}
-.two .small_card:hover {
-	transform: scale(2.0) translate(0,-35px);
 }
 
 .mapwrap {
