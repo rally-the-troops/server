@@ -1,3 +1,7 @@
+"use strict";
+
+/* global io, on_update */
+
 let game = null;
 let player = null;
 let socket = null;
@@ -123,7 +127,7 @@ function add_chat_lines(log) {
 		let [date, user, message] = entry;
 		date = new Date(date);
 		let day = date.toDateString();
-		if (day != chat_last_day) {
+		if (day !== chat_last_day) {
 			add_date_line(day);
 			chat_last_day = day;
 		}
@@ -153,7 +157,7 @@ function save_chat() {
 }
 
 function update_chat(log_start, log) {
-	if (log_start == 0) {
+	if (log_start === 0) {
 		chat_last_day = null;
 		chat_log = [];
 		while (chat_text.firstChild)
@@ -215,12 +219,12 @@ function init_client(roles) {
 	socket.on('roles', (me, players) => {
 		console.log("ROLES", me, JSON.stringify(players));
 		player = me.replace(/ /g, '_');
-		if (player == "Observer")
+		if (player === "Observer")
 			document.querySelector(".chat_button").style.display = "none";
 		document.querySelector(".grid_top").classList.add(player);
 		for (let i = 0; i < roles.length; ++i) {
-			let p = players.find(p => p.role == roles[i]);
-			document.querySelector(USER_SEL[i]).textContent = p ? p.user_name : "NONE";
+			let pr = players.find(p => p.role === roles[i]);
+			document.querySelector(USER_SEL[i]).textContent = pr ? pr.user_name : "NONE";
 		}
 	});
 
@@ -277,16 +281,16 @@ function init_client(roles) {
 	});
 
 	document.querySelector("body").addEventListener("keydown", e => {
-		if (player && player != "Observer") {
-			if (e.key == "Escape") {
+		if (player && player !== "Observer") {
+			if (e.key === "Escape") {
 				if (chat_is_visible) {
 					e.preventDefault();
 					hide_chat();
 				}
 			}
-			if (e.key == "Enter") {
+			if (e.key === "Enter") {
 				let input = document.querySelector("#chat_input");
-				if (document.activeElement != input) {
+				if (document.activeElement !== input) {
 					e.preventDefault();
 					show_chat();
 				}
@@ -304,7 +308,7 @@ function on_update_bar() {
 	document.getElementById("prompt").textContent = game.prompt;
 	if (game.actions) {
 		document.querySelector(".grid_top").classList.add("your_turn");
-		if (!is_your_turn || old_active != game.active)
+		if (!is_your_turn || old_active !== game.active)
 			start_blinker("YOUR TURN");
 		is_your_turn = true;
 	} else {
@@ -453,7 +457,6 @@ function send_save() {
 
 function send_restore() {
 	let title = window.location.pathname.split("/")[1];
-	let save = window.localStorage[title + '/save'];
 	socket.emit('restore', window.localStorage[title + '/save']);
 }
 
@@ -465,14 +468,14 @@ function on_game_over(game_over) {
 	if (player) {
 		let exit_button = document.querySelector("#exit_button");
 		if (exit_button) {
-			if (game_over || player == "Observer")
+			if (game_over || player === "Observer")
 				exit_button.classList.remove("hide");
 			else
 				exit_button.classList.add("hide");
 		}
 		let rematch_button = document.querySelector("#rematch_button");
 		if (rematch_button) {
-			if (game_over && player != "Observer")
+			if (game_over && player !== "Observer")
 				rematch_button.classList.remove("hide");
 			else
 				rematch_button.classList.add("hide");
@@ -482,8 +485,8 @@ function on_game_over(game_over) {
 
 function send_rematch() {
 	let params = new URLSearchParams(window.location.search);
-	let game = params.get("game");
-	window.location = '/rematch/' + game;
+	let game_id = params.get("game");
+	window.location = '/rematch/' + game_id;
 }
 
 function send_exit() {
