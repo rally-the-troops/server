@@ -110,14 +110,14 @@ function human_date(time) {
 	var date = time ? new Date(time + " UTC") : new Date(0);
 	var seconds = (Date.now() - date.getTime()) / 1000;
 	var days = Math.floor(seconds / 86400);
-	if (days == 0) {
+	if (days === 0) {
 		if (seconds < 60) return "now";
 		if (seconds < 120) return "1 minute ago";
 		if (seconds < 3600) return Math.floor(seconds / 60) + " minutes ago";
 		if (seconds < 7200) return "1 hour ago";
 		if (seconds < 86400) return Math.floor(seconds / 3600) + " hours ago";
 	}
-	if (days == 1) return "Yesterday";
+	if (days === 1) return "Yesterday";
 	if (days < 14) return days + " days ago";
 	if (days < 31) return Math.ceil(days / 7) + " weeks ago";
 	return date.toISOString().substring(0,10);
@@ -173,9 +173,9 @@ const sql_blacklist_ip = db.prepare("SELECT COUNT(*) FROM blacklist_ip WHERE ip 
 const sql_blacklist_mail = db.prepare("SELECT COUNT(*) AS count FROM blacklist_mail WHERE ? LIKE mail").raw();
 
 function is_blacklisted(ip, mail) {
-	if (sql_blacklist_ip.get(ip)[0] != 0)
+	if (sql_blacklist_ip.get(ip)[0] !== 0)
 		return true;
-	if (sql_blacklist_mail.get(mail)[0] != 0)
+	if (sql_blacklist_mail.get(mail)[0] !== 0)
 		return true;
 	return false;
 }
@@ -214,7 +214,7 @@ function local_login(req, name_or_mail, password, done) {
 		if (is_blacklisted(req.connection.remoteAddress, row.mail))
 			return setTimeout(() => done(null, false, req.flash('message', "Sorry, but this IP or account has been banned.")), 1000);
 		let hash = hash_password(password, row.salt);
-		if (hash != row.password)
+		if (hash !== row.password)
 			return setTimeout(() => done(null, false, req.flash('message', "Wrong password.")), 1000);
 		sql_update_last_seen.run(req.connection.remoteAddress, row.user_id);
 		done(null, row);
@@ -270,9 +270,9 @@ function update_last_seen(req) {
 function must_be_logged_in(req, res, next) {
 	if (!req.isAuthenticated())
 		return res.redirect('/login');
-	if (sql_blacklist_ip.get(req.connection.remoteAddress)[0] != 0)
+	if (sql_blacklist_ip.get(req.connection.remoteAddress)[0] !== 0)
 		return res.redirect('/banned');
-	if (sql_blacklist_mail.get(req.user.mail)[0] != 0)
+	if (sql_blacklist_mail.get(req.user.mail)[0] !== 0)
 		return res.redirect('/banned');
 	update_last_seen(req);
 	return next();
@@ -383,7 +383,7 @@ app.get('/reset_password/:mail/:token', function (req, res) {
 app.post('/forgot_password', function (req, res) {
 	LOG(req, "POST /forgot_password");
 	try {
-		if (sql_blacklist_ip.get(req.connection.remoteAddress)[0] != 0)
+		if (sql_blacklist_ip.get(req.connection.remoteAddress)[0] !== 0)
 			return res.redirect('/banned');
 		let mail = req.body.mail;
 		let user = sql_find_user_by_mail.get(mail);
@@ -563,9 +563,9 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 	let avatar = get_avatar(req.user.mail);
 	let games = QUERY_LIST_GAMES_OF_USER.all({user_id: req.user.user_id});
 	humanize(games);
-	let open_games = games.filter(game => game.status == 0);
-	let active_games = games.filter(game => game.status == 1);
-	let finished_games = games.filter(game => game.status == 2);
+	let open_games = games.filter(game => game.status === 0);
+	let active_games = games.filter(game => game.status === 1);
+	let finished_games = games.filter(game => game.status === 2);
 	res.set("Cache-Control", "no-store");
 	res.render('profile.ejs', { user: req.user, avatar: avatar,
 		open_games: open_games,
@@ -586,9 +586,9 @@ app.get('/info/:title_id', function (req, res) {
 	if (req.isAuthenticated()) {
 		let games = QUERY_LIST_GAMES_OF_TITLE.all(req.user.user_id, title_id);
 		humanize(games);
-		let open_games = games.filter(game => game.status == 0);
-		let active_games = games.filter(game => game.status == 1);
-		let finished_games = games.filter(game => game.status == 2);
+		let open_games = games.filter(game => game.status === 0);
+		let active_games = games.filter(game => game.status === 1);
+		let finished_games = games.filter(game => game.status === 2);
 		res.set("Cache-Control", "no-store");
 		res.render('info.ejs', { user: req.user, title: title,
 			open_games: open_games,
@@ -621,8 +621,8 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 	let title_id = req.params.title_id;
 	let descr = req.body.description;
-	let priv = req.body.private == 'private';
-	let rand = req.body.random == 'random';
+	let priv = req.body.private === 'private';
+	let rand = req.body.random === 'random';
 	let scenario = req.body.scenario;
 	let user_id = req.user.user_id;
 	LOG(req, "POST /create/" + req.params.title_id, scenario, priv, JSON.stringify(descr));
@@ -672,7 +672,7 @@ app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 	try {
 		let magic = "\u{1F503} " + old_game_id;
 		let info = QUERY_REMATCH_CREATE.run({user_id: req.user.user_id, game_id: old_game_id, magic: magic});
-		if (info.changes == 1)
+		if (info.changes === 1)
 			return res.redirect('/join/'+info.lastInsertRowid);
 		let new_game_id = QUERY_REMATCH_FIND.get(magic);
 		if (new_game_id)
@@ -690,7 +690,7 @@ let join_clients = {};
 function update_join_clients_deleted(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
-		console.log("JOIN: UPDATE GAME DELETED", game_id, list.title_id, list.length, players.map(p => p.user_name));
+		console.log("JOIN: UPDATE GAME DELETED", game_id, list.title_id, list.length);
 		for (let res of list) {
 			res.write("retry: 15000\n");
 			res.write("event: deleted\n");
@@ -738,7 +738,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	}
 	let roles = QUERY_ROLES.all(game.title_id);
 	let players = QUERY_PLAYERS.all(game_id);
-	let ready = (game.status == 0) && RULES[game.title_id].ready(game.scenario, players);
+	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, players);
 	res.set("Cache-Control", "no-store");
 	res.render('join.ejs', {
 		user: req.user,
@@ -837,7 +837,7 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 		let game = QUERY_GAME_OWNER.get(game_id, req.user.user_id);
 		if (!game)
 			return res.send("Only the game owner can start the game!");
-		if (game.status != 0)
+		if (game.status !== 0)
 			return res.send("The game is already started!");
 		let players = QUERY_PLAYERS.all(game_id);
 		if (!RULES[game.title_id].ready(game.scenario, players))
@@ -848,7 +848,7 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 		}
 		let state = RULES[game.title_id].setup(game.scenario, players);
 		QUERY_START_GAME.run(JSON.stringify(state), state.active, game_id);
-		let is_solo = players.every(p => p.user_id == players[0].user_id);
+		let is_solo = players.every(p => p.user_id === players[0].user_id);
 		if (is_solo)
 			QUERY_UPDATE_GAME_SET_PRIVATE.run(game_id);
 		update_join_clients_game(game_id);
@@ -977,16 +977,16 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 function mail_your_turn_notification_to_offline_users(game_id, old_active, new_active) {
 	if (!mailer)
 		return;
-	if (new_active == old_active)
+	if (new_active === old_active)
 		return;
 
 	function is_active(active, role) {
-		return active == "Both" || active == "All" || active == role;
+		return active === "Both" || active === "All" || active === role;
 	}
 
 	function is_online(game_id, user_id) {
 		for (let other of clients[game_id])
-			if (other.user_id == user_id)
+			if (other.user_id === user_id)
 				return true;
 		return false;
 	}
@@ -1061,7 +1061,7 @@ function send_state(socket, state) {
 			view.log_start = view.log.length;
 		socket.log_length = view.log.length;
 		view.log = view.log.slice(view.log_start);
-		socket.emit('state', view, state.state == 'game_over');
+		socket.emit('state', view, state.state === 'game_over');
 	} catch (err) {
 		console.log(err);
 		return socket.emit('error', err.toString());
@@ -1078,7 +1078,7 @@ function get_game_state(game_id) {
 function put_game_state(game_id, state, old_active) {
 	let status = 1;
 	let result = null;
-	if (state.state == 'game_over') {
+	if (state.state === 'game_over') {
 		status = 2;
 		result = state.result;
 	}
@@ -1116,7 +1116,7 @@ function on_resign(socket) {
 }
 
 function send_chat(socket, chat) {
-	if (socket.role == "Observer")
+	if (socket.role === "Observer")
 		return;
 	if (chat && socket.chat_length < chat.length) {
 		SLOG(socket, "<-- CHAT LOG", socket.chat_length, "..", chat.length);
@@ -1225,16 +1225,16 @@ io.on('connection', (socket) => {
 
 		let players = QUERY_PLAYERS.all(socket.game_id);
 
-		if (socket.role != "Observer") {
+		if (socket.role !== "Observer") {
 			let me;
-			if (socket.role && socket.role != 'undefined' && socket.role != 'null') {
-				me = players.find(p => p.user_id == socket.user_id && p.role == socket.role);
+			if (socket.role && socket.role !== 'undefined' && socket.role !== 'null') {
+				me = players.find(p => p.user_id === socket.user_id && p.role === socket.role);
 				if (!me) {
 					socket.role = "Observer";
 					return socket.emit('error', "You aren't assigned that role!");
 				}
 			} else {
-				me = players.find(p => p.user_id == socket.user_id);
+				me = players.find(p => p.user_id === socket.user_id);
 				socket.role = me ? me.role : "Observer";
 			}
 		}
@@ -1249,11 +1249,11 @@ io.on('connection', (socket) => {
 		socket.on('disconnect', () => {
 			SLOG(socket, "DISCONNECT");
 			clients[socket.game_id].splice(clients[socket.game_id].indexOf(socket), 1);
-			if (socket.role != "Observer")
+			if (socket.role !== "Observer")
 				broadcast_presence(socket.game_id);
 		});
 
-		if (socket.role != "Observer") {
+		if (socket.role !== "Observer") {
 			socket.on('action', (action, arg) => on_action(socket, action, arg));
 			socket.on('resign', () => on_resign(socket));
 			socket.on('getchat', (old_len) => on_getchat(socket, old_len));
@@ -1321,8 +1321,8 @@ app.get('/games', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /join");
 	let games = QUERY_LIST_GAMES.all(req.user.user_id);
 	humanize(games);
-	let open_games = games.filter(game => game.status == 0);
-	let active_games = games.filter(game => game.status == 1);
+	let open_games = games.filter(game => game.status === 0);
+	let active_games = games.filter(game => game.status === 1);
 	res.set("Cache-Control", "no-store");
 	res.render('games.ejs', { user: req.user,
 		open_games: open_games,

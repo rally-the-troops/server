@@ -9,6 +9,8 @@
  * MIT Licensed
  */
 
+"use strict";
+
 module.exports = function (session) {
 	const SQLite = require('better-sqlite3');
 
@@ -23,7 +25,7 @@ module.exports = function (session) {
 
 			let table = options.table || 'sessions';
 			let db_path = options.db || table;
-			if (db_path != ':memory:')
+			if (db_path !== ':memory:')
 				db_path = (options.dir || '.') + '/' + db_path;
 
 			let db = new SQLite(db_path, options.mode);
