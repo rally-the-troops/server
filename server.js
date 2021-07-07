@@ -944,7 +944,7 @@ app.get('/play/:game_id', must_be_logged_in, function (req, res) {
 			return res.redirect('/join/'+game_id);
 		let role = QUERY_ROLE_FROM_GAME_AND_USER.get(game_id, user_id);
 		if (!role)
-			res.redirect('/'+title+'/play.html?game='+game_id+'&role=Observer');
+			return res.redirect('/'+title+'/play.html?game='+game_id+'&role=Observer');
 		return res.redirect('/'+title+'/play.html?game='+game_id+'&role='+role);
 	} catch (err) {
 		req.flash('message', err.toString());
