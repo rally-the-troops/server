@@ -12,20 +12,19 @@ Your mail address is <%= user.mail %>.
 
 <br clear=left>
 
-<p>
-<%
+<ul style="list-style:'\bb  '">
+<li><%
 	if (user.notifications) {
 		%><a href="/unsubscribe">Disable mail notifications</a><%
 	} else {
 		%><a href="/subscribe">Enable mail notifications</a><%
 	}
 %>
-
-<p>
-<a href="/change_password">Change password</a>
-
-<p>
-<a href="/logout">Logout</a>
+<li><a href="/change_password">Change password</a>
+<li><a href="/change_mail">Change mail address</a>
+<li><a href="/change_name">Change name</a>
+<li><a href="/logout">Logout</a>
+</ul>
 
 <% if (open_games.length > 0) { %>
 <h2>Open Games</h2>

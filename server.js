@@ -328,6 +328,16 @@ app.get('/change_password', must_be_logged_in, function (req, res) {
 	res.render('change_password.ejs', { user: req.user, message: req.flash('message') });
 });
 
+app.get('/change_name', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /change_name");
+	res.render('change_name.ejs', { user: req.user, message: req.flash('message') });
+});
+
+app.get('/change_mail', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /change_mail");
+	res.render('change_mail.ejs', { user: req.user, message: req.flash('message') });
+});
+
 app.get('/subscribe', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /subscribe");
 	sql_subscribe.run(req.user.user_id);
@@ -475,6 +485,56 @@ app.post('/change_password', must_be_logged_in, function (req, res) {
 		console.log(err);
 		req.flash('message', err.message);
 		return res.redirect('/change_password');
+	}
+});
+
+const sql_is_name_taken = db.prepare("SELECT EXISTS ( SELECT 1 FROM users WHERE name = ? )").pluck();
+const sql_change_name = db.prepare("UPDATE users SET name = ? WHERE user_id = ?");
+
+const sql_is_mail_taken = db.prepare("SELECT EXISTS ( SELECT 1 FROM users WHERE mail = ? )").pluck();
+const sql_change_mail = db.prepare("UPDATE users SET mail = ? WHERE user_id = ?");
+
+app.post('/change_name', must_be_logged_in, function (req, res) {
+	try {
+		let newname = clean_user_name(req.body.newname);
+		LOG(req, "POST /change_name", req.user, req.body, newname);
+		if (!is_valid_user_name(newname)) {
+			req.flash('message', "Invalid user name!");
+			return res.redirect('/change_name');
+		}
+		if (sql_is_name_taken.get(newname)) {
+			req.flash('message', "That name is already taken!");
+			return res.redirect('/change_name');
+		}
+		sql_change_name.run(newname, req.user.user_id);
+		req.flash('message', "Your name has been changed.");
+		return res.redirect('/profile');
+	} catch (err) {
+		console.log(err);
+		req.flash('message', err.message);
+		return res.redirect('/change_name');
+	}
+});
+
+app.post('/change_mail', must_be_logged_in, function (req, res) {
+	try {
+		let newmail = req.body.newmail;
+		LOG(req, "POST /change_mail", req.user, req.body);
+		if (!is_email(newmail)) {
+			req.flash('message', "Invalid mail address!");
+			return res.redirect('/change_mail');
+		}
+		if (sql_is_mail_taken.get(newmail)) {
+			req.flash('message', "That mail address is already taken!");
+			return res.redirect('/change_mail');
+		}
+		sql_change_mail.run(newmail, req.user.user_id);
+		req.flash('message', "Your mail address has been changed.");
+		return res.redirect('/profile');
+	} catch (err) {
+		console.log(err);
+		req.flash('message', err.message);
+		return res.redirect('/change_mail');
 	}
 });
 
