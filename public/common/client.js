@@ -83,10 +83,11 @@ let blink_title = document.title;
 let blink_timer = 0;
 
 function start_blinker(message) {
-	let tick = true;
+	let tick = false;
 	if (blink_timer)
 		stop_blinker();
 	if (!document.hasFocus()) {
+		document.title = message;
 		blink_timer = setInterval(function () {
 			document.title = tick ? message : blink_title;
 			tick = !tick;
