@@ -221,7 +221,7 @@ function init_client(roles) {
 		player = me.replace(/ /g, '_');
 		if (player === "Observer")
 			document.querySelector(".chat_button").style.display = "none";
-		document.querySelector(".grid_top").classList.add(player);
+		document.querySelector("body").classList.add(player);
 		for (let i = 0; i < roles.length; ++i) {
 			let pr = players.find(p => p.role === roles[i]);
 			document.querySelector(USER_SEL[i]).textContent = pr ? pr.user_name : "NONE";
