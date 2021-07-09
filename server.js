@@ -1054,7 +1054,7 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, new_a
 	let users = {};
 	let online = {};
 	for (let p of QUERY_PLAYERS_FULL.all(game_id)) {
-		if (p.notifications && !is_active(old_active, p.role) && is_active(new_active, p.role)) {
+		if (p.notifications && is_active(new_active, p.role)) {
 			users[p.user_id] = p;
 			if (is_online(game_id, p.user_id))
 				online[p.user_id] = 1;
@@ -1065,7 +1065,7 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, new_a
 		if (online[u])
 			reset_your_turn_notification(users[u], game_id);
 		else
-			mail_your_turn_notification(users[u], game_id, '+1 minute');
+			mail_your_turn_notification(users[u], game_id, '+0 seconds');
 	}
 }
 
