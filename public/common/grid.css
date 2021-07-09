@@ -175,6 +175,11 @@ html {
 	color: white;
 }
 
+body.Observer .menu .resign {
+	display: none;
+}
+
+
 .image_button {
 	user-select: none;
 }
