@@ -554,7 +554,7 @@ for (let title_id of db.prepare("SELECT * FROM titles").pluck().all()) {
 
 const QUERY_GAME = db.prepare("SELECT * FROM game_view WHERE game_id = ?");
 const QUERY_LIST_GAMES_OF_TITLE = db.prepare(`
-	SELECT *, ( active_id = ? OR active_role = 'Both' OR active_role = 'All' ) AS is_your_turn FROM game_view
+	SELECT * FROM game_view
 	WHERE title_id = ? AND private = 0
 	ORDER BY status ASC, mtime DESC
 `);
@@ -644,7 +644,7 @@ app.get('/info/:title_id', function (req, res) {
 		return res.redirect('/');
 	}
 	if (req.isAuthenticated()) {
-		let games = QUERY_LIST_GAMES_OF_TITLE.all(req.user.user_id, title_id);
+		let games = QUERY_LIST_GAMES_OF_TITLE.all(title_id);
 		humanize(games);
 		let open_games = games.filter(game => game.status === 0);
 		let active_games = games.filter(game => game.status === 1);
@@ -1375,11 +1375,11 @@ app.get('/users', function (req, res) {
 	res.render('users.ejs', { user: req.user, message: req.flash('message'), userList: rows });
 });
 
-const QUERY_LIST_GAMES = db.prepare("SELECT *, ( active_id = ? OR active_role = 'Both' OR active_role = 'All' ) AS is_your_turn FROM game_view WHERE private = 0 AND status < 2");
+const QUERY_LIST_GAMES = db.prepare("SELECT * FROM game_view WHERE private = 0 AND status < 2");
 
 app.get('/games', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /join");
-	let games = QUERY_LIST_GAMES.all(req.user.user_id);
+	let games = QUERY_LIST_GAMES.all();
 	humanize(games);
 	let open_games = games.filter(game => game.status === 0);
 	let active_games = games.filter(game => game.status === 1);

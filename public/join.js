@@ -71,6 +71,12 @@ function start_event_source() {
 	}
 }
 
+function is_your_turn(player, role) {
+	if (player.user_id === user_id)
+		return (game.active_role === role || game.active_role === "Both" || game.active_role === "All");
+	return false;
+}
+
 function update() {
 	window.game_status.textContent = ["Open","Active","Finished","Abandoned"][game.status];
 	window.game_result.textContent = game.result || "\u2014";
@@ -85,7 +91,7 @@ function update() {
 		let element = document.getElementById(role_id);
 		if (player) {
 			if (game.status > 0) {
-				if (game.active_role === role || game.active_role === "Both" || game.active_role === "All")
+				if (is_your_turn(player, role))
 					element.className = "is_your_turn";
 				else
 					element.className = "";

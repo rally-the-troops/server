@@ -38,14 +38,8 @@ Read more about the game on
 <td><%= row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.mtime %>
-<%
-	if (row.is_your_turn) {
-		%><td class="is_your_turn"><%= row.active_role %><%
-	} else {
-		%><td><%= row.active_role %><%
-	}
-	%><td><a href="/join/<%= row.game_id %>">Enter</a><%
-%>
+<td><%= row.active_role %>
+<td><a href="/join/<%= row.game_id %>">Enter</a>
 <% }); %>
 </table>
 <% } %>
