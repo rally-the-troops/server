@@ -70,7 +70,7 @@ app.use(express_session({
 	rolling: true,
 	saveUninitialized: false,
 	store: session_store,
-	cookie: { maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'strict' }
+	cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }
 }));
 app.use(connect_flash());
 
