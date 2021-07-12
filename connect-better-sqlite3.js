@@ -30,7 +30,7 @@ module.exports = function (session) {
 
 			let db = new SQLite(db_path, options.mode);
 			db.exec("CREATE TABLE IF NOT EXISTS "+table+" (sid PRIMARY KEY, expires INTEGER, sess TEXT)");
-			db.exec("DELETE FROM "+table+" WHERE ? > expires");
+			db.exec("DELETE FROM "+table+" WHERE "+now()+" > expires");
 			db.exec("VACUUM");
 
 			this.sql_destroy = db.prepare("DELETE FROM "+table+" WHERE sid = ?");
