@@ -1097,11 +1097,11 @@ function notify_ready_to_start_reminder() {
 	}
 }
 
-// Check and send 'your turn' reminders every 15 minutes.
+// Check and send daily 'your turn' reminders every 15 minutes.
 setInterval(notify_your_turn_reminder, 15 * 60 * 1000);
 
-// Check and send ready to start notifications every minute.
-setInterval(notify_ready_to_start_reminder, 60 * 1000);
+// Check and send ready to start notifications every 5 minutes.
+setInterval(notify_ready_to_start_reminder, 5 * 60 * 1000);
 
 /*
  * GAME PLAYING
