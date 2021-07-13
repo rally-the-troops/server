@@ -3,6 +3,7 @@
 /* global io, on_update */
 
 let game = null;
+let game_over = false;
 let player = null;
 let socket = null;
 
@@ -240,13 +241,14 @@ function init_client(roles) {
 		}
 	});
 
-	socket.on('state', (state, game_over) => {
+	socket.on('state', (new_game, new_game_over) => {
 		console.log("STATE");
-		game = state;
+		game = new_game;
+		game_over = new_game_over;
 		on_update_log();
 		on_update_bar();
 		on_update();
-		on_game_over(game_over);
+		on_game_over();
 	});
 
 	socket.on('save', (msg) => {
@@ -465,7 +467,7 @@ function send_restart(scenario) {
 	socket.emit('restart', scenario);
 }
 
-function on_game_over(game_over) {
+function on_game_over() {
 	if (player) {
 		let exit_button = document.querySelector("#exit_button");
 		if (exit_button) {
