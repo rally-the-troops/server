@@ -92,7 +92,7 @@ app.use(express.static('public', { setHeaders: setHeaders }));
 function LOG(req, ...msg) {
 	let name;
 	if (req.isAuthenticated())
-		name = req.user.mail;
+		name = `"${req.user.name}" <${req.user.mail}>`;
 	else
 		name = "guest";
 	let time = new Date().toISOString().substring(0,19).replace("T", " ");
@@ -100,7 +100,7 @@ function LOG(req, ...msg) {
 }
 
 function SLOG(socket, ...msg) {
-	let name = socket.request.user.mail;
+	let name = `"${socket.request.user.name}" <${socket.request.user.mail}>`;
 	let time = new Date().toISOString().substring(0,19).replace("T", " ");
 	console.log(time, socket.request.connection.remoteAddress, name,
 		socket.id, socket.title_id, socket.game_id, socket.role, ...msg);
@@ -544,11 +544,15 @@ app.post('/change_mail', must_be_logged_in, function (req, res) {
 
 let RULES = {};
 for (let title_id of db.prepare("SELECT * FROM titles").pluck().all()) {
-	console.log("Loading rules for " + title_id);
-	try {
-		RULES[title_id] = require("./public/" + title_id + "/rules.js");
-	} catch (err) {
-		console.log(err);
+	if (fs.existsSync(__dirname + "/public/" + title_id + "/rules.js")) {
+		console.log("Loading rules for " + title_id);
+		try {
+			RULES[title_id] = require("./public/" + title_id + "/rules.js");
+		} catch (err) {
+			console.log(err);
+		}
+	} else {
+		console.log("Cannot find rules for " + title_id);
 	}
 }
 
@@ -961,20 +965,24 @@ const MAIL_FOOTER = "You can unsubscribe from notifications on your profile page
 
 const sql_notify_too_soon = db.prepare("SELECT datetime('now') < datetime(time, ?) FROM notifications WHERE user_id = ? AND game_id = ?").pluck();
 const sql_notify_update = db.prepare("INSERT OR REPLACE INTO notifications VALUES ( ?, ?, datetime('now') )");
+const sql_notify_delete = db.prepare("DELETE FROM notifications WHERE user_id = ? AND game_id = ?");
 const sql_offline_user = db.prepare("SELECT * FROM users WHERE user_id = ? AND datetime('now') > datetime(atime, ?)");
 
 const QUERY_LIST_YOUR_TURN = db.prepare(`
-	SELECT games.game_id, games.title_id, players.user_id, users.name, users.mail, users.notifications
+	SELECT games.game_id, games.title_id, games.active, players.user_id, users.name, users.mail
 	FROM games
 	JOIN players ON games.game_id = players.game_id AND ( games.active = players.role OR games.active = 'Both' OR games.active = 'All' )
-	JOIN users ON users.user_id = players.user_id
-	WHERE games.status = 1 AND datetime('now') > datetime(games.mtime, '+1 hour')
+	JOIN users ON users.user_id = players.user_id AND users.notifications = 1
+	WHERE games.status = 1 AND datetime('now') > datetime(games.mtime, '+1 minute')
 `);
 
 const QUERY_LIST_UNSTARTED_GAMES = db.prepare("SELECT * FROM game_view WHERE status = 0");
 
 function mail_callback(err, info) {
-	console.log("MAIL SENT", err, info);
+	if (err)
+		console.log("MAIL ERROR", err);
+	else
+		console.log("MAIL SENT", info.envelope.to);
 }
 
 function mail_addr(user) {
@@ -1001,8 +1009,8 @@ function mail_password_reset_token(user, token) {
 
 function mail_your_turn_notification(user, game_id, interval) {
 	let too_soon = sql_notify_too_soon.get(interval, user.user_id, game_id);
-	console.log("YOUR TURN (OFFLINE):", game_id, user.name, user.mail, too_soon);
 	if (!too_soon) {
+		console.log("YOUR TURN (SENT):", game_id, user.name, user.mail, too_soon);
 		sql_notify_update.run(user.user_id, game_id);
 		let game = QUERY_GAME.get(game_id);
 		let subject = game.title_name + " - " + game_id + " - Your turn!";
@@ -1011,12 +1019,13 @@ function mail_your_turn_notification(user, game_id, interval) {
 			"https://rally-the-troops.com/play/" + game_id + "\n\n" +
 			MAIL_FOOTER;
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
+	} else {
+		console.log("YOUR TURN (TOO SOON):", game_id, user.name, user.mail, too_soon);
 	}
 }
 
 function reset_your_turn_notification(user, game_id) {
-	console.log("YOUR TURN (ONLINE):", game_id, user.name, user.mail);
-	sql_notify_update.run(user.user_id, game_id);
+	sql_notify_delete.run(user.user_id, game_id);
 }
 
 function mail_ready_to_start_notification(user, game_id, interval) {
@@ -1034,15 +1043,9 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 	}
 }
 
-function mail_your_turn_notification_to_offline_users(game_id, old_active, new_active) {
+function mail_your_turn_notification_to_offline_users(game_id, old_active, active) {
 	if (!mailer)
 		return;
-	if (new_active === old_active)
-		return;
-
-	function is_active(active, role) {
-		return active === "Both" || active === "All" || active === role;
-	}
 
 	function is_online(game_id, user_id) {
 		for (let other of clients[game_id])
@@ -1051,30 +1054,31 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, new_a
 		return false;
 	}
 
-	let users = {};
-	let online = {};
-	for (let p of QUERY_PLAYERS_FULL.all(game_id)) {
-		if (p.notifications && is_active(new_active, p.role)) {
-			users[p.user_id] = p;
-			if (is_online(game_id, p.user_id))
-				online[p.user_id] = 1;
-		}
-	}
+	// Only send notifications when the active player changes or if it's a simultaneous move.
+	if (old_active === active && active !== 'Both' && active !== 'All')
+		return;
 
-	for (let u in users) {
-		if (online[u])
-			reset_your_turn_notification(users[u], game_id);
-		else
-			mail_your_turn_notification(users[u], game_id, '+0 seconds');
+	let players = QUERY_PLAYERS_FULL.all(game_id);
+	for (let p of players) {
+		if (p.notifications) {
+			if (active === p.role || active === 'Both' || active === 'All') {
+				if (is_online(game_id, p.user_id)) {
+					reset_your_turn_notification(p, game_id);
+				} else {
+					mail_your_turn_notification(p, game_id, '+15 minutes');
+				}
+			} else {
+				reset_your_turn_notification(p, game_id);
+			}
+		}
 	}
 }
 
 function notify_your_turn_reminder() {
 	for (let item of QUERY_LIST_YOUR_TURN.all()) {
 		if (!QUERY_IS_SOLO.get(item.game_id)) {
-			console.log("REMINDER: YOUR TURN", item.title_id, item.game_id, item.name, item.mail, item.notifications);
-			if (item.notifications)
-				mail_your_turn_notification(item, item.game_id, '+25 hours');
+			console.log("REMINDER: YOUR TURN", item.title_id, item.game_id, item.active, item.name, item.mail);
+			mail_your_turn_notification(item, item.game_id, '+25 hours');
 		}
 	}
 }
