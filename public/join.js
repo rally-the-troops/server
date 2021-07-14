@@ -14,13 +14,16 @@ let blink_title = document.title;
 let blink_timer = 0;
 
 function start_blinker(message) {
-	let tick = true;
+	let tick = false;
 	if (blink_timer)
 		stop_blinker();
-	blink_timer = setInterval(function () {
-		document.title = tick ? message : blink_title;
-		tick = !tick;
-	}, 1000);
+	if (!document.hasFocus()) {
+		document.title = message;
+		blink_timer = setInterval(function () {
+			document.title = tick ? message : blink_title;
+			tick = !tick;
+		}, 1000);
+	}
 }
 
 function stop_blinker() {
@@ -28,6 +31,8 @@ function stop_blinker() {
 	clearInterval(blink_timer);
 	blink_timer = 0;
 }
+
+window.addEventListener("focus", stop_blinker);
 
 function send(url) {
 	fetch(url)
