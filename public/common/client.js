@@ -489,7 +489,8 @@ function on_game_over() {
 function send_rematch() {
 	let params = new URLSearchParams(window.location.search);
 	let game_id = params.get("game");
-	window.location = '/rematch/' + game_id;
+	let role_id = params.get("role");
+	window.location = '/rematch/' + game_id + '/' + role_id;
 }
 
 function send_exit() {

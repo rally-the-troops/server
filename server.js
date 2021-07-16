@@ -607,7 +607,9 @@ const QUERY_GAME_OWNER = db.prepare("SELECT * FROM games WHERE game_id = ? AND o
 const QUERY_TITLE_FROM_GAME = db.prepare("SELECT title_id FROM games WHERE game_id = ?").pluck();
 const QUERY_ROLE_FROM_GAME_AND_USER = db.prepare("SELECT role FROM players WHERE game_id = ? AND user_id = ?").pluck();
 const QUERY_IS_SOLO = db.prepare("SELECT COUNT(DISTINCT user_id) = 1 FROM players WHERE game_id = ?").pluck();
+const QUERY_IS_RANDOM = db.prepare("SELECT random FROM games WHERE game_id = ?").pluck();
 
+const QUERY_JOIN_GAME_TRY = db.prepare("INSERT OR IGNORE INTO players (user_id, game_id, role) VALUES (?,?,?)");
 const QUERY_JOIN_GAME = db.prepare("INSERT INTO players (user_id, game_id, role) VALUES (?,?,?)");
 const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND role = ?");
 const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ? WHERE game_id = ?");
@@ -750,17 +752,39 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 	}
 });
 
-app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
+function join_rematch(req, res, game_id, role) {
+	let is_random = QUERY_IS_RANDOM.get(game_id);
+	if (is_random) {
+		for (let i = 1; i <= 6; ++i) {
+			let info = QUERY_JOIN_GAME_TRY.run(req.user.user_id, game_id, 'Random ' + i);
+			if (info.changes === 1) {
+				update_join_clients_players(game_id);
+				break;
+			}
+		}
+		return res.redirect('/join/'+game_id);
+	} else {
+		let info = QUERY_JOIN_GAME_TRY.run(req.user.user_id, game_id, role);
+		if (info.changes === 1)
+			update_join_clients_players(game_id);
+		return res.redirect('/join/'+game_id);
+	}
+}
+
+app.get('/rematch/:old_game_id/:role', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /rematch/" + req.params.old_game_id);
 	let old_game_id = req.params.old_game_id | 0;
+	let role = req.params.role;
 	try {
 		let magic = "\u{1F503} " + old_game_id;
+		let new_game_id = 0;
 		let info = QUERY_REMATCH_CREATE.run({user_id: req.user.user_id, game_id: old_game_id, magic: magic});
 		if (info.changes === 1)
-			return res.redirect('/join/'+info.lastInsertRowid);
-		let new_game_id = QUERY_REMATCH_FIND.get(magic);
+			new_game_id = info.lastInsertRowid;
+		else
+			new_game_id = QUERY_REMATCH_FIND.get(magic);
 		if (new_game_id)
-			return res.redirect('/join/'+new_game_id);
+			return join_rematch(req, res, new_game_id, role);
 		req.flash('message', "Can't create or find rematch game!");
 		return res.redirect('/join/'+old_game_id);
 	} catch (err) {
@@ -845,7 +869,6 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	res.setHeader("Connection", "keep-alive");
 
 	if (!game) {
-		req.flash('message', "That game doesn't exist.");
 		return res.send("event: deleted\ndata: The game doesn't exist.\n\n");
 	}
 	if (!(game_id in join_clients)) {
