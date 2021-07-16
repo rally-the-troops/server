@@ -77,9 +77,7 @@ function start_event_source() {
 }
 
 function is_your_turn(player, role) {
-	if (player.user_id === user_id)
-		return (game.active_role === role || game.active_role === "Both" || game.active_role === "All");
-	return false;
+	return (game.active_role === role || game.active_role === "Both" || game.active_role === "All");
 }
 
 function update() {

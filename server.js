@@ -556,18 +556,37 @@ for (let title_id of db.prepare("SELECT * FROM titles").pluck().all()) {
 	}
 }
 
-const QUERY_GAME = db.prepare("SELECT * FROM game_view WHERE game_id = ?");
 const QUERY_LIST_GAMES_OF_TITLE = db.prepare(`
-	SELECT * FROM game_view
-	WHERE title_id = ? AND private = 0
+	SELECT *,
+		EXISTS (
+			SELECT 1 FROM players
+			WHERE players.game_id = game_view.game_id
+			AND user_id = $user_id
+			AND active_role IN ( 'All', 'Both', role )
+		) AS is_your_turn
+	FROM game_view
+	WHERE title_id = $title_id AND private = 0
 	ORDER BY status ASC, mtime DESC
 `);
+
 const QUERY_LIST_GAMES_OF_USER = db.prepare(`
-	SELECT DISTINCT game_view.*, ( active_id = $user_id OR active_role = 'Both' OR active_role = 'All' ) AS is_your_turn FROM game_view
-	LEFT JOIN players ON game_view.game_id = players.game_id
-	WHERE game_view.owner_id = $user_id OR players.user_id = $user_id
+	SELECT *,
+		EXISTS (
+			SELECT 1 FROM players
+			WHERE players.game_id = game_view.game_id
+			AND user_id = $user_id
+			AND active_role IN ( 'All', 'Both', role )
+		) AS is_your_turn
+	FROM game_view
+	WHERE owner_id = $user_id
+		OR EXISTS (
+			SELECT 1 FROM players
+			WHERE players.game_id = game_view.game_id
+			AND user_id = $user_id
+		)
 	ORDER BY status ASC, mtime DESC
 `);
+
 const QUERY_PLAYERS = db.prepare("SELECT role, user_id, user_name FROM player_view WHERE game_id = ?");
 const QUERY_PLAYERS_FULL = db.prepare(`
 	SELECT
@@ -581,6 +600,7 @@ const QUERY_PLAYERS_FULL = db.prepare(`
 	WHERE players.game_id = ?
 `);
 
+const QUERY_GAME = db.prepare("SELECT * FROM game_view WHERE game_id = ?");
 const QUERY_TITLE = db.prepare("SELECT * FROM titles WHERE title_id = ?");
 const QUERY_ROLES = db.prepare("SELECT role FROM roles WHERE title_id = ? ORDER BY rowid").pluck();
 const QUERY_GAME_OWNER = db.prepare("SELECT * FROM games WHERE game_id = ? AND owner_id = ?");
@@ -648,7 +668,7 @@ app.get('/info/:title_id', function (req, res) {
 		return res.redirect('/');
 	}
 	if (req.isAuthenticated()) {
-		let games = QUERY_LIST_GAMES_OF_TITLE.all(title_id);
+		let games = QUERY_LIST_GAMES_OF_TITLE.all({user_id: req.user.user_id, title_id: title_id});
 		humanize(games);
 		let open_games = games.filter(game => game.status === 0);
 		let active_games = games.filter(game => game.status === 1);
@@ -1379,11 +1399,22 @@ app.get('/users', function (req, res) {
 	res.render('users.ejs', { user: req.user, message: req.flash('message'), userList: rows });
 });
 
-const QUERY_LIST_GAMES = db.prepare("SELECT * FROM game_view WHERE private = 0 AND status < 2");
+const QUERY_LIST_GAMES = db.prepare(`
+	SELECT *,
+		EXISTS (
+			SELECT 1 FROM players
+			WHERE players.game_id = game_view.game_id
+			AND user_id = $user_id
+			AND active_role IN ( 'All', 'Both', role )
+		) AS is_your_turn
+	FROM game_view
+	WHERE private = 0 AND status < 2
+	ORDER BY status ASC, mtime DESC
+`);
 
 app.get('/games', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /join");
-	let games = QUERY_LIST_GAMES.all();
+	let games = QUERY_LIST_GAMES.all({user_id: req.user.user_id});
 	humanize(games);
 	let open_games = games.filter(game => game.status === 0);
 	let active_games = games.filter(game => game.status === 1);
