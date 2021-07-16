@@ -665,10 +665,8 @@ app.get('/info/:title_id', function (req, res) {
 	LOG(req, "GET /info/" + req.params.title_id);
 	let title_id = req.params.title_id;
 	let title = QUERY_TITLE.get(title_id);
-	if (!title) {
-		req.flash('message', 'That title does not exist.');
-		return res.redirect('/');
-	}
+	if (!title)
+		return res.status(404).send("That title doesn't exist.");
 	if (req.isAuthenticated()) {
 		let games = QUERY_LIST_GAMES_OF_TITLE.all({user_id: req.user.user_id, title_id: title_id});
 		humanize(games);
@@ -697,10 +695,8 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /create/" + req.params.title_id);
 	let title_id = req.params.title_id;
 	let title = QUERY_TITLE.get(title_id);
-	if (!title) {
-		req.flash('message', 'That title does not exist.');
-		return res.redirect('/');
-	}
+	if (!title)
+		return res.status(404).send("That title doesn't exist.");
 	res.render('create.ejs', { user: req.user, message: req.flash('message'), title: title, scenarios: RULES[title_id].scenarios });
 });
 
@@ -719,12 +715,10 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 			return res.redirect('/create/'+title_id);
 		}
 		if (!(title_id in RULES)) {
-			req.flash('message', "That title doesn't exist.");
-			return res.redirect('/');
+			return res.status(404).send("That title doesn't exist.");
 		}
 		if (!RULES[title_id].scenarios.includes(scenario)) {
-			req.flash('message', "That scenario doesn't exist.");
-			return res.redirect('/create/'+title_id);
+			return res.status(404).send("That scenario doesn't exist.");
 		}
 		let info = QUERY_CREATE_GAME.run(user_id, title_id, scenario, priv ? 1 : 0, rand ? 1 : 0, descr);
 		res.redirect('/join/'+info.lastInsertRowid);
@@ -840,10 +834,8 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /join/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
 	let game = QUERY_GAME.get(game_id);
-	if (!game) {
-		req.flash('message', "That game doesn't exist.");
-		return res.redirect('/');
-	}
+	if (!game)
+		return res.status(404).send("That game doesn't exist.");
 	let roles = QUERY_ROLES.all(game.title_id);
 	let players = QUERY_PLAYERS.all(game_id);
 	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, players);
