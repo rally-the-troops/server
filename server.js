@@ -612,7 +612,7 @@ const QUERY_IS_RANDOM = db.prepare("SELECT random FROM games WHERE game_id = ?")
 const QUERY_JOIN_GAME_TRY = db.prepare("INSERT OR IGNORE INTO players (user_id, game_id, role) VALUES (?,?,?)");
 const QUERY_JOIN_GAME = db.prepare("INSERT INTO players (user_id, game_id, role) VALUES (?,?,?)");
 const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND role = ?");
-const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ? WHERE game_id = ?");
+const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ?, mtime = datetime('now') WHERE game_id = ?");
 const QUERY_CREATE_GAME = db.prepare(`
 	INSERT INTO games
 	(owner_id,title_id,scenario,private,random,ctime,mtime,description,status,state)
