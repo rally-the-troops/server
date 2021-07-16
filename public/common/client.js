@@ -436,7 +436,7 @@ function confirm_resign() {
 
 function send_action(verb, noun) {
 	// Reset action list here so we don't send more than one action per server prompt!
-	if (noun) {
+	if (noun !== undefined) {
 		if (game.actions && game.actions[verb] && game.actions[verb].includes(noun)) {
 			game.actions = null;
 			console.log("SEND ACTION", verb, noun);
@@ -446,7 +446,7 @@ function send_action(verb, noun) {
 	} else {
 		if (game.actions && game.actions[verb]) {
 			game.actions = null;
-			console.log("SEND ACTION", verb, noun);
+			console.log("SEND ACTION", verb);
 			socket.emit('action', verb);
 			return true;
 		}
