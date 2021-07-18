@@ -1008,7 +1008,7 @@ const QUERY_LIST_YOUR_TURN = db.prepare(`
 	FROM games
 	JOIN players ON games.game_id = players.game_id AND ( games.active = players.role OR games.active = 'Both' OR games.active = 'All' )
 	JOIN users ON users.user_id = players.user_id AND users.notifications = 1
-	WHERE games.status = 1 AND datetime('now') > datetime(games.mtime, '+1 minute')
+	WHERE games.status = 1 AND datetime('now') > datetime(games.mtime, '+1 hour')
 `);
 
 const QUERY_LIST_UNSTARTED_GAMES = db.prepare("SELECT * FROM game_view WHERE status = 0");
