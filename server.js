@@ -542,20 +542,6 @@ app.post('/change_mail', must_be_logged_in, function (req, res) {
  * GAME LOBBY
  */
 
-let RULES = {};
-for (let title_id of db.prepare("SELECT * FROM titles").pluck().all()) {
-	if (fs.existsSync(__dirname + "/public/" + title_id + "/rules.js")) {
-		console.log("Loading rules for " + title_id);
-		try {
-			RULES[title_id] = require("./public/" + title_id + "/rules.js");
-		} catch (err) {
-			console.log(err);
-		}
-	} else {
-		console.log("Cannot find rules for " + title_id);
-	}
-}
-
 const QUERY_LIST_GAMES_OF_TITLE = db.prepare(`
 	SELECT *,
 		EXISTS (
@@ -639,6 +625,22 @@ const QUERY_REMATCH_CREATE = db.prepare(`
 		SELECT * FROM games WHERE description=$magic
 	)
 `);
+
+let RULES = {};
+let ROLES = {};
+for (let title_id of db.prepare("SELECT * FROM titles").pluck().all()) {
+	if (fs.existsSync(__dirname + "/public/" + title_id + "/rules.js")) {
+		console.log("Loading rules for " + title_id);
+		try {
+			RULES[title_id] = require("./public/" + title_id + "/rules.js");
+			ROLES[title_id] = QUERY_ROLES.all(title_id);
+		} catch (err) {
+			console.log(err);
+		}
+	} else {
+		console.log("Cannot find rules for " + title_id);
+	}
+}
 
 app.get('/', function (req, res) {
 	res.render('index.ejs', { user: req.user, message: req.flash('message') });
@@ -1389,18 +1391,24 @@ io.on('connection', (socket) => {
 
 // EXTRAS
 
+const QUERY_TITLES = db.prepare("SELECT * FROM titles ORDER BY title_name");
 const QUERY_STATS = db.prepare(`
-	SELECT title_name, scenario, result, count(*) AS count
-	FROM games
-	JOIN titles ON games.title_id=titles.title_id
-	WHERE status=2 AND private=0
+	SELECT title_id, scenario, result, count(*) AS count
+	FROM game_view
+	WHERE status=2 AND is_solo=0
 	GROUP BY title_name, scenario, result
 	`);
 
 app.get('/stats', function (req, res) {
 	LOG(req, "GET /stats");
 	let stats = QUERY_STATS.all();
-	res.render('stats.ejs', { user: req.user, message: req.flash('message'), stats: stats });
+	let titles = Object.fromEntries(QUERY_TITLES.all().map(t => [t.title_id, t.title_name]));
+	res.render('stats.ejs', {
+		user: req.user,
+		message: req.flash('message'),
+		stats: stats,
+		title_role_map: ROLES, title_name_map: titles, title_rule_map: RULES
+	});
 });
 
 app.get('/users', function (req, res) {

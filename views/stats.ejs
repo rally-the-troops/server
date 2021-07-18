@@ -2,35 +2,36 @@
 <style>tr.blank{height:2rem;border:none;}</style>
 <table class="wide">
 <%
-	let total = {};
-	let results = {};
-	for (let { title_name, scenario, result, count } of stats) {
-		if (total[title_name] == undefined)
-			total[title_name] = {};
-		if (total[title_name][scenario] == undefined)
-			total[title_name][scenario] = 0;
-		total[title_name][scenario] += count;
-		if (results[title_name] == undefined)
-			results[title_name] = [];
-		if (!results[title_name].includes(result))
-			results[title_name].push(result);
+	function total(t, s) {
+		return stats
+			.filter(entry => entry.title_id === t && entry.scenario === s)
+			.reduce((acc, entry) => acc + entry.count, 0);
 	}
-	let last_title = null;
-	let last_scenario = null;
-	for (let { title_name, scenario, result, count } of stats) {
-		if (title_name != last_title) {
-			if (last_title != null) {
-				%><tr class="blank"><%
+	function result(t, s, r) {
+		let info = stats.find(entry => {
+			return entry.title_id === t &&
+			entry.scenario === s &&
+			entry.result === r});
+		return info ? info.count : 0;
+	}
+	for (let title_id in title_name_map) {
+		let scenarios = title_rule_map[title_id].scenarios;
+		let roles = title_role_map[title_id].concat(['Draw']);
+		%><tr><th><%= title_name_map[title_id] %><%
+		roles.forEach(role => {
+			%><th><%= role %><%
+		});
+		scenarios.forEach(scenario => {
+			let t = total(title_id, scenario);
+			if (t > 0) {
+				%><tr><td><%= scenario %> (<%= t %>)<%
+				roles.forEach(role => {
+					let r = result(title_id, scenario, role);
+					%><td><%= Math.round(r * 100 / t) %>%<%
+				});
 			}
-			%><tr><th><%= title_name %><%
-			results[title_name].forEach(item => { %><th><%= item %><% });
-		}
-		if (scenario != last_scenario) {
-			%><tr><td><%= scenario %> (<%= total[title_name][scenario] %>)<%
-		}
-		%><td><%= Math.round(count * 100 / total[title_name][scenario]) %>%<%
-		last_title = title_name;
-		last_scenario = scenario;
+		});
+		%><tr class="blank"><%
 	}
 %>
 </table>
