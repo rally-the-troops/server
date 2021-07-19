@@ -552,6 +552,11 @@ const QUERY_LIST_GAMES_OF_TITLE = db.prepare(`
 		) AS is_your_turn
 	FROM game_view
 	WHERE title_id = $title_id AND private = 0
+		AND EXISTS (
+			SELECT 1 FROM players
+			WHERE players.game_id = game_view.game_id
+			AND user_id = game_view.owner_id
+		)
 	ORDER BY status ASC, mtime DESC
 `);
 
@@ -1432,6 +1437,11 @@ const QUERY_LIST_GAMES = db.prepare(`
 		) AS is_your_turn
 	FROM game_view
 	WHERE private = 0 AND status < 2
+		AND EXISTS (
+			SELECT 1 FROM players
+			WHERE players.game_id = game_view.game_id
+			AND user_id = game_view.owner_id
+		)
 	ORDER BY status ASC, mtime DESC
 `);
 
