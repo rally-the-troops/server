@@ -268,8 +268,10 @@ function update_last_seen(req) {
 }
 
 function must_be_logged_in(req, res, next) {
-	if (!req.isAuthenticated())
+	if (!req.isAuthenticated()) {
+		req.session.redirect = req.originalUrl;
 		return res.redirect('/login');
+	}
 	if (sql_blacklist_ip.get(req.connection.remoteAddress)[0] !== 0)
 		return res.redirect('/banned');
 	if (sql_blacklist_mail.get(req.user.mail)[0] !== 0)
@@ -309,10 +311,14 @@ app.get('/signup', function (req, res) {
 
 app.post('/login',
 	passport.authenticate('local-login', {
-		successRedirect: '/profile',
 		failureRedirect: '/login',
 		failureFlash: true
-	})
+	}),
+	(req, res) => {
+		let redirect = req.session.redirect || '/profile';
+		delete req.session.redirect;
+		res.redirect(redirect);
+	}
 );
 
 app.post('/signup',
