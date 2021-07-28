@@ -16,7 +16,7 @@ require('dotenv').config();
 
 const SESSION_SECRET = "Caesar has a big head!";
 
-const MAX_OPEN_GAMES = 3;
+const MAX_OPEN_GAMES = 5;
 
 let session_store = new SQLiteStore();
 let db = new sqlite3(process.env.DATABASE || "./db");
