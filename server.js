@@ -20,6 +20,8 @@ const MAX_OPEN_GAMES = 5;
 
 let session_store = new SQLiteStore();
 let db = new sqlite3(process.env.DATABASE || "./db");
+db.pragma("journal_mode = WAL");
+db.pragma("synchronous = NORMAL");
 
 let app = express();
 let server = null;

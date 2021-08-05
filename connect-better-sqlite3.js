@@ -29,14 +29,17 @@ module.exports = function (session) {
 				db_path = (options.dir || '.') + '/' + db_path;
 
 			let db = new SQLite(db_path, options.mode);
+			db.pragma("journal_mode = WAL");
+			db.pragma("synchronous = NORMAL");
 			db.exec("CREATE TABLE IF NOT EXISTS "+table+" (sid PRIMARY KEY, expires INTEGER, sess TEXT)");
 			db.exec("DELETE FROM "+table+" WHERE "+now()+" > expires");
 			db.exec("VACUUM");
+			db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
 
 			this.sql_destroy = db.prepare("DELETE FROM "+table+" WHERE sid = ?");
 			this.sql_get = db.prepare("SELECT sess FROM "+table+" WHERE sid = ? AND ? <= expires");
 			this.sql_set = db.prepare("INSERT OR REPLACE INTO "+table+" VALUES (?,?,?)");
-			this.sql_touch = db.prepare("UPDATE "+table+" SET expires = ? WHERE sid = ? AND ? <= expires");
+			this.sql_touch = db.prepare("UPDATE "+table+" SET expires = ? WHERE sid = ? AND expires < ?");
 		}
 
 		destroy(sid, cb = noop) {
@@ -77,7 +80,8 @@ module.exports = function (session) {
 			try {
 				if (sess && sess.cookie && sess.cookie.expires) {
 					let expires = seconds(sess.cookie.expires);
-					this.sql_touch.run(expires, sid, now());
+					let limit = expires - 3600;
+					this.sql_touch.run(expires, sid, limit);
 					cb(null);
 				} else {
 					cb(null);
