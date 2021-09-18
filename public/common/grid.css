@@ -252,7 +252,6 @@ body.Observer .menu .resign {
 }
 
 .mapwrap.fit {
-	overflow: clip;
 	max-width: 100%;
 }
 
