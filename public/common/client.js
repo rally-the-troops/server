@@ -321,6 +321,12 @@ function on_update_bar() {
 	old_active = game.active;
 }
 
+let create_log_entry = function (text) {
+	let p = document.createElement("div");
+	p.textContent = text;
+	return p;
+}
+
 function on_update_log() {
 	let parent = document.getElementById("log");
 	let to_delete = parent.children.length - game.log_start;
@@ -329,9 +335,7 @@ function on_update_log() {
 		--to_delete;
 	}
 	for (let entry of game.log) {
-		let p = document.createElement("div");
-		p.textContent = entry;
-		parent.prepend(p);
+		parent.prepend(create_log_entry(entry));
 	}
 }
 
