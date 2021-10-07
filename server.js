@@ -413,10 +413,7 @@ app.post('/forgot_password', function (req, res) {
 			if (!token) {
 				sql_create_token.run(user.user_id);
 				token = sql_find_token.get(user.user_id);
-				console.log("FORGOT - create and mail token", token);
 				mail_password_reset_token(user, token);
-			} else {
-				console.log("FORGOT - existing token - ignore request", token);
 			}
 			req.flash('message', "A password reset token has been sent to " + mail + ".");
 			if (is_email(mail))
