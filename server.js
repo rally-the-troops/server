@@ -1059,7 +1059,6 @@ function mail_password_reset_token(user, token) {
 function mail_your_turn_notification(user, game_id, interval) {
 	let too_soon = sql_notify_too_soon.get(interval, user.user_id, game_id);
 	if (!too_soon) {
-		console.log("YOUR TURN (SENT):", game_id, user.name, user.mail, too_soon);
 		sql_notify_update.run(user.user_id, game_id);
 		let game = QUERY_GAME.get(game_id);
 		let subject = game.title_name + " - " + game_id + " - Your turn!";
@@ -1068,8 +1067,6 @@ function mail_your_turn_notification(user, game_id, interval) {
 			"https://rally-the-troops.com/play/" + game_id + "\n\n" +
 			MAIL_FOOTER;
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
-	} else {
-		console.log("YOUR TURN (TOO SOON):", game_id, user.name, user.mail, too_soon);
 	}
 }
 
@@ -1079,7 +1076,6 @@ function reset_your_turn_notification(user, game_id) {
 
 function mail_ready_to_start_notification(user, game_id, interval) {
 	let too_soon = sql_notify_too_soon.get(interval, user.user_id, game_id);
-	console.log("READY TO START:", game_id, user.name, user.mail, too_soon);
 	if (!too_soon) {
 		sql_notify_update.run(user.user_id, game_id);
 		let game = QUERY_GAME.get(game_id);
@@ -1126,7 +1122,6 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 function notify_your_turn_reminder() {
 	for (let item of QUERY_LIST_YOUR_TURN.all()) {
 		if (!QUERY_IS_SOLO.get(item.game_id)) {
-			console.log("REMINDER: YOUR TURN", item.title_id, item.game_id, item.active, item.name, item.mail);
 			mail_your_turn_notification(item, item.game_id, '+25 hours');
 		}
 	}
@@ -1138,7 +1133,6 @@ function notify_ready_to_start_reminder() {
 		if (RULES[game.title_id].ready(game.scenario, players)) {
 			let owner = sql_offline_user.get(game.owner_id, '+3 minutes');
 			if (owner) {
-				console.log("REMINDER: READY TO START", game.title_id, game.game_id, owner.name, owner.mail, owner.notifications);
 				if (owner.notifications)
 					mail_ready_to_start_notification(owner, game.game_id, '+25 hours');
 			}
