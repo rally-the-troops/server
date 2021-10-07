@@ -810,7 +810,6 @@ let join_clients = {};
 function update_join_clients_deleted(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
-		console.log("JOIN: UPDATE GAME DELETED", game_id, list.title_id, list.length);
 		for (let res of list) {
 			res.write("retry: 15000\n");
 			res.write("event: deleted\n");
@@ -823,7 +822,6 @@ function update_join_clients_game(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
 		let game = QUERY_GAME.get(game_id);
-		console.log("JOIN: UPDATE GAME STATUS", game_id, list.title_id, list.length)
 		for (let res of list) {
 			res.write("retry: 15000\n");
 			res.write("event: game\n");
@@ -837,7 +835,6 @@ function update_join_clients_players(game_id) {
 	if (list && list.length > 0) {
 		let players = QUERY_PLAYERS.all(game_id);
 		let ready = RULES[list.title_id].ready(list.scenario, players);
-		console.log("JOIN: UPDATE PLAYERS", game_id, list.title_id, list.length, players.map(p => p.role + ": " + p.user_name), ready)
 		for (let res of list) {
 			res.write("retry: 15000\n");
 			res.write("event: players\n");
@@ -889,7 +886,6 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	join_clients[game_id].push(res);
 
 	res.on('close', () => {
-		console.log("JOIN: CLOSE CONNECTION TO", game_id);
 		let list = join_clients[game_id];
 		let i = list.indexOf(res);
 		if (i >= 0)
