@@ -1114,6 +1114,8 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 }
 
 function notify_your_turn_reminder() {
+	if (!mailer)
+		return;
 	for (let item of QUERY_LIST_YOUR_TURN.all()) {
 		if (!QUERY_IS_SOLO.get(item.game_id)) {
 			mail_your_turn_notification(item, item.game_id, '+25 hours');
@@ -1122,6 +1124,8 @@ function notify_your_turn_reminder() {
 }
 
 function notify_ready_to_start_reminder() {
+	if (!mailer)
+		return;
 	for (let game of QUERY_LIST_UNSTARTED_GAMES.all()) {
 		let players = QUERY_PLAYERS.all(game.game_id);
 		if (RULES[game.title_id].ready(game.scenario, players)) {
