@@ -285,10 +285,6 @@ function must_be_logged_in(req, res, next) {
 	return next();
 }
 
-app.get('/favicon.ico', function (req, res) {
-	res.status(204).send();
-});
-
 app.get('/about', function (req, res) {
 	res.render('about.ejs', { user: req.user });
 });
