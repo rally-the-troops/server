@@ -1023,8 +1023,6 @@ const QUERY_LIST_UNSTARTED_GAMES = db.prepare("SELECT * FROM game_view WHERE sta
 function mail_callback(err, info) {
 	if (err)
 		console.log("MAIL ERROR", err);
-	else
-		console.log("MAIL SENT", info.envelope.to);
 }
 
 function mail_addr(user) {
@@ -1046,6 +1044,7 @@ function mail_password_reset_token(user, token) {
 		"Your password reset token is: " + token + "\n\n" +
 		"https://rally-the-troops.com/reset_password/" + user.mail + "/" + token + "\n\n" +
 		"If you did not request a password reset you can ignore this mail.\n";
+	console.log("SENT MAIL:", mail_addr(user), subject);
 	mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 }
 
@@ -1059,6 +1058,7 @@ function mail_your_turn_notification(user, game_id, interval) {
 			"It's your turn.\n\n" +
 			"https://rally-the-troops.com/play/" + game_id + "\n\n" +
 			MAIL_FOOTER;
+		console.log("SENT MAIL:", mail_addr(user), subject);
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 	}
 }
@@ -1077,6 +1077,7 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 			"Your game is ready to start.\n\n" +
 			"https://rally-the-troops.com/join/" + game_id + "\n\n" +
 			MAIL_FOOTER;
+		console.log("SENT MAIL:", mail_addr(user), subject);
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 	}
 }
