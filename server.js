@@ -14,6 +14,10 @@ const SQLiteStore = require('./connect-better-sqlite3')(express_session);
 
 require('dotenv').config();
 
+function random_seed() {
+	return crypto.randomInt(1, 0x7ffffffe);
+}
+
 const SESSION_SECRET = "Caesar has a big head!";
 
 const MAX_OPEN_GAMES = 5;
@@ -922,7 +926,7 @@ app.get('/part/:game_id/:role', must_be_logged_in, function (req, res) {
 
 function assign_random_roles(game, players) {
 	function pick_random_item(list) {
-		let k = Math.floor(Math.random() * list.length);
+		let k = crypto.randomInt(list.length);
 		let r = list[k];
 		list.splice(k, 1);
 		return r;
@@ -952,7 +956,9 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 			assign_random_roles(game, players);
 			update_join_clients_players(game_id);
 		}
-		let state = RULES[game.title_id].setup(game.scenario, players);
+		let seed = random_seed();
+		let state = RULES[game.title_id].setup(seed, game.scenario, players);
+		put_replay(game_id, null, 'setup', [seed, game.scenario, players]);
 		QUERY_START_GAME.run(JSON.stringify(state), state.active, game_id);
 		let is_solo = players.every(p => p.user_id === players[0].user_id);
 		if (is_solo)
@@ -1194,6 +1200,14 @@ function put_game_state(game_id, state, old_active) {
 	mail_your_turn_notification_to_offline_users(game_id, old_active, state.active);
 }
 
+const QUERY_INSERT_REPLAY = db.prepare("INSERT INTO replay ( game_id, time, role, action, arguments ) VALUES ( ?, datetime('now'), ?, ?, ? )");
+
+function put_replay(game_id, role, action, args) {
+	if (args !== undefined && args !== null)
+		args = JSON.stringify(args);
+	QUERY_INSERT_REPLAY.run(game_id, role, action, args);
+}
+
 function on_action(socket, action, arg) {
 	SLOG(socket, "--> ACTION", action, arg);
 	try {
@@ -1201,6 +1215,7 @@ function on_action(socket, action, arg) {
 		let old_active = state.active;
 		socket.rules.action(state, socket.role, action, arg);
 		put_game_state(socket.game_id, state, old_active);
+		put_replay(socket.game_id, socket.role, action, arg);
 	} catch (err) {
 		console.log(err);
 		return socket.emit('error', err.toString());
@@ -1214,6 +1229,7 @@ function on_resign(socket) {
 		let old_active = state.active;
 		socket.rules.resign(state, socket.role);
 		put_game_state(socket.game_id, state, old_active);
+		put_replay(socket.game_id, socket.role, 'resign', null);
 	} catch (err) {
 		console.log(err);
 		return socket.emit('error', err.toString());
@@ -1369,7 +1385,9 @@ io.on('connection', (socket) => {
 			socket.on('restore', (state) => on_restore(socket, state));
 			socket.on('restart', (scenario) => {
 				try {
-					let state = socket.rules.setup(scenario, players);
+					let seed = random_seed();
+					let state = socket.rules.setup(seed, scenario, players);
+					put_replay(socket.game_id, null, 'setup', [seed, scenario, players]);
 					for (let other of clients[socket.game_id]) {
 						other.log_length = 0;
 						send_state(other, state);

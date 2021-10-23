@@ -55,6 +55,14 @@ CREATE TABLE IF NOT EXISTS games (
 	state TEXT
 );
 
+CREATE TABLE IF NOT EXISTS replay (
+	game_id INTEGER,
+	time TIMESTAMP,
+	role TEXT,
+	action TEXT,
+	arguments TEXT
+);
+
 CREATE TABLE IF NOT EXISTS chats (
 	game_id INTEGER PRIMARY KEY,
 	time TIMESTAMP,
@@ -110,6 +118,7 @@ BEGIN
 	DELETE FROM players WHERE game_id = old.game_id;
 	DELETE FROM notifications WHERE game_id = old.game_id;
 	DELETE FROM chats WHERE game_id = old.game_id;
+	DELETE FROM replay WHERE game_id = old.game_id;
 END;
 
 DROP VIEW IF EXISTS player_view;
