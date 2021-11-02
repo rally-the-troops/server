@@ -30,7 +30,7 @@ module.exports = function (session) {
 
 			let db = new SQLite(db_path, options.mode);
 			db.pragma("journal_mode = WAL");
-			db.pragma("synchronous = NORMAL");
+			db.pragma("synchronous = OFF");
 			db.exec("CREATE TABLE IF NOT EXISTS "+table+" (sid PRIMARY KEY, expires INTEGER, sess TEXT)");
 			db.exec("DELETE FROM "+table+" WHERE "+now()+" > expires");
 			db.exec("VACUUM");

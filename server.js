@@ -1,6 +1,9 @@
 "use strict";
 
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
+const socket_io = require('socket.io');
 const express = require('express');
 const express_session = require('express-session');
 const passport = require('passport');
@@ -28,27 +31,26 @@ db.pragma("journal_mode = WAL");
 db.pragma("synchronous = NORMAL");
 
 let app = express();
-let server = null;
+
 let http_port = process.env.HTTP_PORT || 8080;
+let http_server = http.createServer(app);
+let http_io = socket_io(http_server);
+http_server.listen(http_port, '0.0.0.0', () => console.log('listening HTTP on *:' + http_port));
+let io = http_io;
+
 let https_port = process.env.HTTPS_PORT;
 if (https_port) {
-	server = require('https').createServer({
+	let https_server = https.createServer({
 		key: fs.readFileSync(process.env.SSL_KEY || "key.pem"),
 		cert: fs.readFileSync(process.env.SSL_CERT || "cert.pem")
 	}, app);
-	server.listen(https_port, '0.0.0.0', () => { console.log('listening HTTPS on *:' + https_port); });
-
-	// Redirect HTTP to HTTPS if we're running HTTPS
-	let http_app = express();
-	let http_server = require('http').createServer(http_app);
-	http_app.use((req, res) => res.redirect(301, 'https://' + req.hostname + req.originalUrl));
-	http_server.listen(http_port, '0.0.0.0', () => { console.log('listening HTTP on *:' + http_port); });
-} else {
-	server = require('http').createServer(app);
-	server.listen(http_port, '0.0.0.0', () => { console.log('listening HTTP on *:' + http_port); });
+	let https_io = socket_io(https_server);
+	https_server.listen(https_port, '0.0.0.0', () => console.log('listening HTTPS on *:' + https_port));
+	io = {
+		use: function (fn) { http_io.use(fn); https_io.use(fn); },
+		on: function (ev,fn) { http_io.on(ev,fn); https_io.on(ev,fn); },
+	};
 }
-
-let io = require('socket.io')(server);
 
 let mailer = null;
 if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
@@ -62,12 +64,7 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
 	console.log("Mail notifications disabled.");
 }
 
-const morgan = require('morgan');
-const rfs = require('rotating-file-stream');
-const log_file = rfs.createStream('access.log', { interval: '1d', path: 'log' });
-app.use(morgan('combined', {stream: log_file}));
-
-app.disable('etag');
+app.disable('x-powered-by');
 app.set('view engine', 'ejs');
 app.use(body_parser.urlencoded({extended:false}));
 app.use(express_session({
@@ -89,14 +86,7 @@ io.use(passport_socket.authorize({
 	store: session_store,
 }));
 
-const is_immutable = /\.(svg|png|jpg|jpeg|woff2)$/;
-
-function setHeaders(res, path) {
-        if (is_immutable.test(path))
-                res.set("Cache-Control", "public, max-age=86400, immutable");
-}
-
-app.use(express.static('public', { setHeaders: setHeaders }));
+app.use(express.static('public'));
 
 function LOG(req, ...msg) {
 	let name;
@@ -249,7 +239,6 @@ function local_signup(req, name, password, done) {
 			return done(null, false, req.flash('message', "Password is too short!"));
 		if (password.length > 100)
 			return done(null, false, req.flash('message', "Password is too long!"));
-		// TODO: actual verification if process.env.VERIFY_EMAIL
 		if (!is_email(mail))
 			return done(null, false, req.flash('message', "Invalid mail address!"));
 		let row = sql_signup_check.get(name, mail);
