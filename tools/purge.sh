@@ -12,3 +12,5 @@ sqlite3 db "DELETE FROM games $WHERE_TIMEOUT_OPEN"
 echo "--- TIMED OUT ACTIVE GAMES ---"
 sqlite3 db "SELECT * FROM game_view $WHERE_TIMEOUT_ACTIVE"
 sqlite3 db "UPDATE games SET status = 3 $WHERE_TIMEOUT_ACTIVE"
+
+sqlite3 db "DELETE FROM replay WHERE game_id < 1346"
