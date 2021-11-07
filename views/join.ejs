@@ -1,4 +1,14 @@
 <%- include('header', { title: game.title_name }) -%>
+<%
+function to_english(k) {
+	if (k === true) return 'yes';
+	if (k === false) return 'no';
+	return k.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase());
+}
+function format_options(options) {
+	return Object.entries(options||{}).map(([k,v]) => v === true ? to_english(k) : `${to_english(k)}=${to_english(v)}`).join(", ");
+}
+-%>
 <style>
 th, td { min-width: 10em; font-size: 16px; }
 a.red { text-decoration: none; color: brown; font-size: 15px; }
@@ -23,6 +33,8 @@ Owner: <%= game.owner_name %>
 Private: <%= game.private ? "yes" : "no" %>
 <br>
 Scenario: <%= game.scenario %>
+<br>
+Options: <%- format_options(JSON.parse(game.options)) %>
 <br>
 Description: <%= game.description || "No description." %>
 <br>

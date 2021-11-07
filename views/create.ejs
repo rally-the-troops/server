@@ -4,7 +4,7 @@
 <form action="/create/<%= title.title_id %>" method="post">
 <p>
 Scenario:<br>
-<select id="scenario" name="scenario">
+<select name="scenario">
 <% scenarios.forEach((scenario) => { %>
 <option value="<%= scenario %>"><%= scenario %></option>
 <% }); %>
@@ -12,16 +12,16 @@ Scenario:<br>
 <%- include('../public/' + title.title_id + '/create.html') %>
 <p>
 Description:<br>
-<input type="text" autocomplete="off" id="description" name="description" size="50">
+<input type="text" autocomplete="off" name="description" size="50">
 <p>
 <label>
-<input type="checkbox" id="random" name="random" value="random">
-<span>Random player roles</span>
+<input type="checkbox" name="random" value="true">
+Random player roles
 </label>
 <p>
 <label>
-<input type="checkbox" id="private" name="private" value="private">
-<span>Private</span>
+<input type="checkbox" name="private" value="true">
+Private
 </label>
 <p>
 <button type="submit">Create</button>

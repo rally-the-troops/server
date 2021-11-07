@@ -603,9 +603,9 @@ const QUERY_PART_GAME = db.prepare("DELETE FROM players WHERE game_id = ? AND ro
 const QUERY_START_GAME = db.prepare("UPDATE games SET status = 1, state = ?, active = ?, mtime = datetime('now') WHERE game_id = ?");
 const QUERY_CREATE_GAME = db.prepare(`
 	INSERT INTO games
-	(owner_id,title_id,scenario,private,random,ctime,mtime,description,status,state)
+	(owner_id,title_id,scenario,options,private,random,ctime,mtime,description,status,state)
 	VALUES
-	(?,?,?,?,?,datetime('now'),datetime('now'),?,0,NULL)
+	(?,?,?,?,?,?,datetime('now'),datetime('now'),?,0,NULL)
 `);
 const QUERY_UPDATE_GAME_SET_PRIVATE = db.prepare("UPDATE games SET private = 1 WHERE game_id = ?");
 const QUERY_ASSIGN_ROLE = db.prepare("UPDATE players SET role = ? WHERE game_id = ? AND user_id = ? AND role = ?");
@@ -619,9 +619,9 @@ const QUERY_REMATCH_FIND = db.prepare(`
 
 const QUERY_REMATCH_CREATE = db.prepare(`
 	INSERT INTO games
-		(owner_id, title_id, scenario, private, random, ctime, mtime, description, status, state)
+		(owner_id, title_id, scenario, options, private, random, ctime, mtime, description, status, state)
 	SELECT
-		$user_id, title_id, scenario, private, random, datetime('now'), datetime('now'), $magic, 0, NULL
+		$user_id, title_id, scenario, options, private, random, datetime('now'), datetime('now'), $magic, 0, NULL
 	FROM games
 	WHERE game_id = $game_id AND NOT EXISTS (
 		SELECT * FROM games WHERE description=$magic
@@ -704,14 +704,26 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 	res.render('create.ejs', { user: req.user, message: req.flash('message'), title: title, scenarios: RULES[title_id].scenarios });
 });
 
+function options_json_replacer(key, value) {
+	if (key === 'scenario') return undefined;
+	if (key === 'description') return undefined;
+	if (key === 'random') return undefined;
+	if (key === 'private') return undefined;
+	if (value === 'true') return true;
+	if (value === 'false') return false;
+	if (value === '') return undefined;
+	return value;
+}
+
 app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 	let title_id = req.params.title_id;
 	let descr = req.body.description;
-	let priv = req.body.private === 'private';
-	let rand = req.body.random === 'random';
-	let scenario = req.body.scenario;
+	let priv = req.body.private === 'true';
+	let rand = req.body.random === 'true';
 	let user_id = req.user.user_id;
-	LOG(req, "POST /create/" + req.params.title_id, scenario, priv, JSON.stringify(descr));
+	let scenario = req.body.scenario;
+	let options = JSON.stringify(req.body, options_json_replacer);
+	LOG(req, "POST /create/" + req.params.title_id, scenario, options, priv, JSON.stringify(descr));
 	try {
 		let count = QUERY_COUNT_OPEN_GAMES.get(user_id);
 		if (count >= MAX_OPEN_GAMES) {
@@ -724,7 +736,7 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 		if (!RULES[title_id].scenarios.includes(scenario)) {
 			return res.status(404).send("That scenario doesn't exist.");
 		}
-		let info = QUERY_CREATE_GAME.run(user_id, title_id, scenario, priv ? 1 : 0, rand ? 1 : 0, descr);
+		let info = QUERY_CREATE_GAME.run(user_id, title_id, scenario, options, priv ? 1 : 0, rand ? 1 : 0, descr);
 		res.redirect('/join/'+info.lastInsertRowid);
 	} catch (err) {
 		req.flash('message', err.toString());
@@ -820,7 +832,7 @@ function update_join_clients_players(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
 		let players = QUERY_PLAYERS.all(game_id);
-		let ready = RULES[list.title_id].ready(list.scenario, players);
+		let ready = RULES[list.title_id].ready(list.scenario, list.options, players);
 		for (let res of list) {
 			res.write("retry: 15000\n");
 			res.write("event: players\n");
@@ -839,7 +851,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 		return res.status(404).send("That game doesn't exist.");
 	let roles = QUERY_ROLES.all(game.title_id);
 	let players = QUERY_PLAYERS.all(game_id);
-	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, players);
+	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, game.options, players);
 	res.set("Cache-Control", "no-store");
 	res.render('join.ejs', {
 		user: req.user,
@@ -868,6 +880,7 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 		join_clients[game_id] = [];
 		join_clients[game_id].title_id = game.title_id;
 		join_clients[game_id].scenario = game.scenario;
+		join_clients[game_id].options = JSON.parse(game.options);
 	}
 	join_clients[game_id].push(res);
 
@@ -939,15 +952,15 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 		if (game.status !== 0)
 			return res.send("The game is already started!");
 		let players = QUERY_PLAYERS.all(game_id);
-		if (!RULES[game.title_id].ready(game.scenario, players))
+		if (!RULES[game.title_id].ready(game.scenario, game.options, players))
 			return res.send("Invalid player configuration!");
 		if (game.random) {
 			assign_random_roles(game, players);
 			update_join_clients_players(game_id);
 		}
 		let seed = random_seed();
-		let state = RULES[game.title_id].setup(seed, game.scenario, players);
-		put_replay(game_id, null, 'setup', [seed, game.scenario, players]);
+		let state = RULES[game.title_id].setup(seed, game.scenario, game.options, players);
+		put_replay(game_id, null, 'setup', [seed, game.scenario, game.options, players]);
 		QUERY_START_GAME.run(JSON.stringify(state), state.active, game_id);
 		let is_solo = players.every(p => p.user_id === players[0].user_id);
 		if (is_solo)
@@ -1123,7 +1136,7 @@ function notify_ready_to_start_reminder() {
 		return;
 	for (let game of QUERY_LIST_UNSTARTED_GAMES.all()) {
 		let players = QUERY_PLAYERS.all(game.game_id);
-		if (RULES[game.title_id].ready(game.scenario, players)) {
+		if (RULES[game.title_id].ready(game.scenario, game.options, players)) {
 			let owner = sql_offline_user.get(game.owner_id, '+3 minutes');
 			if (owner) {
 				if (owner.notifications)
@@ -1376,7 +1389,7 @@ io.on('connection', (socket) => {
 				try {
 					let seed = random_seed();
 					let state = socket.rules.setup(seed, scenario, players);
-					put_replay(socket.game_id, null, 'setup', [seed, scenario, players]);
+					put_replay(socket.game_id, null, 'setup', [seed, scenario, options, players]);
 					for (let other of clients[socket.game_id]) {
 						other.log_length = 0;
 						send_state(other, state);

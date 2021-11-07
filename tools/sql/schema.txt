@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS games (
 	game_id INTEGER PRIMARY KEY,
 	title_id TEXT,
 	scenario TEXT,
+	options TEXT,
 	owner_id INTEGER,
 	private BOOLEAN,
 	random BOOLEAN,
@@ -149,6 +150,7 @@ CREATE VIEW game_view AS
 		, games.title_id
 		, titles.title_name
 		, games.scenario
+		, games.options
 		, games.owner_id
 		, owner.name AS owner_name
 		, players.player_names
