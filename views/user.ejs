@@ -12,5 +12,7 @@
 Member since <%= who.ctime %>.
 <p>
 Was last seen <%= who.atime %>.
+<% if (user) { %>
 <p>
 <a href="/message/send/<%- who.name %>">Send message</a>
+<% } %>

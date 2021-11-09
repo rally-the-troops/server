@@ -1536,10 +1536,15 @@ app.get('/games', must_be_logged_in, function (req, res) {
 app.get('/user/:who_id', function (req, res) {
 	LOG(req, "GET /user/" + req.params.who_id);
 	let who = sql_fetch_user_by_name.get(req.params.who_id, req.params.who_id);
-	who.avatar = get_avatar(who.mail);
-	who.ctime = human_date(who.ctime);
-	who.atime = human_date(who.atime);
-	res.render('user.ejs', { user: req.user, who: who, message: req.flash('message') });
+	if (who) {
+		who.avatar = get_avatar(who.mail);
+		who.ctime = human_date(who.ctime);
+		who.atime = human_date(who.atime);
+		res.render('user.ejs', { user: req.user, who: who, message: req.flash('message') });
+	} else {
+		req.flash('message', "Cannot find that user.");
+		return res.redirect('/');
+	}
 });
 
 // FORUM
