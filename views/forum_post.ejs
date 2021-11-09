@@ -1,0 +1,20 @@
+<%- include('header', { title: "New Thread" }) %>
+<style>
+input, textarea { width: 100%; max-width: 45em; }
+</style>
+<form action="/forum/post" method="post">
+<p>
+Subject:
+<br>
+<input type="text" name="subject" size="80" maxlength="80"
+	onkeypress="if(event.keyCode===13){document.querySelector('textarea').focus();return false;}"
+	autofocus
+	pattern=".*\S+.*"
+	required>
+<p>
+Body:
+<br>
+<textarea name="body" rows="20" cols="80" maxlength="32000" required></textarea>
+<p>
+<button type="submit">Submit</button>
+</form>

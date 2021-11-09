@@ -77,6 +77,49 @@ CREATE TABLE IF NOT EXISTS players (
 	UNIQUE ( game_id, role )
 );
 
+CREATE TABLE IF NOT EXISTS forums (
+	forum_id INTEGER PRIMARY KEY,
+	title TEXT
+);
+
+CREATE TABLE IF NOT EXISTS threads (
+	thread_id INTEGER PRIMARY KEY,
+	forum_id INTEGER DEFAULT 1,
+	author_id INTEGER,
+	subject TEXT,
+	ctime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	mtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	post_count INTEGER DEFAULT 0,
+	locked BOOLEAN DEFAULT 0
+	-- or first_post_id and last_post_id ?
+);
+
+CREATE TABLE IF NOT EXISTS posts (
+	post_id INTEGER PRIMARY KEY,
+	thread_id INTEGER,
+	author_id INTEGER,
+	ctime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	mtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	body TEXT
+);
+
+DROP TRIGGER IF EXISTS update_reply_count;
+CREATE TRIGGER update_reply_count AFTER INSERT ON posts
+BEGIN
+	UPDATE threads
+		SET
+			post_count = ( SELECT COUNT(*) FROM posts WHERE posts.thread_id = new.thread_id ),
+			mtime = datetime('now')
+		WHERE threads.thread_id = new.thread_id
+	;
+END;
+
+DROP TRIGGER IF EXISTS update_reply_time;
+CREATE TRIGGER update_reply_time AFTER UPDATE ON posts
+BEGIN
+	UPDATE threads SET mtime = datetime('now') WHERE threads.thread_id = new.thread_id ;
+END;
+
 DROP TRIGGER IF EXISTS no_part_on_active_game;
 CREATE TRIGGER no_part_on_active_game BEFORE DELETE ON players
 BEGIN
@@ -169,4 +212,30 @@ CREATE VIEW game_view AS
 	JOIN titles USING ( title_id )
 	JOIN users AS owner ON games.owner_id = owner.user_id
 	LEFT JOIN player_list_view AS players USING ( game_id )
+	;
+
+DROP VIEW IF EXISTS thread_view;
+CREATE VIEW thread_view AS
+	SELECT threads.thread_id
+		, threads.author_id
+		, author.name AS author_name
+		, threads.post_count - 1 AS reply_count
+		, threads.ctime
+		, threads.mtime
+		, threads.subject
+	FROM threads
+	JOIN users AS author ON threads.author_id = author.user_id
+	;
+
+DROP VIEW IF EXISTS post_view;
+CREATE VIEW post_view AS
+	SELECT posts.post_id
+		, posts.thread_id
+		, posts.author_id
+		, author.name AS author_name
+		, posts.ctime
+		, posts.mtime
+		, posts.body
+	FROM posts
+	JOIN users AS author ON posts.author_id = author.user_id
 	;

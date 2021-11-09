@@ -2,7 +2,7 @@ button, select {
 	font-family: "Source Sans", "Verdana", "Dingbats", "Noto Emoji", sans-serif;
 	font-size: 16px;
 }
-html, input {
+html, input, textarea {
 	font-family: "Source Serif", "Georgia", "Dingbats", "Noto Emoji", serif;
 	font-size: 16px;
 }
@@ -35,7 +35,7 @@ th, td { border: 1px solid black; }
 th, td { padding: 3px 1ex; }
 label { user-select: none; }
 button, input, select { font-size: 1rem; margin: 5px 0; }
-input[type="text"], input[type="password"] { padding: 5px; }
+input[type="text"], input[type="password"], textarea { padding: 5px; }
 select { padding-right: 20px; }
 form { display: inline; }
 .nowrap { white-space: nowrap; }

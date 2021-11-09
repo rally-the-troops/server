@@ -1,0 +1,32 @@
+<%- include('header', { title: thread.subject }) %>
+<style>
+table { width: 100%; max-width: 50em; }
+td.body { white-space: pre-wrap; padding: 10px 10px; }
+th.author { border-right: none; }
+th.time { text-align: right; border-left: none; font-weight: normal; }
+td.edit { text-align: right; border: none; }
+</style>
+<% posts.forEach((row) => { %>
+<p>
+<table>
+<tr>
+<th class="nowrap author"><%= row.author_name %>
+<th class="nowrap time"><%= row.ctime %>
+<%= row.edited ? "(edited " + row.mtime + ")" : "" %>
+<tr>
+<td class="body" colspan="2"><%- row.body %></td>
+<% if (user) { %>
+<tr>
+<td class="edit" colspan=2>
+<% if (row.author_id === user.user_id) { %>
+<a href="/forum/edit/<%- row.post_id %>">Edit</a>
+<% } %>
+<a href="/forum/reply/<%- row.post_id %>">Reply</a>
+<% } %>
+</table>
+<% }); %>
+<%
+if (user) {
+	%><p><a href="/forum/reply/<%- posts[0].post_id %>">Reply</a><%
+}
+%>

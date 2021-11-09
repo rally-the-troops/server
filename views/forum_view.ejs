@@ -1,0 +1,42 @@
+<%- include('header', { title: "Forum", refresh: 900 }) %>
+<style>
+table { width: 100%; max-width: 60em; }
+td a { color: black; text-decoration: none; }
+tfoot td { background-color: gainsboro; }
+</style>
+<table>
+<thead>
+<tr><th>Subject<th>Author
+<th>Replies<th>Time
+</thead>
+<% threads.forEach((row) => { %>
+<tr>
+<td class="ellipsis"><a href="/forum/thread/<%- row.thread_id %>"><%= row.subject %></a>
+<td class="nowrap"><%= row.author_name %>
+<td><%= row.reply_count %>
+<td class="nowrap"><%= row.mtime %>
+<% }); %>
+<tfoot>
+<tr>
+<td colspan="4">
+<%
+if (current_page > 1) {
+	%><a href="/forum/page/<%= current_page-1 %>">&#x2190;</a> <%
+}
+for (let p = 1; p <= page_count && p <= 30; ++p) {
+	if (p === current_page) {
+		%>(<%= p %>) <%
+	} else {
+		%><a href="/forum/page/<%= p %>"><%= p %></a> <%
+	}
+}
+if (current_page < page_count) {
+	%><a href="/forum/page/<%= current_page+1 %>">&#x2192;</a> <%
+}
+%>
+</table>
+<%
+if (user) {
+	%><p><a href="/forum/post">New thread</a><%
+}
+%>

@@ -129,6 +129,11 @@ function humanize(rows) {
 	}
 }
 
+function humanize_one(row) {
+	row.ctime = human_date(row.ctime);
+	row.mtime = human_date(row.mtime);
+}
+
 function is_email(email) {
 	return email.match(/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/);
 }
@@ -1476,4 +1481,138 @@ app.get('/games', must_be_logged_in, function (req, res) {
 		active_games: active_games,
 		message: req.flash('message')
 	});
+});
+
+// FORUM
+
+const FORUM_PAGE_SIZE = 15;
+const FORUM_COUNT_THREADS = db.prepare("SELECT COUNT(*) FROM threads").pluck();
+const FORUM_LIST_THREADS = db.prepare("SELECT * FROM thread_view ORDER BY mtime DESC LIMIT ? OFFSET ?");
+const FORUM_GET_THREAD = db.prepare("SELECT * FROM thread_view WHERE thread_id = ?");
+const FORUM_LIST_POSTS = db.prepare("SELECT * FROM post_view WHERE thread_id = ?");
+const FORUM_GET_POST = db.prepare("SELECT * FROM post_view WHERE post_id = ?");
+const FORUM_NEW_THREAD = db.prepare("INSERT INTO threads ( author_id, subject ) VALUES ( ?, ? )");
+const FORUM_NEW_POST = db.prepare("INSERT INTO posts ( thread_id, author_id, body ) VALUES ( ?, ?, ? )");
+const FORUM_EDIT_POST = db.prepare("UPDATE posts SET body = ?, mtime = datetime('now') WHERE post_id = ? AND author_id = ? RETURNING thread_id").pluck();
+
+function show_forum_page(req, res, page) {
+	let thread_count = FORUM_COUNT_THREADS.get();
+	let page_count = Math.ceil(thread_count / FORUM_PAGE_SIZE);
+	let threads = FORUM_LIST_THREADS.all(FORUM_PAGE_SIZE, FORUM_PAGE_SIZE * (page - 1));
+	humanize(threads);
+	res.set("Cache-Control", "no-store");
+	res.render('forum_view.ejs', {
+		user: req.user,
+		threads: threads,
+		current_page: page,
+		page_count: page_count,
+		message: req.flash('message'),
+	});
+}
+
+function linkify(text) {
+	text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	text = text.replace(/https?:\/\/\S+/, (match) => {
+		if (match.endsWith(".jpg") || match.endsWith(".png") || match.endsWith(".svg"))
+			return `<a href="${match}"><img src="${match}"></a>`;
+		return `<a href="${match}">${match}</a>`;
+	});
+	return text;
+}
+
+app.get('/forum', function (req, res) {
+	LOG(req, "GET /forum");
+	show_forum_page(req, res, 1);
+});
+
+app.get('/forum/page/:page', function (req, res) {
+	LOG(req, "GET /forum/page/" + req.params.page);
+	show_forum_page(req, res, req.params.page | 0);
+});
+
+app.get('/forum/thread/:thread_id', function (req, res) {
+	LOG(req, "GET /forum/thread/" + req.params.thread_id);
+	let thread_id = req.params.thread_id | 0;
+	let thread = FORUM_GET_THREAD.get(thread_id);
+	let posts = FORUM_LIST_POSTS.all(thread_id);
+	for (let i = 0; i < posts.length; ++i) {
+		posts[i].body = linkify(posts[i].body);
+		posts[i].edited = posts[i].mtime !== posts[i].ctime;
+		humanize_one(posts[i]);
+	}
+	res.set("Cache-Control", "no-store");
+	res.render('forum_thread.ejs', {
+		user: req.user,
+		thread: thread,
+		posts: posts,
+		message: req.flash('message'),
+	});
+});
+
+app.get('/forum/post', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /forum/post");
+	res.render('forum_post.ejs', {
+		user: req.user,
+		message: req.flash('message'),
+	});
+});
+
+app.post('/forum/post', must_be_logged_in, function (req, res) {
+	LOG(req, "POST /forum/post");
+	let user_id = req.user.user_id;
+	let subject = req.body.subject.trim();
+	let body = req.body.body;
+	if (subject.length === 0)
+		subject = "Untitled";
+	let thread_id = FORUM_NEW_THREAD.run(user_id, subject).lastInsertRowid;
+	FORUM_NEW_POST.run(thread_id, user_id, body);
+	res.redirect('/forum/thread/'+thread_id);
+});
+
+app.get('/forum/edit/:post_id', must_be_logged_in, function (req, res) {
+	// TODO: edit subject if editing first post
+	LOG(req, "GET /forum/edit/" + req.params.post_id);
+	let post_id = req.params.post_id | 0;
+	let post = FORUM_GET_POST.get(post_id);
+	humanize_one(post);
+	res.render('forum_edit.ejs', {
+		user: req.user,
+		post: post,
+		message: req.flash('message'),
+	});
+});
+
+app.post('/forum/edit/:post_id', must_be_logged_in, function (req, res) {
+	LOG(req, "POST /forum/edit/" + req.params.post_id);
+	let user_id = req.user.user_id;
+	let post_id = req.params.post_id | 0;
+	let body = req.body.body;
+	let thread_id = FORUM_EDIT_POST.get(body, post_id, user_id);
+	res.redirect('/forum/thread/'+thread_id);
+});
+
+app.get('/forum/reply/:post_id', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /forum/reply/" + req.params.post_id);
+	let post_id = req.params.post_id | 0;
+	let post = FORUM_GET_POST.get(post_id);
+	let thread = FORUM_GET_THREAD.get(post.thread_id);
+	post.body = linkify(post.body);
+	post.edited = post.mtime !== post.ctime;
+	humanize_one(post);
+	humanize_one(thread);
+	res.render('forum_reply.ejs', {
+		user: req.user,
+		thread: thread,
+		post: post,
+		message: req.flash('message'),
+	});
+});
+
+app.post('/forum/reply/:thread_id', must_be_logged_in, function (req, res) {
+	LOG(req, "POST /forum/reply/" + req.params.thread_id);
+	let thread_id = req.params.thread_id | 0;
+	let user_id = req.user.user_id;
+	let body = req.body.body;
+	FORUM_NEW_POST.run(thread_id, user_id, body);
+	res.redirect('/forum/thread/'+thread_id);
 });
