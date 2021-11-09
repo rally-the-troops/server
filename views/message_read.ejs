@@ -3,6 +3,7 @@
 table { width: 100%; max-width: 50em; }
 th { width: 5em; font-weight: normal; }
 td.body { white-space: pre-wrap; padding: 10px 10px; }
+td a { color: black; text-decoration: none; }
 </style>
 <script>
 function delete_message(id) {
@@ -15,8 +16,8 @@ function reply_message(id) {
 }
 </script>
 <table>
-<tr><th>From:<td> <%= mail.from_name %>
-<tr><th>To:<td> <%= mail.to_name %>
+<tr><th>From:<td> <a href="/user/<%- mail.from_name %>"><%= mail.from_name %></a>
+<tr><th>To:<td> <a href="/user/<%- mail.to_name %>"><%= mail.to_name %></a>
 <tr><th>Date:<td> <%= mail.time %>
 <tr><td colspan="2" class="body"><%= mail.body %></td>
 </table>
