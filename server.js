@@ -1099,6 +1099,18 @@ function mail_password_reset_token(user, token) {
 	mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 }
 
+function mail_new_message(user, msg_id, msg_from, msg_subject, msg_body) {
+	if (!mailer)
+		return;
+	let subject = "You have a new message from " + msg_from + ".";
+	let body = "Subject: " + msg_subject + "\n\n" +
+		msg_body + "\n\n" +
+		"https://rally-the-troops.com/message/read/" + msg_id + "\n\n" +
+		MAIL_FOOTER;
+	console.log("SENT MAIL:", mail_addr(user), subject);
+	mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
+}
+
 function mail_your_turn_notification(user, game_id, interval) {
 	let too_soon = sql_notify_too_soon.get(interval, user.user_id, game_id);
 	if (!too_soon) {
@@ -1780,9 +1792,9 @@ app.post('/message/send', must_be_logged_in, function (req, res) {
 			message: "Cannot find that user."
 		});
 	}
-	MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body);
+	let info = MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body);
 	if (to_user.notifications) {
-		console.log("MAIL USER NOTIFICATION");
+		mail_new_message(to_user, info.lastInsertRowid, req.user.name, subject, body)
 	}
 	res.redirect('/inbox');
 });
