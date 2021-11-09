@@ -1,0 +1,27 @@
+<%- include('header', { title: mail.subject }) %>
+<style>
+table { width: 100%; max-width: 50em; }
+th { width: 5em; font-weight: normal; }
+td.body { white-space: pre-wrap; padding: 10px 10px; }
+</style>
+<script>
+function delete_message(id) {
+	let warning = "Are you sure you want to DELETE this message?";
+	if (window.confirm(warning))
+		window.location.href = "/message/delete/" + id;
+}
+function reply_message(id) {
+	window.location.href = "/message/reply/" + id;
+}
+</script>
+<table>
+<tr><th>From:<td> <%= mail.from_name %>
+<tr><th>To:<td> <%= mail.to_name %>
+<tr><th>Date:<td> <%= mail.time %>
+<tr><td colspan="2" class="body"><%= mail.body %></td>
+</table>
+<p>
+<% if ( mail.from_id !== user.user_id ) { %>
+<button onclick="reply_message(<%- mail.message_id %>)">Reply</button>
+<% } %>
+<button onclick="delete_message(<%- mail.message_id %>)">Delete</button>

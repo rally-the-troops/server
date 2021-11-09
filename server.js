@@ -191,6 +191,8 @@ const sql_login_select = db.prepare("SELECT user_id, name, mail, password, salt 
 const sql_subscribe = db.prepare("UPDATE users SET notifications = 1 WHERE user_id = ?");
 const sql_unsubscribe = db.prepare("UPDATE users SET notifications = 0 WHERE user_id = ?");
 
+const sql_count_unread_messages = db.prepare("SELECT COUNT(*) FROM messages WHERE to_id = ? AND read = 0 AND deleted_from_inbox = 0").pluck();
+
 passport.serializeUser(function (user, done) {
 	return done(null, user.user_id);
 });
@@ -200,6 +202,7 @@ passport.deserializeUser(function (user_id, done) {
 		let row = sql_deserialize_user.get(user_id);
 		if (!row)
 			return done(null, false);
+		row.unread = () => sql_count_unread_messages.get(user_id);
 		return done(null, row);
 	} catch (err) {
 		console.log(err);
@@ -1442,7 +1445,7 @@ app.get('/stats', function (req, res) {
 
 app.get('/users', function (req, res) {
 	LOG(req, "GET /users");
-	let rows = db.prepare("SELECT name, mail, ctime, atime FROM users ORDER BY atime DESC").all();
+	let rows = db.prepare("SELECT user_id, name, mail, ctime, atime FROM users ORDER BY atime DESC").all();
 	rows.forEach(row => {
 		row.avatar = get_avatar(row.mail);
 		row.ctime = human_date(row.ctime);
@@ -1615,4 +1618,155 @@ app.post('/forum/reply/:thread_id', must_be_logged_in, function (req, res) {
 	let body = req.body.body;
 	FORUM_NEW_POST.run(thread_id, user_id, body);
 	res.redirect('/forum/thread/'+thread_id);
+});
+
+// MESSAGES
+const MESSAGE_GET_USER = db.prepare("SELECT user_id, name, mail, notifications FROM users WHERE name = ?");
+const MESSAGE_GET_USER_ID = db.prepare("SELECT user_id FROM users WHERE name = ?").pluck();
+const MESSAGE_GET_USER_NAME = db.prepare("SELECT name FROM users WHERE user_id = ?").pluck();
+
+const MESSAGE_LIST_INBOX = db.prepare(`
+	SELECT message_id, from_name, subject, time, read
+	FROM message_view
+	WHERE to_id = ? AND deleted_from_inbox = 0
+	ORDER BY time DESC`);
+
+const MESSAGE_LIST_OUTBOX = db.prepare(`
+	SELECT message_id, to_name, subject, time, 1 as read
+	FROM message_view
+	WHERE from_id = ? AND deleted_from_outbox = 0
+	ORDER BY time DESC`);
+
+const MESSAGE_FETCH = db.prepare("SELECT * FROM message_view WHERE message_id = ? AND ( from_id = ? OR to_id = ? )");
+const MESSAGE_SEND = db.prepare("INSERT INTO messages ( from_id, to_id, subject, body ) VALUES ( ?, ?, ?, ? )");
+const MESSAGE_MARK_READ = db.prepare("UPDATE messages SET read = 1 WHERE message_id = ?");
+const MESSAGE_DELETE_INBOX = db.prepare("UPDATE messages SET deleted_from_inbox = 1 WHERE message_id = ? AND to_id = ?");
+const MESSAGE_DELETE_OUTBOX = db.prepare("UPDATE messages SET deleted_from_outbox = 1 WHERE message_id = ? AND from_id = ?");
+
+app.get('/inbox', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /inbox");
+	let messages = MESSAGE_LIST_INBOX.all(req.user.user_id);
+	for (let i = 0; i < messages.length; ++i) {
+		messages[i].time = human_date(messages[i].time);
+	}
+	res.set("Cache-Control", "no-store");
+	res.render('message_inbox.ejs', {
+		user: req.user,
+		messages: messages,
+		message: req.flash('message'),
+	});
+});
+
+app.get('/outbox', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /outbox");
+	let messages = MESSAGE_LIST_OUTBOX.all(req.user.user_id);
+	for (let i = 0; i < messages.length; ++i) {
+		messages[i].time = human_date(messages[i].time);
+	}
+	res.set("Cache-Control", "no-store");
+	res.render('message_outbox.ejs', {
+		user: req.user,
+		messages: messages,
+		message: req.flash('message'),
+	});
+});
+
+app.get('/message/read/:message_id', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /message/" + req.params.message_id);
+	let message_id = req.params.message_id | 0;
+	let mail = MESSAGE_FETCH.get(message_id, req.user.user_id, req.user.user_id);
+	if (!mail) {
+		req.flash('message', "Cannot find that message.");
+		return res.redirect('/inbox');
+	}
+	if (mail.to_id === req.user.user_id)
+		MESSAGE_MARK_READ.run(message_id);
+	mail.time = human_date(mail.time);
+	res.render('message_read.ejs', {
+		user: req.user,
+		mail: mail,
+		message: req.flash('message'),
+	});
+});
+
+app.get('/message/send', must_be_logged_in, function (req, res) {
+	res.render('message_send.ejs', {
+		user: req.user,
+		to_id: 0,
+		to_name: "",
+		subject: "",
+		body: "",
+		message: req.flash('message'),
+	});
+});
+
+app.get('/message/send/:to_id', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /message/send/" + req.params.to_id);
+	let to_id = req.params.to_id | 0;
+	if (to_id === 0)
+		to_id = MESSAGE_GET_USER_ID.get(req.params.to_id);
+	let to_name = MESSAGE_GET_USER_NAME.get(to_id);
+	if (!to_name)
+		to_name = "";
+	res.render('message_send.ejs', {
+		user: req.user,
+		to_id: to_id,
+		to_name: to_name,
+		subject: "",
+		body: "",
+		message: req.flash('message'),
+	});
+});
+
+app.post('/message/send', must_be_logged_in, function (req, res) {
+	LOG(req, "POST /message/send/" + req.params.to_id);
+	let to_name = req.body.to;
+	let subject = req.body.subject;
+	let body = req.body.body;
+	let to_user = MESSAGE_GET_USER.get(to_name);
+	if (!to_user) {
+		return res.render('message_send.ejs', {
+			user: req.user,
+			to_id: 0,
+			to_name: to_name,
+			subject: subject,
+			body: body,
+			message: "Cannot find that user."
+		});
+	}
+	MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body);
+	if (to_user.notifications) {
+		console.log("MAIL USER NOTIFICATION");
+	}
+	res.redirect('/inbox');
+});
+
+function quote_body(text) {
+	return "> " + text.split("\n").join("\n> ") + "\n\n";
+}
+
+app.get('/message/reply/:message_id', must_be_logged_in, function (req, res) {
+	LOG(req, "POST /message/reply/" + req.params.message_id);
+	let message_id = req.params.message_id | 0;
+	let mail = MESSAGE_FETCH.get(message_id, req.user.user_id, req.user.user_id);
+	if (!mail) {
+		req.flash('message', "Cannot find that message.");
+		return res.redirect('/inbox');
+	}
+	return res.render('message_send.ejs', {
+		user: req.user,
+		to_id: mail.from_id,
+		to_name: mail.from_name,
+		subject: mail.subject.startsWith("Re: ") ? mail.subject : "Re: " + mail.subject,
+		body: quote_body(mail.body),
+		message: req.flash('message')
+	});
+});
+
+app.get('/message/delete/:message_id', must_be_logged_in, function (req, res) {
+	LOG(req, "POST /message/delete/" + req.params.message_id);
+	let message_id = req.params.message_id | 0;
+	MESSAGE_DELETE_INBOX.run(message_id, req.user.user_id);
+	MESSAGE_DELETE_OUTBOX.run(message_id, req.user.user_id);
+	res.redirect('/inbox');
 });

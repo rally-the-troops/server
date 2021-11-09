@@ -103,6 +103,18 @@ CREATE TABLE IF NOT EXISTS posts (
 	body TEXT
 );
 
+CREATE TABLE IF NOT EXISTS messages (
+	message_id INTEGER PRIMARY KEY,
+	from_id INTEGER,
+	to_id INTEGER,
+	time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	subject TEXT,
+	body TEXT,
+	read BOOLEAN DEFAULT 0,
+	deleted_from_inbox BOOLEAN DEFAULT 0,
+	deleted_from_outbox BOOLEAN DEFAULT 0
+);
+
 DROP TRIGGER IF EXISTS update_reply_count;
 CREATE TRIGGER update_reply_count AFTER INSERT ON posts
 BEGIN
@@ -238,4 +250,22 @@ CREATE VIEW post_view AS
 		, posts.body
 	FROM posts
 	JOIN users AS author ON posts.author_id = author.user_id
+	;
+
+DROP VIEW IF EXISTS message_view;
+CREATE VIEW message_view AS
+	SELECT messages.message_id
+		, messages.from_id
+		, users_from.name AS from_name
+		, messages.to_id
+		, users_to.name AS to_name
+		, messages.time
+		, messages.subject
+		, messages.body
+		, messages.read
+		, messages.deleted_from_inbox
+		, messages.deleted_from_outbox
+	FROM messages
+	JOIN users AS users_from ON messages.from_id = users_from.user_id
+	JOIN users AS users_to ON messages.to_id = users_to.user_id
 	;

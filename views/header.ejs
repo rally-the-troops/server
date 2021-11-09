@@ -16,6 +16,12 @@
 <span><a href="/forum">Forum</a></span>
 <%
 	if (user) {
+		let unread = user.unread();
+		if (unread > 0) {
+			%><span><a href="/inbox">Inbox (<%= unread %>)</a></span><%
+		} else {
+			%><span><a href="/inbox">Inbox</a></span><%
+		}
 		%><span><a href="/profile">Profile (<%= user.name %>)</a></span><%
 	} else {
 		%><span><a href="/signup">Signup</a></span><%

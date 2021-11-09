@@ -1,0 +1,23 @@
+<%- include('header', { title: "Outbox" }) %>
+<style>
+table { width: 100%; max-width: 50em; }
+tr.unread { background-color: lemonchiffon; }
+td.to { width: 5em; }
+td.time { text-align: right; width: 5em; }
+td a { color:black; text-decoration: none; }
+</style>
+<p>
+&#xbb; <a href="/message/send">Send message</a>
+<br>
+&#xbb; <a href="/inbox">Inbox</a>
+<table>
+<tr><th>To<th>Subject<th>Date
+<% if (messages.length > 0) { messages.forEach((row) => { %>
+<tr class="<%- row.read ? "read" : "unread" %>">
+<td class="nowrap to"><%= row.to_name %>
+<td class="subject"><a href="/message/read/<%- row.message_id %>"><%= row.subject %></a>
+<td class="nowrap time"><%= row.time %>
+<% }); } else { %>
+<tr><td colspan="3">No messages</td>
+<% } %>
+</table>
