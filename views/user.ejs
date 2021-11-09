@@ -1,0 +1,16 @@
+<%- include('header', { title: who.name }) %>
+<style>
+.logo { width: 80px; height: 80px; }
+</style>
+<img class="logo" src="<%= who.avatar %>" width="80" height="80">
+<% if (who.about) { %>
+<p style="white-space:pre-wrap;font-style:italic"><%= who.about %></p>
+<% } else { %>
+<br clear="left">
+<% } %>
+<p>
+Member since <%= who.ctime %>.
+<p>
+Was last seen <%= who.atime %>.
+<p>
+<a href="/message/send/<%- who.name %>">Send message</a>
