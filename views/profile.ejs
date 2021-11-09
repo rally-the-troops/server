@@ -1,6 +1,6 @@
 <%- include('header', { title: "Rally the Troops!", refresh: (active_games.length > 0 ? 300 : 0) }) %>
 <style>
-td.nowrap a { color: black; text-decoration: none; }
+td.game a, td.names a { color: black; text-decoration: none; }
 .logo { width: 80px; height: 80px; }
 </style>
 
@@ -23,6 +23,7 @@ Your mail address is <%= user.mail %>.
 <li><a href="/change_password">Change password</a>
 <li><a href="/change_mail">Change mail address</a>
 <li><a href="/change_name">Change name</a>
+<li><a href="/change_about">Change profile text</a>
 <li><a href="/logout">Logout</a>
 </ul>
 
@@ -33,9 +34,9 @@ Your mail address is <%= user.mail %>.
 <% open_games.forEach((row) => { %>
 <tr>
 <td><%= row.game_id %>
-<td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
+<td class="nowrap game"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
 <td><%= row.scenario %>
-<td><%= row.player_names %>
+<td class="names"><%- row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.ctime %>
 <td><a href="/join/<%= row.game_id %>">Join</a>
@@ -50,9 +51,9 @@ Your mail address is <%= user.mail %>.
 <% active_games.forEach((row) => { %>
 <tr>
 <td><%= row.game_id %>
-<td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
+<td class="nowrap game"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
 <td><%= row.scenario %>
-<td><%= row.player_names %>
+<td class="names"><%- row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.mtime %>
 <%
@@ -78,9 +79,9 @@ Your mail address is <%= user.mail %>.
 <% finished_games.forEach((row) => { %>
 <tr>
 <td><%= row.game_id %>
-<td class="nowrap"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
+<td class="nowrap game"><a href="/info/<%= row.title_id %>"><%= row.title_name %></a>
 <td><%= row.scenario %>
-<td><%= row.player_names %>
+<td class="names"><%- row.player_names %>
 <td><%= row.description %>
 <td class="nowrap"><%= row.mtime %>
 <td><%= row.result %>

@@ -3,16 +3,19 @@
 table { width: 100%; max-width: 60em; }
 td a { color: black; text-decoration: none; }
 tfoot td { background-color: gainsboro; }
+th.replies { width: 3em; }
+th.time { width: 5em; }
+th.author { width: 10em; }
 </style>
 <table>
 <thead>
-<tr><th>Subject<th>Author
-<th>Replies<th>Time
+<tr><th class="subject">Subject<th class="author">Author
+<th class="replies">Replies<th class="time">Time
 </thead>
 <% threads.forEach((row) => { %>
 <tr>
 <td class="ellipsis"><a href="/forum/thread/<%- row.thread_id %>"><%= row.subject %></a>
-<td class="nowrap"><%= row.author_name %>
+<td class="nowrap"><a href="/user/<%- row.author_name %>"><%= row.author_name %></a>
 <td><%= row.reply_count %>
 <td class="nowrap"><%= row.mtime %>
 <% }); %>

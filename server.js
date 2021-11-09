@@ -129,6 +129,18 @@ function humanize(rows) {
 	}
 }
 
+function linkify_player_names(games) {
+	for (let i = 0; i < games.length; ++i) {
+		let game = games[i];
+		if (game.player_names) {
+			game.player_names = game.player_names
+				.split(", ")
+				.map(x => `<a href="/user/${x}">${x}</a>`)
+				.join(", ");
+		}
+	}
+}
+
 function humanize_one(row) {
 	row.ctime = human_date(row.ctime);
 	row.mtime = human_date(row.mtime);
@@ -192,6 +204,8 @@ const sql_subscribe = db.prepare("UPDATE users SET notifications = 1 WHERE user_
 const sql_unsubscribe = db.prepare("UPDATE users SET notifications = 0 WHERE user_id = ?");
 
 const sql_count_unread_messages = db.prepare("SELECT COUNT(*) FROM messages WHERE to_id = ? AND read = 0 AND deleted_from_inbox = 0").pluck();
+const sql_fetch_user_by_name = db.prepare("SELECT * FROM users WHERE user_id = ? OR name = ?");
+const sql_fetch_user_by_id = db.prepare("SELECT * FROM users WHERE user_id = ?");
 
 passport.serializeUser(function (user, done) {
 	return done(null, user.user_id);
@@ -346,6 +360,12 @@ app.get('/change_mail', must_be_logged_in, function (req, res) {
 	res.render('change_mail.ejs', { user: req.user, message: req.flash('message') });
 });
 
+app.get('/change_about', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /change_about");
+	let about = sql_fetch_user_by_id.get(req.user.user_id).about;
+	res.render('change_about.ejs', { user: req.user, about: about || "", message: req.flash('message') });
+});
+
 app.get('/subscribe', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /subscribe");
 	sql_subscribe.run(req.user.user_id);
@@ -498,6 +518,7 @@ const sql_change_name = db.prepare("UPDATE users SET name = ? WHERE user_id = ?"
 
 const sql_is_mail_taken = db.prepare("SELECT EXISTS ( SELECT 1 FROM users WHERE mail = ? )").pluck();
 const sql_change_mail = db.prepare("UPDATE users SET mail = ? WHERE user_id = ?");
+const sql_change_about = db.prepare("UPDATE users SET about = ? WHERE user_id = ?");
 
 app.post('/change_name', must_be_logged_in, function (req, res) {
 	try {
@@ -540,6 +561,18 @@ app.post('/change_mail', must_be_logged_in, function (req, res) {
 		console.log(err);
 		req.flash('message', err.message);
 		return res.redirect('/change_mail');
+	}
+});
+
+app.post('/change_about', must_be_logged_in, function (req, res) {
+	try {
+		LOG(req, "POST /change_about", req.user.name);
+		sql_change_about.run(req.body.about, req.user.user_id);
+		return res.redirect('/profile');
+	} catch (err) {
+		console.log(err);
+		req.flash('message', err.message);
+		return res.redirect('/change_about');
 	}
 });
 
@@ -661,6 +694,7 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 	let avatar = get_avatar(req.user.mail);
 	let games = QUERY_LIST_GAMES_OF_USER.all({user_id: req.user.user_id});
 	humanize(games);
+	linkify_player_names(games);
 	let open_games = games.filter(game => game.status === 0);
 	let active_games = games.filter(game => game.status === 1);
 	let finished_games = games.filter(game => game.status === 2);
@@ -682,6 +716,7 @@ app.get('/info/:title_id', function (req, res) {
 	if (req.isAuthenticated()) {
 		let games = QUERY_LIST_GAMES_OF_TITLE.all({user_id: req.user.user_id, title_id: title_id});
 		humanize(games);
+		linkify_player_names(games);
 		let open_games = games.filter(game => game.status === 0);
 		let active_games = games.filter(game => game.status === 1);
 		let finished_games = games.filter(game => game.status === 2);
@@ -1486,6 +1521,15 @@ app.get('/games', must_be_logged_in, function (req, res) {
 	});
 });
 
+app.get('/user/:who_id', function (req, res) {
+	LOG(req, "GET /user/" + req.params.who_id);
+	let who = sql_fetch_user_by_name.get(req.params.who_id, req.params.who_id);
+	who.avatar = get_avatar(who.mail);
+	who.ctime = human_date(who.ctime);
+	who.atime = human_date(who.atime);
+	res.render('user.ejs', { user: req.user, who: who, message: req.flash('message') });
+});
+
 // FORUM
 
 const FORUM_PAGE_SIZE = 15;
@@ -1621,6 +1665,7 @@ app.post('/forum/reply/:thread_id', must_be_logged_in, function (req, res) {
 });
 
 // MESSAGES
+
 const MESSAGE_GET_USER = db.prepare("SELECT user_id, name, mail, notifications FROM users WHERE name = ?");
 const MESSAGE_GET_USER_ID = db.prepare("SELECT user_id FROM users WHERE name = ?").pluck();
 const MESSAGE_GET_USER_NAME = db.prepare("SELECT name FROM users WHERE user_id = ?").pluck();
@@ -1642,6 +1687,7 @@ const MESSAGE_SEND = db.prepare("INSERT INTO messages ( from_id, to_id, subject,
 const MESSAGE_MARK_READ = db.prepare("UPDATE messages SET read = 1 WHERE message_id = ?");
 const MESSAGE_DELETE_INBOX = db.prepare("UPDATE messages SET deleted_from_inbox = 1 WHERE message_id = ? AND to_id = ?");
 const MESSAGE_DELETE_OUTBOX = db.prepare("UPDATE messages SET deleted_from_outbox = 1 WHERE message_id = ? AND from_id = ?");
+const MESSAGE_DELETE_ALL_OUTBOX = db.prepare("UPDATE messages SET deleted_from_outbox = 1 WHERE from_id = ?");
 
 app.get('/inbox', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /inbox");
@@ -1769,4 +1815,10 @@ app.get('/message/delete/:message_id', must_be_logged_in, function (req, res) {
 	MESSAGE_DELETE_INBOX.run(message_id, req.user.user_id);
 	MESSAGE_DELETE_OUTBOX.run(message_id, req.user.user_id);
 	res.redirect('/inbox');
+});
+
+app.get('/outbox/delete', must_be_logged_in, function (req, res) {
+	LOG(req, "POST /outbox/delete");
+	MESSAGE_DELETE_ALL_OUTBOX.run(req.user.user_id);
+	res.redirect('/outbox');
 });

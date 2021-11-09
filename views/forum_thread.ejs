@@ -2,6 +2,7 @@
 <style>
 table { width: 100%; max-width: 50em; }
 td.body { white-space: pre-wrap; padding: 10px 10px; }
+th a { color: black; text-decoration: none; }
 th.author { border-right: none; }
 th.time { text-align: right; border-left: none; font-weight: normal; }
 td.edit { text-align: right; border: none; }
@@ -10,7 +11,7 @@ td.edit { text-align: right; border: none; }
 <p>
 <table>
 <tr>
-<th class="nowrap author"><%= row.author_name %>
+<th class="nowrap author"><a href="/user/<%- row.author_name %>"><%= row.author_name %></a>
 <th class="nowrap time"><%= row.ctime %>
 <%= row.edited ? "(edited " + row.mtime + ")" : "" %>
 <tr>
