@@ -13,4 +13,8 @@ echo "--- TIMED OUT ACTIVE GAMES ---"
 sqlite3 db "SELECT * FROM game_view $WHERE_TIMEOUT_ACTIVE"
 sqlite3 db "UPDATE games SET status = 3 $WHERE_TIMEOUT_ACTIVE"
 
+echo "--- DELETED MESSAGES ---"
+sqlite3 db "SELECT message_id, from_name, to_name, subject FROM message_view WHERE deleted_from_inbox=1 AND deleted_from_outbox=1"
+sqlite3 db "DELETE FROM messages WHERE deleted_from_inbox=1 AND deleted_from_outbox=1"
+
 sqlite3 db "DELETE FROM replay WHERE game_id < 1346"
