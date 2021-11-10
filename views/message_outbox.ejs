@@ -6,20 +6,13 @@ function delete_all() {
 		window.location.href = "/outbox/delete";
 }
 </script>
-<style>
-table { width: 100%; max-width: 50em; }
-tr.unread { background-color: lemonchiffon; }
-td.to { width: 5em; }
-td.time { text-align: right; width: 5em; }
-td a { color:black; text-decoration: none; }
-</style>
-<table>
+<table class="post">
 <tr><th>To<th>Subject<th>Date
 <% if (messages.length > 0) { messages.forEach((row) => { %>
 <tr class="<%- row.read ? "read" : "unread" %>">
-<td class="nowrap to"><a href="/user/<%- row.to_name %>"><%= row.to_name %></a>
+<td class="author"><a href="/user/<%- row.to_name %>"><%= row.to_name %></a>
 <td class="subject"><a href="/message/read/<%- row.message_id %>"><%= row.subject %></a>
-<td class="nowrap time"><%= row.time %>
+<td class="time"><%= row.time %>
 <% }); } else { %>
 <tr><td colspan="3">No messages</td>
 <% } %>

@@ -1,18 +1,15 @@
 <%- include('header', { title: thread.subject }) %>
 <style>
-table { width: 100%; max-width: 50em; }
-td.body { white-space: pre-wrap; padding: 10px 10px; }
-th a { color: black; text-decoration: none; }
-th.author { border-right: none; }
-th.time { text-align: right; border-left: none; font-weight: normal; }
-td.edit { text-align: right; border: none; }
+table .author { border-right: none; }
+table .time { border-left: none; font-weight: normal; }
+table .edit { text-align: right; border: none; }
 </style>
 <% posts.forEach((row) => { %>
 <p>
-<table>
+<table class="post">
 <tr>
-<th class="nowrap author"><a href="/user/<%- row.author_name %>"><%= row.author_name %></a>
-<th class="nowrap time"><%= row.ctime %>
+<th class="author"><a href="/user/<%- row.author_name %>"><%= row.author_name %></a>
+<th class="time"><%= row.ctime %>
 <%= row.edited ? "(edited " + row.mtime + ")" : "" %>
 <tr>
 <td class="body" colspan="2"><%- row.body %></td>

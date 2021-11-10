@@ -24,22 +24,51 @@ h2 { margin-left: -1px; }
 .main hr { max-width: 50rem; margin-right: auto; margin-left: 0; }
 .main hr { border: none; border-top: 2px dotted brown; }
 .main hr + p { font-style: italic; }
-table.wide { min-width: 50rem; }
+.is_active { background-color: lemonchiffon; }
 .error { color: brown; font-style: italic; white-space: pre-wrap; }
 .warning { color: brown; }
 .warning::before { content: "\26a0"; }
-.logo { float: left; margin: 0 20px 5px 0; box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5); height: 200px; }
+img.logo {
+	float: left;
+	margin: 0 20px 5px 0;
+	box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5);
+	height: 200px;
+}
+img.avatar {
+	float: left;
+	margin: 0 20px 5px 0;
+	box-shadow: 2px 2px 4px 0px rgba(0,0,0,.5);
+	width: 80px; height: 80px;
+}
+
 table { border-collapse: collapse; }
+tfoot td { background-color: gainsboro; }
 th { text-align: left; background-color: gainsboro; }
 th, td { border: 1px solid black; }
 th, td { padding: 3px 1ex; }
+
+table.game { min-width: min(50rem,100%); }
+table.game .title { white-space: nowrap; }
+table.game .scenario { white-space: nowrap; }
+table.game .role { white-space: nowrap; }
+table.game .time { white-space: nowrap; }
+table.game td a { text-decoration: none; color: black; }
+table.game td.command a { text-decoration: underline; color: blue; }
+
+table.post { min-width: min(50rem,100%); }
+table.post .author { white-space: nowrap; width: 10rem; }
+table.post .time { white-space: nowrap; text-align: right; width: 5rem; }
+table.post .replies { width: 0; }
+table.post .unread { background-color: lightyellow; }
+table.post .body { white-space: pre-wrap; padding: 10px 10px; }
+table.post th a { text-decoration: none; color: black; }
+table.post td:not(.body):not(.edit) a { text-decoration: none; color: black; }
+
 label { user-select: none; }
 button, input, select { font-size: 1rem; margin: 5px 0; }
 input[type="text"], input[type="password"], textarea { padding: 5px; }
 select { padding-right: 20px; }
 form { display: inline; }
-.nowrap { white-space: nowrap; }
-.is_your_turn { background-color: lemonchiffon; }
 button, select {
 	margin: 5px 10px 5px 0;
 	padding: 1px 10px;

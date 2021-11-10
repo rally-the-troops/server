@@ -1,10 +1,4 @@
-<%- include('header', { title: mail.subject }) %>
-<style>
-table { width: 100%; max-width: 50em; }
-th { width: 5em; font-weight: normal; }
-td.body { white-space: pre-wrap; padding: 10px 10px; }
-td a { color: black; text-decoration: none; }
-</style>
+<%- include('header', { title: message.subject }) %>
 <script>
 function delete_message(id) {
 	let warning = "Are you sure you want to DELETE this message?";
@@ -15,14 +9,14 @@ function reply_message(id) {
 	window.location.href = "/message/reply/" + id;
 }
 </script>
-<table>
-<tr><th>From:<td> <a href="/user/<%- mail.from_name %>"><%= mail.from_name %></a>
-<tr><th>To:<td> <a href="/user/<%- mail.to_name %>"><%= mail.to_name %></a>
-<tr><th>Date:<td> <%= mail.time %>
-<tr><td colspan="2" class="body"><%= mail.body %></td>
+<table class="post">
+<tr><th>From:<td> <a href="/user/<%- message.from_name %>"><%= message.from_name %></a>
+<tr><th>To:<td> <a href="/user/<%- message.to_name %>"><%= message.to_name %></a>
+<tr><th>Date:<td> <%= message.time %>
+<tr><td colspan="2" class="body"><%- message.body %></td>
 </table>
 <p>
-<% if ( mail.from_id !== user.user_id ) { %>
-<button onclick="reply_message(<%- mail.message_id %>)">Reply</button>
+<% if ( 1 || message.from_id !== user.user_id ) { %>
+<button onclick="reply_message(<%- message.message_id %>)">Reply</button>
 <% } %>
-<button onclick="delete_message(<%- mail.message_id %>)">Delete</button>
+<button onclick="delete_message(<%- message.message_id %>)">Delete</button>

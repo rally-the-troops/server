@@ -16,7 +16,7 @@
 <span><a href="/forum">Forum</a></span>
 <%
 	if (user) {
-		let unread = user.unread();
+		let unread = user.unread | 0;
 		if (unread > 0) {
 			%><span><a href="/inbox">Inbox (<%= unread %>)</a></span><%
 		} else {
@@ -33,7 +33,7 @@
 <div class="main">
 <h1><%= title %></h1>
 <%
-	if (typeof message !== 'undefined' && message.length > 0) {
-		%><p class="error"><%= Array.isArray(message) ? message.join("\n") : message %></p><%
+	if (typeof flash !== 'undefined' && flash.length > 0) {
+		%><p class="error"><%= Array.isArray(flash) ? flash.join("\n") : flash %></p><%
 	}
 %>

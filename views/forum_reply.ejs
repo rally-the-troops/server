@@ -1,16 +1,13 @@
 <%- include('header', { title: thread.subject }) %>
 <style>
 input, textarea { width: 100%; max-width: 45em; }
-table { width: 100%; max-width: 50em; }
-td.body { white-space: pre-wrap; padding: 10px 10px; }
-th.author { border-right: none; }
-th.time { text-align: right; border-left: none; font-weight: normal; }
+table .author { border-right: none; }
+table .time { border-left: none; font-weight: normal; }
 </style>
-<table>
+<table class="post">
 <tr>
-<th class="nowrap author"><%= post.author_name %>
-<th class="nowrap time"><%= post.ctime %>
-<%= post.edited ? "(edited " + post.mtime + ")" : "" %>
+<th class="author"><%= post.author_name %>
+<th class="time"><%= post.ctime %> <%= post.edited ? "(edited " + post.mtime + ")" : "" %>
 <tr>
 <td class="body" colspan="2"><%- post.body %></td>
 </table>

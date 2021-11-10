@@ -12,6 +12,7 @@ function format_options(options) {
 <style>
 th, td { min-width: 10em; font-size: 16px; }
 a.red { text-decoration: none; color: brown; font-size: 15px; }
+td a { text-decoration: underline; color: blue; }
 .hide { display: none; }
 </style>
 <script>
@@ -44,7 +45,7 @@ Result: <span id="game_result"></span>
 
 <br clear=left>
 
-<table>
+<table class="small">
 <tr>
 <% roles.forEach((role) => { %><th id="role_<%= role.replace(/ /g, '_') %>_name"><%= role %></th><% }); %>
 <tr>

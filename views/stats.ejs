@@ -17,7 +17,7 @@
 	for (let title_id in title_name_map) {
 		let scenarios = title_rule_map[title_id].scenarios;
 		let roles = title_role_map[title_id].concat(['Draw']);
-		%><tr><th><%= title_name_map[title_id] %><%
+		%><tr><th><%= title_name_map[title_id].title_name %><%
 		roles.forEach(role => {
 			%><th><%= role %><%
 		});

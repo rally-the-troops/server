@@ -3,14 +3,12 @@
 td.avatar{padding:0;width:80px;}
 td.avatar img{display:block;width:80px;height:80px;}
 </style>
-
-<table class="wide">
+<table class="post">
 <tr><th>Avatar<th>Name<th>Member since<th>Last seen
-
 <% userList.forEach((row) => { %>
 <tr>
 <td class="avatar"><img src="<%= row.avatar %>">
-<td><a href="/user/<%= row.name %>"><%= row.name %></a>
+<td class="name"><a href="/user/<%= row.name %>"><%= row.name %></a>
 <td><%= row.ctime %>
 <td><%= row.atime %>
 <% }); %>

@@ -1,7 +1,4 @@
 <%- include('header', { title: title.title_name, refresh: (user ? 300 : 0) }) %>
-<style>
-td.names a { color: black; text-decoration: none; }
-</style>
 <img class="logo" src="/<%= title.title_id %>/cover.jpg">
 <%- include('../public/' + title.title_id + '/about.html') %>
 <p>
@@ -11,17 +8,17 @@ Read more about the game on
 <% if (user) { %>
 
 <h2>Open Games</h2>
-<table class="wide">
+<table class="game">
 <tr><th>ID<th>Scenario<th>Players<th>Description<th>Created<th>
 <% if (open_games.length > 0) { %>
 <% open_games.forEach((row) => { %>
 <tr>
-<td><%= row.game_id %>
+<td class="id"><%= row.game_id %>
 <td><%= row.scenario %>
-<td class="names"><%- row.player_names || `<a href="/user/${row.owner_name}">${row.owner_name}</a>` %>
-<td><%= row.description %>
-<td class="nowrap"><%= row.ctime %>
-<td><a href="/join/<%= row.game_id %>">Join</a>
+<td class="players"><%- row.player_names || `<a href="/user/${row.owner_name}">${row.owner_name}</a>` %>
+<td class="description"><%= row.description %>
+<td class="time"><%= row.ctime %>
+<td class="command"><a href="/join/<%= row.game_id %>">Join</a>
 <% }); } else { %>
 <tr><td colspan="6">No open games.
 <% } %>
@@ -32,34 +29,34 @@ Read more about the game on
 
 <% if (active_games.length > 0) { %>
 <h2>Active Games</h2>
-<table class="wide">
+<table class="game">
 <tr><th>ID<th>Scenario<th>Players<th>Description<th>Changed<th>Turn<th>
 <% active_games.forEach((row) => { %>
 <tr>
-<td><%= row.game_id %>
-<td><%= row.scenario %>
-<td class="names"><%- row.player_names %>
-<td><%= row.description %>
-<td class="nowrap"><%= row.mtime %>
-<td class="<%= row.is_your_turn ? "is_your_turn" : "" %>"><%= row.active_role %>
-<td><a href="/join/<%= row.game_id %>">Enter</a>
+<td class="id"><%= row.game_id %>
+<td class="scenario"><%= row.scenario %>
+<td class="players"><%- row.player_names %>
+<td class="description"><%= row.description %>
+<td class="time"><%= row.mtime %>
+<td class="<%= row.is_active ? "role is_active" : "role" %>"><%= row.active %>
+<td class="command"><a href="/join/<%= row.game_id %>">Enter</a>
 <% }); %>
 </table>
 <% } %>
 
 <% if (finished_games.length > 0) { %>
 <h2>Finished Games</h2>
-<table class="wide">
+<table class="game">
 <tr><th>ID<th>Scenario<th>Players<th>Description<th>Finished<th>Result<th>
 <% finished_games.forEach((row) => { %>
 <tr>
-<td><%= row.game_id %>
-<td><%= row.scenario %>
-<td class="names"><%- row.player_names %>
-<td><%= row.description %>
-<td class="nowrap"><%= row.mtime %>
-<td><%= row.result %>
-<td><a href="/join/<%= row.game_id %>">View</a>
+<td class="id"><%= row.game_id %>
+<td class="scenario"><%= row.scenario %>
+<td class="players"><%- row.player_names %>
+<td class="description"><%= row.description %>
+<td class="time"><%= row.mtime %>
+<td class="result"><%= row.result %>
+<td class="command"><a href="/join/<%= row.game_id %>">View</a>
 <% }); %>
 </table>
 <% } %>

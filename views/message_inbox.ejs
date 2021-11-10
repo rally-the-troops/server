@@ -1,19 +1,12 @@
 <%- include('header', { title: "Inbox" }) %>
-<style>
-table { width: 100%; max-width: 50em; }
-tr.unread { background-color: lightyellow; }
-td.from { width: 5em; }
-td.time { text-align: right; width: 5em; }
-td a { color:black; text-decoration: none; }
-</style>
 <p><a href="/message/send">Send message</a>
-<table>
+<table class="post">
 <tr><th>From<th>Subject<th>Date
 <% if (messages.length > 0) { messages.forEach((row) => { %>
 <tr class="<%- row.read ? "read" : "unread" %>">
-<td class="nowrap from"><a href="/user/<%- row.from_name %>"><%= row.from_name %></a>
+<td class="author"><a href="/user/<%- row.from_name %>"><%= row.from_name %></a>
 <td class="subject"><a href="/message/read/<%- row.message_id %>"><%= row.subject %></a>
-<td class="nowrap time"><%= row.time %>
+<td class="time"><%= row.time %>
 <% }); } else { %>
 <tr><td colspan="3">No messages</td>
 <% } %>

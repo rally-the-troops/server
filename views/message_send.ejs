@@ -1,6 +1,6 @@
 <%- include('header', { title: "Send Message" }) %>
 <style>
-input, textarea { width: 100%; max-width: 45em; }
+input, textarea { width: 100%; max-width: 45rem; }
 </style>
 <form action="/message/send" method="post">
 <p>
@@ -8,7 +8,7 @@ To:<br>
 <input id="to" type="text" name="to" size="80" maxlength="80"
 	onkeypress="if(event.keyCode===13){document.querySelector('#subject').focus();return false;}"
 	value="<%= to_name %>"
-	<%= to_id === 0 ? "autofocus" : "" %>
+	<%= (to_name === "") ? "autofocus" : "" %>
 	required>
 
 <p>
@@ -17,14 +17,17 @@ Subject:
 <input id="subject" type="text" name="subject" size="80" maxlength="80"
 	onkeypress="if(event.keyCode===13){document.querySelector('#body').focus();return false;}"
 	value="<%= subject %>"
-	<%= to_id > 0 ? "autofocus" : "" %>
+	<%= (to_name !== "" && subject === "") ? "autofocus" : "" %>
 	pattern=".*\S+.*"
 	required>
 
 <p>
 Body:
 <br>
-<textarea id="body" name="body" rows="20" cols="80" maxlength="32000" required><%= body %></textarea>
+<textarea id="body" name="body" rows="20" cols="80" maxlength="32000"
+	<%= (to_name !== "" && subject !== "") ? "autofocus" : "" %>
+	required>
+<%= body %></textarea>
 <p>
 <button type="submit">Send</button>
 </form>

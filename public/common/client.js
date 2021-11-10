@@ -11,7 +11,8 @@ let chat_is_visible = false;
 let chat_text = null;
 let chat_key = null;
 let chat_last_day = null;
-let chat_log = null;
+let chat_log = 0;
+let chat_seen = 0;
 
 function scroll_with_middle_mouse(panel_sel, multiplier) {
 	let panel = document.querySelector(panel_sel);
@@ -104,7 +105,19 @@ function stop_blinker() {
 
 window.addEventListener("focus", stop_blinker);
 
-function add_chat_lines(log) {
+function load_chat(game_id) {
+	chat_key = "chat/" + game_id;
+	chat_text = document.querySelector(".chat_text");
+	chat_last_day = null;
+	chat_log = 0;
+	chat_seen = window.localStorage.getItem(chat_key) | 0;
+}
+
+function save_chat() {
+	window.localStorage.setItem(chat_key, chat_log);
+}
+
+function update_chat(chat_id, utc_date, user, message) {
 	function format_time(date) {
 		let mm = date.getMinutes();
 		let hh = date.getHours();
@@ -124,10 +137,9 @@ function add_chat_lines(log) {
 		chat_text.appendChild(line);
 		chat_text.scrollTop = chat_text.scrollHeight;
 	}
-	for (let entry of log) {
-		chat_log.push(entry);
-		let [date, user, message] = entry;
-		date = new Date(date);
+	if (chat_id > chat_log) {
+		chat_log = chat_id;
+		let date = new Date(utc_date + "Z");
 		let day = date.toDateString();
 		if (day !== chat_last_day) {
 			add_date_line(day);
@@ -135,37 +147,14 @@ function add_chat_lines(log) {
 		}
 		add_chat_line(format_time(date), user, message);
 	}
-}
-
-function load_chat(game_id) {
-	chat_key = "chat/" + game_id;
-	chat_text = document.querySelector(".chat_text");
-	chat_last_day = null;
-	chat_log = [];
-	let save = JSON.parse(window.localStorage.getItem(chat_key));
-	if (save) {
-		if (Date.now() < save.expires)
-			add_chat_lines(save.chat);
+	if (chat_id > chat_seen) {
+		let button = document.querySelector(".chat_button");
+		start_blinker("NEW MESSAGE");
+		if (!chat_is_visible)
+			button.classList.add("new");
 		else
-			window.localStorage.removeItem(chat_key);
+			save_chat();
 	}
-	return chat_log.length;
-}
-
-function save_chat() {
-	const DAY = 86400000;
-	let save = { expires: Date.now() + 7 * DAY, chat: chat_log };
-	window.localStorage.setItem(chat_key, JSON.stringify(save));
-}
-
-function update_chat(log_start, log) {
-	if (log_start === 0) {
-		chat_last_day = null;
-		chat_log = [];
-		while (chat_text.firstChild)
-			chat_text.removeChild(chat_text.firstChild);
-	}
-	add_chat_lines(log);
 }
 
 function init_client(roles) {
@@ -209,7 +198,7 @@ function init_client(roles) {
 	socket.on('connect', () => {
 		console.log("CONNECTED");
 		document.querySelector(".grid_top").classList.remove('disconnected');
-		socket.emit('getchat', chat_log.length); // only send new messages when we reconnect!
+		socket.emit('getchat', chat_log); // only send new messages when we reconnect!
 	});
 
 	socket.on('disconnect', () => {
@@ -226,7 +215,7 @@ function init_client(roles) {
 		document.querySelector("body").classList.add(player);
 		for (let i = 0; i < roles.length; ++i) {
 			let pr = players.find(p => p.role === roles[i]);
-			document.querySelector(USER_SEL[i]).textContent = pr ? pr.user_name : "NONE";
+			document.querySelector(USER_SEL[i]).textContent = pr ? pr.name : "NONE";
 		}
 	});
 
@@ -261,15 +250,9 @@ function init_client(roles) {
 		document.getElementById("prompt").textContent = msg;
 	});
 
-	socket.on('chat', function (log_start, log) {
-		console.log("CHAT UPDATE", log_start, log.length);
-		update_chat(log_start, log);
-		let button = document.querySelector(".chat_button");
-		start_blinker("NEW MESSAGE");
-		if (!chat_is_visible)
-			button.classList.add("new");
-		else
-			save_chat();
+	socket.on('chat', function (item) {
+		console.log("CHAT MESSAGE", JSON.stringify(item));
+		update_chat(item[0], item[1], item[2], item[3]);
 	});
 
 	document.querySelector(".chat_form").addEventListener("submit", e => {

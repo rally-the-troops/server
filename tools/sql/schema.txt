@@ -1,272 +1,292 @@
-CREATE TABLE IF NOT EXISTS users (
-	user_id INTEGER PRIMARY KEY,
-	name TEXT UNIQUE COLLATE NOCASE,
-	mail TEXT UNIQUE COLLATE NOCASE,
-	about TEXT,
-	password TEXT,
-	salt TEXT,
-	ctime TIMESTAMP,
-	cip TEXT,
-	atime TIMESTAMP,
-	aip TEXT,
-	notifications INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS notifications (
-	user_id INTEGER,
-	game_id INTEGER,
-	time TIMESTAMP,
-	UNIQUE ( user_id, game_id )
-);
-
-CREATE TABLE IF NOT EXISTS tokens (
-	user_id INTEGER PRIMARY KEY,
-	token TEXT,
-	time TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS blacklist_ip ( ip TEXT PRIMARY KEY );
-CREATE TABLE IF NOT EXISTS blacklist_mail ( mail TEXT PRIMARY KEY );
+CREATE TABLE IF NOT EXISTS blacklist_ip ( ip TEXT NOT NULL PRIMARY KEY ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS blacklist_mail ( mail TEXT NOT NULL PRIMARY KEY ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS titles (
-	title_id TEXT UNIQUE,
-	title_name TEXT,
+	title_id TEXT NOT NULL PRIMARY KEY,
+	title_name TEXT NOT NULL,
 	bgg INTEGER
-);
+) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS roles (
-	title_id TEXT,
-	role TEXT,
+	title_id TEXT NOT NULL REFERENCES titles(title_id) ON DELETE CASCADE,
+	role TEXT NOT NULL,
 	UNIQUE ( title_id, role )
 );
 
-CREATE TABLE IF NOT EXISTS games (
-	game_id INTEGER PRIMARY KEY,
-	title_id TEXT,
-	scenario TEXT,
-	options TEXT,
-	owner_id INTEGER,
-	private BOOLEAN,
-	random BOOLEAN,
-	description TEXT,
-	ctime TIMESTAMP,
-	mtime TIMESTAMP,
-	status INTEGER,
-	result TEXT,
-	active TEXT,
-	state TEXT
+-- Users --
+
+CREATE TABLE IF NOT EXISTS users (
+	user_id	INTEGER NOT NULL PRIMARY KEY,
+	name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+	mail TEXT NOT NULL UNIQUE COLLATE NOCASE,
+	notify BOOLEAN NOT NULL DEFAULT 0,
+	banned BOOLEAN NOT NULL DEFAULT 0,
+	ctime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	password TEXT NOT NULL,
+	salt TEXT NOT NULL,
+	about TEXT
 );
 
-CREATE TABLE IF NOT EXISTS replay (
-	game_id INTEGER,
-	time TIMESTAMP,
-	role TEXT,
-	action TEXT,
-	arguments TEXT
+CREATE TABLE IF NOT EXISTS user_last_seen (
+	user_id INTEGER NOT NULL PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+	atime TIMESTAMP NOT NULL,
+	aip TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS chats (
-	game_id INTEGER PRIMARY KEY,
-	time TIMESTAMP,
-	chat TEXT
+CREATE TABLE IF NOT EXISTS tokens (
+	user_id INTEGER NOT NULL PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+	token TEXT NOT NULL,
+	time TIMESTAMP NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS players (
-	user_id INTEGER,
-	game_id INTEGER,
-	role TEXT,
-	UNIQUE ( game_id, role )
+CREATE TABLE IF NOT EXISTS last_notified (
+	game_id INTEGER NOT NULL REFERENCES games(game_id) ON DELETE CASCADE,
+	user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+	time TIMESTAMP NOT NULL,
+	PRIMARY KEY ( game_id, user_id )
+) WITHOUT ROWID;
+
+DROP VIEW IF EXISTS user_view;
+CREATE VIEW user_view AS
+	SELECT
+		user_id, name, mail, notify
+	FROM users
+	;
+
+DROP VIEW IF EXISTS user_login_view;
+CREATE VIEW user_login_view AS
+	SELECT
+		user_id, name, mail, notify, password, salt
+	FROM users
+	;
+
+DROP VIEW IF EXISTS user_profile_view;
+CREATE VIEW user_profile_view AS
+	SELECT
+		user_id, name, mail, notify, ctime, atime, about
+	FROM users
+	NATURAL LEFT JOIN user_last_seen
+	;
+
+-- Messages --
+
+CREATE TABLE IF NOT EXISTS messages (
+	message_id INTEGER NOT NULL PRIMARY KEY,
+	deleted_from_inbox BOOLEAN NOT NULL DEFAULT 0,
+	deleted_from_outbox BOOLEAN NOT NULL DEFAULT 0,
+	from_id INTEGER NOT NULL DEFAULT 0 REFERENCES users(user_id) ON DELETE SET DEFAULT,
+	to_id INTEGER NOT NULL DEFAULT 0 REFERENCES users(user_id) ON DELETE SET DEFAULT,
+	time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	read BOOLEAN NOT NULL DEFAULT 0,
+	subject TEXT NOT NULL,
+	body TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS forums (
-	forum_id INTEGER PRIMARY KEY,
-	title TEXT
-);
+DROP VIEW IF EXISTS message_view;
+CREATE VIEW message_view AS
+	SELECT *
+		, users_from.name AS from_name
+		, users_to.name AS to_name
+	FROM messages
+	JOIN users AS users_from ON messages.from_id = users_from.user_id
+	JOIN users AS users_to ON messages.to_id = users_to.user_id
+	;
+
+DROP INDEX IF EXISTS messages_inbox_idx;
+CREATE INDEX messages_inbox_idx ON messages(to_id) WHERE deleted_from_inbox=0;
+
+DROP INDEX IF EXISTS messages_inbox_unread_idx;
+CREATE INDEX messages_inbox_unread_idx ON messages(to_id) WHERE read=0 AND deleted_from_inbox=0;
+
+-- Forum --
 
 CREATE TABLE IF NOT EXISTS threads (
-	thread_id INTEGER PRIMARY KEY,
-	forum_id INTEGER DEFAULT 1,
-	author_id INTEGER,
-	subject TEXT,
-	ctime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	mtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	post_count INTEGER DEFAULT 0,
-	locked BOOLEAN DEFAULT 0
-	-- or first_post_id and last_post_id ?
+	thread_id INTEGER NOT NULL PRIMARY KEY,
+	author_id INTEGER NOT NULL DEFAULT 0 REFERENCES users(user_id) ON DELETE SET DEFAULT,
+	subject TEXT NOT NULL,
+	locked BOOLEAN NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS posts (
-	post_id INTEGER PRIMARY KEY,
-	thread_id INTEGER,
-	author_id INTEGER,
-	ctime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	mtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	body TEXT
+	post_id INTEGER NOT NULL PRIMARY KEY,
+	thread_id INTEGER NOT NULL REFERENCES threads(thread_id) ON DELETE CASCADE,
+	author_id INTEGER NOT NULL DEFAULT 0 REFERENCES users(user_id) ON DELETE SET DEFAULT,
+	ctime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	mtime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	body TEXT NOT NULL
 );
-
-CREATE TABLE IF NOT EXISTS messages (
-	message_id INTEGER PRIMARY KEY,
-	from_id INTEGER,
-	to_id INTEGER,
-	time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	subject TEXT,
-	body TEXT,
-	read BOOLEAN DEFAULT 0,
-	deleted_from_inbox BOOLEAN DEFAULT 0,
-	deleted_from_outbox BOOLEAN DEFAULT 0
-);
-
-DROP TRIGGER IF EXISTS update_reply_count;
-CREATE TRIGGER update_reply_count AFTER INSERT ON posts
-BEGIN
-	UPDATE threads
-		SET
-			post_count = ( SELECT COUNT(*) FROM posts WHERE posts.thread_id = new.thread_id ),
-			mtime = datetime('now')
-		WHERE threads.thread_id = new.thread_id
-	;
-END;
-
-DROP TRIGGER IF EXISTS update_reply_time;
-CREATE TRIGGER update_reply_time AFTER UPDATE ON posts
-BEGIN
-	UPDATE threads SET mtime = datetime('now') WHERE threads.thread_id = new.thread_id ;
-END;
-
-DROP TRIGGER IF EXISTS no_part_on_active_game;
-CREATE TRIGGER no_part_on_active_game BEFORE DELETE ON players
-BEGIN
-	SELECT CASE
-	WHEN ( SELECT status FROM games WHERE game_id = old.game_id ) > 0
-	THEN RAISE(ABORT, "Cannot remove players from started games.")
-	END;
-END;
-
-DROP TRIGGER IF EXISTS no_join_on_active_game;
-CREATE TRIGGER no_join_on_active_game BEFORE INSERT ON players
-BEGIN
-	SELECT CASE
-	WHEN ( SELECT status FROM games WHERE game_id = new.game_id ) > 0
-	THEN RAISE(ABORT, "Cannot add players to started games.")
-	END;
-END;
-
-DROP TRIGGER IF EXISTS must_be_valid_role;
-CREATE TRIGGER must_be_valid_role BEFORE INSERT ON players
-BEGIN
-	SELECT CASE
-	WHEN ( SELECT COUNT(*) FROM roles, games WHERE
-		roles.title_id = games.title_id AND
-		games.game_id = new.game_id AND
-		roles.role = new.role ) <> 1
-	AND new.role <> 'Random 1'
-	AND new.role <> 'Random 2'
-	AND new.role <> 'Random 3'
-	AND new.role <> 'Random 4'
-	AND new.role <> 'Random 5'
-	AND new.role <> 'Random 6'
-	THEN RAISE(ABORT, "Invalid role for that title.")
-	END;
-END;
-
-DROP TRIGGER IF EXISTS purge_players;
-CREATE TRIGGER purge_players AFTER DELETE ON games
-BEGIN
-	DELETE FROM players WHERE game_id = old.game_id;
-	DELETE FROM notifications WHERE game_id = old.game_id;
-	DELETE FROM chats WHERE game_id = old.game_id;
-	DELETE FROM replay WHERE game_id = old.game_id;
-END;
-
-DROP VIEW IF EXISTS player_view;
-DROP VIEW IF EXISTS player_list_view;
-DROP VIEW IF EXISTS game_view;
-
-CREATE VIEW player_view AS
-	SELECT players.game_id
-		, players.role AS role
-		, players.user_id AS user_id
-		, users.name AS user_name
-	FROM players
-	JOIN users ON players.user_id = users.user_id
-	;
-
-CREATE VIEW player_list_view AS
-	SELECT game_id
-		, group_concat(name, ', ') AS player_names
-		, COUNT(DISTINCT user_id) AS user_count
-		, COUNT(user_id) AS role_count
-	FROM players
-	JOIN users USING ( user_id )
-	GROUP BY game_id
-	;
-
-CREATE VIEW game_view AS
-	SELECT games.game_id
-		, games.title_id
-		, titles.title_name
-		, games.scenario
-		, games.options
-		, games.owner_id
-		, owner.name AS owner_name
-		, players.player_names
-		, players.user_count = 1 AS is_solo
-		, players.user_count <> players.role_count AS is_shared
-		, games.private
-		, games.random
-		, games.description
-		, games.ctime
-		, games.mtime
-		, games.status
-		, games.result
-		, games.active AS active_role
-		-- , games.state
-	FROM games
-	JOIN titles USING ( title_id )
-	JOIN users AS owner ON games.owner_id = owner.user_id
-	LEFT JOIN player_list_view AS players USING ( game_id )
-	;
 
 DROP VIEW IF EXISTS thread_view;
 CREATE VIEW thread_view AS
-	SELECT threads.thread_id
-		, threads.author_id
+	SELECT *
 		, author.name AS author_name
-		, threads.post_count - 1 AS reply_count
-		, threads.ctime
-		, threads.mtime
-		, threads.subject
+		, ( SELECT COUNT(*) FROM posts WHERE posts.thread_id = threads.thread_id ) - 1 AS replies
+		, ( SELECT MAX(posts.mtime) FROM posts WHERE posts.thread_id = threads.thread_id ) AS mtime
 	FROM threads
 	JOIN users AS author ON threads.author_id = author.user_id
 	;
 
 DROP VIEW IF EXISTS post_view;
 CREATE VIEW post_view AS
-	SELECT posts.post_id
-		, posts.thread_id
-		, posts.author_id
+	SELECT *
 		, author.name AS author_name
-		, posts.ctime
-		, posts.mtime
-		, posts.body
 	FROM posts
 	JOIN users AS author ON posts.author_id = author.user_id
 	;
 
-DROP VIEW IF EXISTS message_view;
-CREATE VIEW message_view AS
-	SELECT messages.message_id
-		, messages.from_id
-		, users_from.name AS from_name
-		, messages.to_id
-		, users_to.name AS to_name
-		, messages.time
-		, messages.subject
-		, messages.body
-		, messages.read
-		, messages.deleted_from_inbox
-		, messages.deleted_from_outbox
-	FROM messages
-	JOIN users AS users_from ON messages.from_id = users_from.user_id
-	JOIN users AS users_to ON messages.to_id = users_to.user_id
+DROP INDEX IF EXISTS posts_thread_idx;
+CREATE INDEX posts_thread_idx ON posts(thread_id);
+
+-- Games --
+
+CREATE TABLE IF NOT EXISTS games (
+	game_id INTEGER NOT NULL PRIMARY KEY,
+	title_id TEXT NOT NULL REFERENCES titles(title_id) ON DELETE CASCADE,
+	scenario TEXT,
+	options TEXT,
+	owner_id INTEGER DEFAULT 0 REFERENCES users(user_id) ON DELETE SET NULL,
+	ctime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	private BOOLEAN NOT NULL DEFAULT 0,
+	random BOOLEAN NOT NULL DEFAULT 0,
+	description TEXT NOT NULL DEFAULT '',
+	status INTEGER NOT NULL DEFAULT 0,
+	result TEXT
+);
+
+DROP INDEX IF EXISTS games_title_idx;
+CREATE INDEX games_title_idx ON games(title_id);
+
+DROP INDEX IF EXISTS games_status_idx;
+CREATE INDEX games_status_idx ON games(status);
+
+CREATE TABLE IF NOT EXISTS game_state (
+	game_id INTEGER NOT NULL PRIMARY KEY REFERENCES games(game_id) ON DELETE CASCADE,
+	mtime TIMESTAMP NOT NULL,
+	active TEXT,
+	state TEXT
+);
+
+CREATE TABLE IF NOT EXISTS game_chat (
+	chat_id INTEGER NOT NULL PRIMARY KEY,
+	game_id INTEGER NOT NULL REFERENCES games(game_id) ON DELETE CASCADE,
+	time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	user_id INTEGER NOT NULL DEFAULT 0 REFERENCES users(user_id) ON DELETE SET DEFAULT,
+	message TEXT
+);
+
+DROP VIEW IF EXISTS game_chat_view;
+CREATE VIEW game_chat_view AS
+	SELECT chat_id, game_id, time, name, message
+	FROM game_chat
+	NATURAL JOIN users
 	;
+
+DROP INDEX IF EXISTS game_chat_idx;
+CREATE INDEX game_chat_idx ON game_chat(game_id);
+
+CREATE TABLE IF NOT EXISTS game_replay (
+	game_id INTEGER NOT NULL REFERENCES games(game_id) ON DELETE CASCADE,
+	time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	role TEXT,
+	action TEXT,
+	arguments TEXT
+);
+
+CREATE TABLE IF NOT EXISTS players (
+	game_id INTEGER NOT NULL REFERENCES games(game_id) ON DELETE CASCADE,
+	role TEXT NOT NULL,
+	user_id INTEGER NOT NULL DEFAULT 0 REFERENCES users(user_id) ON DELETE SET DEFAULT,
+	PRIMARY KEY ( game_id, role )
+) WITHOUT ROWID;
+
+DROP INDEX IF EXISTS player_user_idx;
+CREATE INDEX player_user_idx ON players(user_id);
+
+DROP INDEX IF EXISTS player_game_user_idx;
+CREATE INDEX player_game_user_idx ON players(game_id,user_id);
+
+DROP VIEW IF EXISTS game_view;
+CREATE VIEW game_view AS
+	SELECT games.*
+		, titles.title_name
+		, owner.name AS owner_name
+		, game_state.mtime
+		, game_state.active
+	FROM games
+	NATURAL LEFT JOIN game_state
+	NATURAL JOIN titles
+	JOIN users AS owner ON owner.user_id=games.owner_id
+	;
+
+DROP VIEW IF EXISTS game_full_view;
+CREATE VIEW game_full_view AS
+	SELECT *,
+		( SELECT group_concat(name, ', ')
+			FROM players
+			NATURAL JOIN users
+			WHERE players.game_id=game_view.game_id
+		) AS player_names,
+		( SELECT COUNT(DISTINCT user_id) = 1
+			FROM players
+			WHERE players.game_id=game_view.game_id
+		) AS is_solo
+	FROM game_view
+	;
+
+DROP VIEW IF EXISTS your_turn_reminder;
+CREATE VIEW your_turn_reminder AS
+	SELECT
+		game_id, role, user_id, name, mail, notify
+	FROM game_full_view
+	JOIN players USING(game_id)
+	JOIN users USING(user_id)
+	WHERE status = 1 AND is_solo = 0 AND notify = 1
+		AND active IN ( 'All', 'Both', role )
+		AND datetime('now') > datetime(mtime, '+1 hour')
+	;
+
+DROP TRIGGER IF EXISTS no_part_on_active_game;
+CREATE TRIGGER no_part_on_active_game BEFORE DELETE ON players
+BEGIN
+	SELECT RAISE(ABORT, "Cannot remove players from started games.")
+	WHERE ( SELECT status FROM games WHERE games.game_id = old.game_id ) > 0 ;
+END;
+
+DROP TRIGGER IF EXISTS no_join_on_active_game;
+CREATE TRIGGER no_join_on_active_game BEFORE INSERT ON players
+BEGIN
+	SELECT RAISE(ABORT, "Cannot add players to started games.")
+	WHERE ( SELECT status FROM games WHERE games.game_id = new.game_id ) > 0 ;
+END;
+
+DROP TRIGGER IF EXISTS must_be_valid_role;
+CREATE TRIGGER must_be_valid_role BEFORE INSERT ON players
+BEGIN
+	SELECT
+		RAISE(ABORT, "Invalid role.")
+	WHERE
+		NOT EXISTS (
+			SELECT 1
+			FROM roles
+			WHERE roles.title_id = ( SELECT title_id FROM games WHERE games.game_id = new.game_id )
+			AND roles.role = new.role
+		)
+		AND new.role <> 'Random 1'
+		AND new.role <> 'Random 2'
+		AND new.role <> 'Random 3'
+		AND new.role <> 'Random 4'
+		AND new.role <> 'Random 5'
+		AND new.role <> 'Random 6'
+	;
+END;
+
+-- Manual key management if pragma foreign_keys = OFF
+DROP TRIGGER IF EXISTS trigger_delete_on_games;
+CREATE TRIGGER trigger_delete_on_games AFTER DELETE ON games
+BEGIN
+	DELETE FROM game_state WHERE game_id = old.game_id;
+	DELETE FROM game_chat WHERE game_id = old.game_id;
+	DELETE FROM game_replay WHERE game_id = old.game_id;
+	DELETE FROM last_notified WHERE game_id = old.game_id;
+	DELETE FROM players WHERE game_id = old.game_id;
+END;
