@@ -922,8 +922,8 @@ const SQL_INSERT_REMATCH = SQL(`
 
 const QUERY_LIST_GAMES = SQL(`
 	SELECT * FROM game_view
-	WHERE private=0 AND status < 2
-	ORDER BY status ASC, mtime DESC
+	WHERE private=0 AND status=?
+	ORDER BY mtime DESC
 	`);
 
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
@@ -980,16 +980,15 @@ function annotate_games(games, user_id) {
 
 app.get('/games', may_be_logged_in, function (req, res) {
 	LOG(req, "GET /join");
-	let games;
+	let open_games = QUERY_LIST_GAMES.all(0);
+	let active_games = QUERY_LIST_GAMES.all(1);
 	if (req.isAuthenticated()) {
-		games = QUERY_LIST_GAMES.all();
-		annotate_games(games, req.user.user_id);
+		annotate_games(open_games, req.user.user_id);
+		annotate_games(active_games, req.user.user_id);
 	} else {
-		games = QUERY_LIST_GAMES.all({user_id: 0});
-		annotate_games(games, 0);
+		annotate_games(open_games, 0);
+		annotate_games(active_games, 0);
 	}
-	let open_games = games.filter(game => game.status === 0);
-	let active_games = games.filter(game => game.status === 1);
 	res.set("Cache-Control", "no-store");
 	res.render('games.ejs', {
 		user: req.user,
