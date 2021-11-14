@@ -544,7 +544,7 @@ app.get('/users', may_be_logged_in, function (req, res) {
 
 app.get('/chat', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /chat");
-	let chat = SQL_SELECT_USER_CHAT_N.all(req.user.user_id, 1200);
+	let chat = SQL_SELECT_USER_CHAT_N.all(req.user.user_id, 12*20);
 	res.render('chat.ejs', { user: req.user, chat: chat, page_size: 12 });
 });
 
