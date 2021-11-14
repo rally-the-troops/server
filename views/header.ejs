@@ -4,9 +4,11 @@
 <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
 <% if (typeof refresh !== 'undefined' && refresh > 0) { %><meta http-equiv="refresh" content="<%= refresh %>"><% } %>
 <link rel="icon" href="/favicon.svg">
-<link rel="stylesheet" href="/fonts/fonts.css">
-<link rel="stylesheet" href="/style.css">
 <title><%= title %></title>
+<style>
+<%- include('../public/fonts/fonts.css') _%>
+<%- include('../public/style.css') _%>
+</style>
 </head>
 <body>
 <div class="header">

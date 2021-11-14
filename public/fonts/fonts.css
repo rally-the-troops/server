@@ -1,88 +1,15 @@
-@font-face {
-	font-family: 'Circled Numbers';
-	src: url('CircledNumbers.woff2') format('woff2');
-	unicode-range: U+2460-2465, U+2776-277B;
-}
-
-@font-face {
-	font-family: 'Dingbats';
-	src: url('Dingbats.woff2') format('woff2');
-	unicode-range: U+2701-27FF;
-}
-
-@font-face {
-	font-family: 'Noto Emoji';
-	src: url('NotoEmoji.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Sans';
-	src: url('SourceSans3-Regular.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Sans';
-	font-style: italic;
-	src: url('SourceSans3-It.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Sans';
-	font-weight: bold;
-	src: url('SourceSans3-Semibold.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Sans';
-	font-weight: bold;
-	font-style: italic;
-	src: url('SourceSans3-SemiboldIt.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Serif';
-	src: url('SourceSerif4-Regular.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Serif';
-	font-style: italic;
-	src: url('SourceSerif4-It.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Serif';
-	font-weight: bold;
-	src: url('SourceSerif4-Semibold.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Serif';
-	font-weight: bold;
-	font-style: italic;
-	src: url('SourceSerif4-SemiboldIt.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Serif SmText';
-	src: url('SourceSerif4SmText-Regular.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Serif SmText';
-	font-style: italic;
-	src: url('SourceSerif4SmText-It.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Serif SmText';
-	font-weight: bold;
-	src: url('SourceSerif4SmText-Semibold.woff2') format('woff2');
-}
-
-@font-face {
-	font-family: 'Source Serif SmText';
-	font-weight: bold;
-	font-style: italic;
-	src: url('SourceSerif4SmText-SemiboldIt.woff2') format('woff2');
-}
+@font-face{font-family:'Circled Numbers';src:url('/fonts/CircledNumbers.woff2')format('woff2');unicode-range:U+2460-2465, U+2776-277B}
+@font-face{font-family:'Dingbats';src:url('/fonts/Dingbats.woff2')format('woff2');unicode-range:U+2701-27FF}
+@font-face{font-family:'Noto Emoji';src:url('/fonts/NotoEmoji.woff2')format('woff2')}
+@font-face{font-family:'Source Sans';src:url('/fonts/SourceSans3-Regular.woff2')format('woff2')}
+@font-face{font-family:'Source Sans';font-style:italic;src:url('/fonts/SourceSans3-It.woff2')format('woff2')}
+@font-face{font-family:'Source Sans';font-weight:bold;src:url('/fonts/SourceSans3-Semibold.woff2')format('woff2')}
+@font-face{font-family:'Source Sans';font-weight:bold;font-style:italic;src:url('/fonts/SourceSans3-SemiboldIt.woff2')format('woff2')}
+@font-face{font-family:'Source Serif';src:url('/fonts/SourceSerif4-Regular.woff2')format('woff2')}
+@font-face{font-family:'Source Serif';font-style:italic;src:url('/fonts/SourceSerif4-It.woff2')format('woff2')}
+@font-face{font-family:'Source Serif';font-weight:bold;src:url('/fonts/SourceSerif4-Semibold.woff2')format('woff2')}
+@font-face{font-family:'Source Serif';font-weight:bold;font-style:italic;src:url('/fonts/SourceSerif4-SemiboldIt.woff2')format('woff2')}
+@font-face{font-family:'Source Serif SmText';src:url('/fonts/SourceSerif4SmText-Regular.woff2')format('woff2')}
+@font-face{font-family:'Source Serif SmText';font-style:italic;src:url('/fonts/SourceSerif4SmText-It.woff2')format('woff2')}
+@font-face{font-family:'Source Serif SmText';font-weight:bold;src:url('/fonts/SourceSerif4SmText-Semibold.woff2')format('woff2')}
+@font-face{font-family:'Source Serif SmText';font-weight:bold;font-style:italic;src:url('/fonts/SourceSerif4SmText-SemiboldIt.woff2')format('woff2')}

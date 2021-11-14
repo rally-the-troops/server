@@ -1,21 +1,9 @@
-button, select {
-	font-family: "Source Sans", "Verdana", "Dingbats", "Noto Emoji", sans-serif;
-	font-size: 16px;
-}
-html, input, textarea {
-	font-family: "Source Serif", "Georgia", "Dingbats", "Noto Emoji", serif;
-	font-size: 16px;
-}
+html, input, textarea { font-family: "Source Serif", "Georgia", "Dingbats", "Noto Emoji", serif; font-size: 16px; }
+button, select { font-family: "Source Sans", "Verdana", "Dingbats", "Noto Emoji", sans-serif; font-size: 16px; }
 html, body { margin: 0; }
 h1 { margin-left: -2px; }
 h2 { margin-left: -1px; }
-.header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	border-bottom: 2px solid brown;
-	padding-right: 1em;
-}
+.header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid brown; padding-right: 1em; }
 .header img { display: block; margin: 4px 0 -2px 2px; }
 .header span { margin: 0 1em; }
 .header a { color: black; }
@@ -24,29 +12,25 @@ h2 { margin-left: -1px; }
 .main hr { max-width: 50rem; margin-right: auto; margin-left: 0; }
 .main hr { border: none; border-top: 2px dotted brown; }
 .main hr + p { font-style: italic; }
+img.logo { float: left; margin: 0 20px 5px 0; box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5); height: 200px; }
+img.avatar { float: left; margin: 0 20px 5px 0; box-shadow: 2px 2px 4px 0px rgba(0,0,0,.5); width: 80px; height: 80px; }
 .is_active { background-color: lemonchiffon; }
 .error { color: brown; font-style: italic; white-space: pre-wrap; }
 .warning { color: brown; }
 .warning::before { content: "\26a0"; }
-img.logo {
-	float: left;
-	margin: 0 20px 5px 0;
-	box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5);
-	height: 200px;
-}
-img.avatar {
-	float: left;
-	margin: 0 20px 5px 0;
-	box-shadow: 2px 2px 4px 0px rgba(0,0,0,.5);
-	width: 80px; height: 80px;
-}
-
+form { display: inline; }
+label { user-select: none; }
+input[type="text"], input[type="password"], textarea { padding: 5px; }
+select { padding-right: 20px; }
+button, input, select { font-size: 1rem; margin: 5px 0; }
+button, select { margin: 5px 10px 5px 0; padding: 1px 10px; background-color: gainsboro; vertical-align: top; }
+button:disabled { color: gray; border: 2px solid gainsboro; outline: 1px solid gray; }
+button:enabled, select { border: 2px outset white; outline: 1px solid black; }
+button:enabled:active:hover, select:active { border: 2px inset white; padding: 2px 9px 0px 11px; }
 table { border-collapse: collapse; }
-tfoot td { background-color: gainsboro; }
+tfoot { background-color: gainsboro; }
 th { text-align: left; background-color: gainsboro; }
-th, td { border: 1px solid black; }
-th, td { padding: 3px 1ex; }
-
+th, td { border: 1px solid black; padding: 3px 1ex; }
 table.game { min-width: min(50rem,100%); }
 table.game .title { white-space: nowrap; }
 table.game .scenario { white-space: nowrap; }
@@ -54,7 +38,6 @@ table.game .role { white-space: nowrap; }
 table.game .time { white-space: nowrap; }
 table.game td a { text-decoration: none; color: black; }
 table.game td.command a { text-decoration: underline; color: blue; }
-
 table.post { min-width: min(50rem,100%); }
 table.post .author { white-space: nowrap; width: 10rem; }
 table.post .time { white-space: nowrap; text-align: right; width: 5rem; }
@@ -63,28 +46,3 @@ table.post .unread { background-color: lightyellow; }
 table.post .body { white-space: pre-wrap; padding: 10px 10px; }
 table.post th a { text-decoration: none; color: black; }
 table.post td:not(.body):not(.edit) a { text-decoration: none; color: black; }
-
-label { user-select: none; }
-button, input, select { font-size: 1rem; margin: 5px 0; }
-input[type="text"], input[type="password"], textarea { padding: 5px; }
-select { padding-right: 20px; }
-form { display: inline; }
-button, select {
-	margin: 5px 10px 5px 0;
-	padding: 1px 10px;
-	background-color: gainsboro;
-	vertical-align: top;
-}
-button:disabled {
-	color: gray;
-	border: 2px solid gainsboro;
-	outline: 1px solid gray;
-}
-button:enabled, select {
-	border: 2px outset white;
-	outline: 1px solid black;
-}
-button:enabled:active:hover, select:active {
-	border: 2px inset white;
-	padding: 2px 9px 0px 11px;
-}

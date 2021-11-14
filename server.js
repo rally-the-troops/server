@@ -87,7 +87,14 @@ io.use(passport_socket.authorize({
 	store: session_store,
 }));
 
-app.use(express.static('public'));
+const is_immutable = /\.(svg|png|jpg|jpeg|woff2)$/;
+
+function setHeaders(res, path) {
+	if (is_immutable.test(path))
+		res.set("Cache-Control", "public, max-age=86400, immutable");
+}
+
+app.use(express.static('public', { setHeaders: setHeaders }));
 
 /*
  * MISC FUNCTIONS
