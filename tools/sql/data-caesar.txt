@@ -1,3 +1,0 @@
-INSERT OR REPLACE INTO titles VALUES ( 'julius-caesar', 'Julius Caesar', 37836 );
-INSERT OR REPLACE INTO roles VALUES ( 'julius-caesar', 'Caesar' );
-INSERT OR REPLACE INTO roles VALUES ( 'julius-caesar', 'Pompeius' );

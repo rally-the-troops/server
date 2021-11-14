@@ -2,9 +2,9 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
-<% if (typeof refresh !== 'undefined' && refresh > 0) { _%>
+<% if (typeof refresh !== 'undefined' && refresh > 0) { -%>
 <meta http-equiv="refresh" content="<%= refresh %>">
-<% } _%>
+<% } -%>
 <title><%= title %></title>
 <link rel="icon" href="/favicon.svg">
 <link rel="stylesheet" href="/fonts/fonts.css">
@@ -16,21 +16,21 @@
 <nav>
 <a href="/about">About</a>
 <a href="/forum">Forum</a>
-<%_ if (user) { _%>
-<%_ if (user.unread > 0) { _%>
+<% if (user) { -%>
+<% if (user.unread > 0) { -%>
 <a href="/inbox">Inbox (<%= unread %>)</a>
-<%_ } else { _%>
+<% } else { -%>
 <a href="/inbox">Inbox</a>
-<%_ } _%>
+<% } -%>
 <a href="/profile">Profile (<%= user.name %>)</a>
-<%_ } else { _%>
+<% } else { -%>
 <a href="/signup">Signup</a>
 <a href="/login">Login</a>
-<%_ } _%>
+<% } -%>
 </nav>
 </header>
 <article>
 <h1><%= title %></h1>
-<%_ if (typeof flash !== 'undefined' && flash.length > 0) { _%>
+<% if (typeof flash !== 'undefined' && flash.length > 0) { -%>
 <p class="error"><%= flash %></p>
-<%_ } _%>
+<% } -%>

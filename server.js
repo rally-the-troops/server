@@ -306,7 +306,7 @@ function must_be_logged_in(req, res, next) {
 }
 
 app.get('/', function (req, res) {
-	res.render('index.ejs', { user: req.user, flash: req.flash('message') });
+	res.render('index.ejs', { user: req.user, titles: TITLES, flash: req.flash('message') });
 });
 
 app.get('/about', function (req, res) {
@@ -1741,12 +1741,7 @@ io.on('connection', (socket) => {
  * HIDDEN EXTRAS
  */
 
-const QUERY_STATS = db.prepare(`
-	SELECT title_id, scenario, result, count(*) AS count
-	FROM game_full_view
-	WHERE status=2 AND is_solo=0
-	GROUP BY title_name, scenario, result
-	`);
+const QUERY_STATS = db.prepare("SELECT * FROM game_stat_view");
 
 app.get('/stats', function (req, res) {
 	LOG(req, "GET /stats");
@@ -1754,6 +1749,8 @@ app.get('/stats', function (req, res) {
 	res.render('stats.ejs', {
 		user: req.user,
 		stats: stats,
-		title_role_map: ROLES, title_name_map: TITLES, title_rule_map: RULES
+		title_role_map: ROLES,
+		title_name_map: TITLES,
+		title_rule_map: RULES,
 	});
 });

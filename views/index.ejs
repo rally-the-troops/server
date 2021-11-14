@@ -1,6 +1,6 @@
-<%- include('header', { title: "Rally the Troops!" }) %>
+<%- include('header', { title: "Rally the Troops!" }) _%>
 <style>
-.list { display: flex; flex-wrap: wrap; justify-content: left; }
+.list { display: flex; flex-wrap: wrap; justify-content: left; max-width: 800px; }
 .list a { margin: 1em; display: block; }
 .list img { box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5); height: 200px; }
 </style>
@@ -13,15 +13,16 @@ players.
 Registration and use is free, and there are no ads.
 
 <div class="list">
-<a href="/info/crusader-rex"><img src="/crusader-rex/cover.jpg"></a>
-<a href="/info/hammer-of-the-scots"><img src="/hammer-of-the-scots/cover.jpg"></a>
-<a href="/info/julius-caesar"><img src="/julius-caesar/cover.jpg"></a>
-<a href="/info/richard-iii"><img src="/richard-iii/cover.jpg"></a>
-</div>
-
-<div class="list">
-<a href="/info/300-earth-and-water"><img src="/300-earth-and-water/cover.jpg"></a>
-<a href="/info/shores-of-tripoli"><img src="/shores-of-tripoli/cover.jpg"></a>
+<%
+	for (let t in titles) {
+		let title = titles[t];
+		if (!title.hidden) {
+_%>
+<a href="/info/<%- title.title_id %>"><img src="/<%- title.title_id %>/cover.jpg"></a>
+<%
+		}
+	}
+_%>
 </div>
 
 <p>

@@ -1,3 +1,0 @@
-INSERT OR REPLACE INTO titles VALUES ( '300-earth-and-water', '300: Earth & Water', 267058 );
-INSERT OR REPLACE INTO roles VALUES ( '300-earth-and-water', 'Persia' );
-INSERT OR REPLACE INTO roles VALUES ( '300-earth-and-water', 'Greece' );

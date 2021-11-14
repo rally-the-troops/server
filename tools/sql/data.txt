@@ -1,0 +1,29 @@
+PRAGMA foreign_keys=0;
+
+INSERT OR REPLACE INTO titles VALUES ( '300-earth-and-water', '300: Earth & Water', 267058, 0 );
+INSERT OR REPLACE INTO roles VALUES ( '300-earth-and-water', 'Persia' );
+INSERT OR REPLACE INTO roles VALUES ( '300-earth-and-water', 'Greece' );
+
+INSERT OR REPLACE INTO titles VALUES ( 'crusader-rex', 'Crusader Rex', 8481, 0 );
+INSERT OR REPLACE INTO roles VALUES ( 'crusader-rex', 'Franks' );
+INSERT OR REPLACE INTO roles VALUES ( 'crusader-rex', 'Saracens' );
+
+INSERT OR REPLACE INTO titles VALUES ( 'julius-caesar', 'Julius Caesar', 37836, 0 );
+INSERT OR REPLACE INTO roles VALUES ( 'julius-caesar', 'Caesar' );
+INSERT OR REPLACE INTO roles VALUES ( 'julius-caesar', 'Pompeius' );
+
+INSERT OR REPLACE INTO titles VALUES ( 'hammer-of-the-scots', 'Hammer of the Scots', 3685, 0 );
+INSERT OR REPLACE INTO roles VALUES ( 'hammer-of-the-scots', 'England' );
+INSERT OR REPLACE INTO roles VALUES ( 'hammer-of-the-scots', 'Scotland' );
+
+INSERT OR REPLACE INTO titles VALUES ( 'richard-iii', 'Richard III', 25277, 0 );
+INSERT OR REPLACE INTO roles VALUES ( 'richard-iii', 'York' );
+INSERT OR REPLACE INTO roles VALUES ( 'richard-iii', 'Lancaster' );
+
+INSERT OR REPLACE INTO titles VALUES ( 'shores-of-tripoli', 'The Shores of Tripoli', 237860, 0 );
+INSERT OR REPLACE INTO roles VALUES ( 'shores-of-tripoli', 'Tripolitania' );
+INSERT OR REPLACE INTO roles VALUES ( 'shores-of-tripoli', 'United States' );
+
+INSERT OR REPLACE INTO titles VALUES ( 'wilderness-war', 'Wilderness War', 1822, 1 );
+INSERT OR REPLACE INTO roles VALUES ( 'wilderness-war', 'French' );
+INSERT OR REPLACE INTO roles VALUES ( 'wilderness-war', 'British' );

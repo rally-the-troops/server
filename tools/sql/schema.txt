@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS blacklist_mail ( mail TEXT NOT NULL PRIMARY KEY ) WIT
 CREATE TABLE IF NOT EXISTS titles (
 	title_id TEXT NOT NULL PRIMARY KEY,
 	title_name TEXT NOT NULL,
-	bgg INTEGER
+	bgg INTEGER,
+	hidden BOOLEAN
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -290,3 +291,12 @@ BEGIN
 	DELETE FROM last_notified WHERE game_id = old.game_id;
 	DELETE FROM players WHERE game_id = old.game_id;
 END;
+
+DROP VIEW IF EXISTS game_stat_view;
+CREATE VIEW game_stat_view AS
+	SELECT title_id, scenario, result, count(*) AS count
+	FROM game_full_view
+	NATURAL JOIN titles
+	WHERE hidden=0 AND is_solo=0 AND status=2
+	GROUP BY title_name, scenario, result
+	;

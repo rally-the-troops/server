@@ -1,3 +1,0 @@
-INSERT OR REPLACE INTO titles VALUES ( 'crusader-rex', 'Crusader Rex', 8481 );
-INSERT OR REPLACE INTO roles VALUES ( 'crusader-rex', 'Franks' );
-INSERT OR REPLACE INTO roles VALUES ( 'crusader-rex', 'Saracens' );
