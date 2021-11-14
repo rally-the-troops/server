@@ -1,0 +1,79 @@
+<%- include('header', { title: "Chat Log" }) %>
+<style>
+table{width:min(60rem,100%);}
+td:nth-child(1),td:nth-child(2){white-space:nowrap;width:0}
+td:nth-child(3){white-space:nowrap;width:8rem}
+#foot{display:inline-block;padding-top:8px;}
+table{border:1px solid black}
+td{border:none}
+td a{text-decoration:none;color:black;}
+tr{background-color:white;}
+tr.me{background-color:aliceblue;}
+</style>
+<% if (page_size > 0) { %>
+<p>
+<button onclick="oldest()">Oldest</button>
+<button onclick="back()">&#x2190;</button>
+<button onclick="next()">&#x2192;</button>
+<button onclick="newest()">Newest</button>
+<span id="foot"></span>
+<table><thead><tr><th>Game<th>Time<th>Who<th>Message</thead><tbody></tbody></table>
+<p><a href="/chat/all">All messages</a>
+<% } else { %>
+<table><thead><tr><th>Game<th>Time<th>Who<th>Message</thead><tbody></tbody></table>
+<% } %>
+<script>
+let chat_data = <%- JSON.stringify(chat).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") %>;
+let page_size = <%- page_size %>;
+let me = <%- JSON.stringify(user.name) %>;
+let table = document.querySelector("tbody");
+let foot = document.querySelector("#foot");
+let chat_lines = [];
+function add(tr,text,link) {
+	let td = document.createElement("td");
+	if (link) {
+		let a = document.createElement("a");
+		a.href = link;
+		a.textContent = text;
+		td.appendChild(a);
+	} else {
+		td.textContent = text;
+	}
+	tr.appendChild(td);
+}
+function format_date(date) {
+	let t = date.toISOString();
+	return t.substring(0,10) + " " + t.substring(11,19);
+}
+for (let [game_id,time,user,message] of chat_data) {
+	let tr = document.createElement("tr");
+	if (user === me) tr.className = 'me';
+	add(tr,game_id,'/join/'+game_id);
+	add(tr,format_date(new Date(time+'Z')));
+	add(tr,user,'/user/'+user);
+	add(tr,message);
+	chat_lines.push(tr);
+}
+function next() { if (page > 0) --page; update(); }
+function back() { if (page < page_count-1) ++page; update(); }
+function newest() { page=0; update(); }
+function oldest() { page=page_count-1; update(); }
+let chat_size = chat_lines.length;
+let page_count = Math.ceil(chat_size / page_size);
+let page = 0;
+function update() {
+	table.innerHTML = '';
+	for (let i = 0; i < page_size; ++i) {
+		let k = page * page_size + ( page_size - i - 1);
+		if (k >= 0 && k < chat_size)
+			table.appendChild(chat_lines[k]);
+		foot.textContent = `${page_count-page} / ${page_count}`;
+	}
+}
+if (page_size > 0) {
+	newest();
+} else {
+	for (let i = chat_size-1; i >= 0; --i)
+		table.appendChild(chat_lines[i]);
+}
+</script>

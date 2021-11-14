@@ -542,6 +542,18 @@ app.get('/users', may_be_logged_in, function (req, res) {
 	res.render('users.ejs', { user: req.user, userList: rows });
 });
 
+app.get('/chat', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /chat");
+	let chat = SQL_SELECT_USER_CHAT_N.all(req.user.user_id, 1200);
+	res.render('chat.ejs', { user: req.user, chat: chat, page_size: 12 });
+});
+
+app.get('/chat/all', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /chat/all");
+	let chat = SQL_SELECT_USER_CHAT.all(req.user.user_id);
+	res.render('chat.ejs', { user: req.user, chat: chat, page_size: 0 });
+});
+
 /*
  * MESSAGES
  */
@@ -860,6 +872,9 @@ load_rules();
 
 const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,private,random,description) VALUES (?,?,?,?,?,?,?)");
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?");
+
+const SQL_SELECT_USER_CHAT = SQL("SELECT game_id,time,name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC").raw();
+const SQL_SELECT_USER_CHAT_N = SQL("SELECT game_id,time,name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC LIMIT ?").raw();
 
 const SQL_SELECT_GAME_CHAT = SQL("SELECT chat_id,time,name,message FROM game_chat_view WHERE game_id=? AND chat_id>?").raw();
 const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,user_id,message) VALUES (?,?,?) RETURNING chat_id,time,'',message").raw();
@@ -1538,7 +1553,7 @@ function on_chat(socket, message) {
 	try {
 		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.user_id, message);
 		chat[2] = socket.user_name;
-		SLOG(socket, "--> CHAT", chat);
+		SLOG(socket, "--> CHAT", JSON.stringify(chat));
 		for (let other of clients[socket.game_id])
 			if (other.role !== "Observer")
 				other.emit('chat', chat);

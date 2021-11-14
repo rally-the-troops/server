@@ -251,7 +251,7 @@ function init_client(roles) {
 	});
 
 	socket.on('chat', function (item) {
-		console.log("CHAT MESSAGE", JSON.stringify(item));
+		console.log("CHAT", JSON.stringify(item));
 		update_chat(item[0], item[1], item[2], item[3]);
 	});
 
