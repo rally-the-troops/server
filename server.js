@@ -921,8 +921,9 @@ const QUERY_LIST_GAMES = SQL(`
 
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	SELECT * FROM game_view
-	WHERE private=0 AND title_id=$title_id
-	ORDER BY status ASC, mtime DESC
+	WHERE private=0 AND title_id=? AND status=?
+	ORDER BY mtime DESC
+	LIMIT ?
 	`);
 
 const QUERY_LIST_GAMES_OF_USER = SQL(`
@@ -1015,11 +1016,12 @@ app.get('/info/:title_id', may_be_logged_in, function (req, res) {
 	if (!title)
 		return res.status(404).send("Invalid title.");
 	if (req.isAuthenticated()) {
-		let games = QUERY_LIST_GAMES_OF_TITLE.all({title_id: title_id});
-		annotate_games(games, req.user.user_id);
-		let open_games = games.filter(game => game.status === 0);
-		let active_games = games.filter(game => game.status === 1);
-		let finished_games = games.filter(game => game.status === 2);
+		let open_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1000);
+		let active_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 1, 1000);
+		let finished_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 50);
+		annotate_games(open_games, req.user.user_id);
+		annotate_games(active_games, req.user.user_id);
+		annotate_games(finished_games, req.user.user_id);
 		res.set("Cache-Control", "no-store");
 		res.render('info.ejs', {
 			user: req.user,
@@ -1670,7 +1672,7 @@ io.on('connection', (socket) => {
 				try {
 					let seed = random_seed();
 					let state = socket.rules.setup(seed, scenario, players);
-					put_replay(socket.game_id, null, 'setup', [seed, scenario, options, players]);
+					put_replay(socket.game_id, null, 'setup', [seed, scenario, null, players]);
 					for (let other of clients[socket.game_id]) {
 						other.log_length = 0;
 						send_state(other, state);
