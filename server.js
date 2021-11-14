@@ -1627,7 +1627,7 @@ io.on('connection', (socket) => {
 		if (title_id !== socket.title_id)
 			return socket.emit('error', "Invalid game ID.");
 
-		let players = SQL_SELECT_PLAYERS.all(socket.game_id);
+		let players = SQL_SELECT_PLAYERS_JOIN.all(socket.game_id);
 
 		if (socket.role !== "Observer") {
 			let me;
