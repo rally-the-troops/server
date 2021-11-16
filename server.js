@@ -1269,7 +1269,7 @@ function assign_random_roles(game, players) {
 		list.splice(k, 1);
 		return r;
 	}
-	let roles = ROLES[game.title_id];
+	let roles = ROLES[game.title_id].slice();
 	for (let p of players) {
 		let old_role = p.role;
 		p.role = pick_random_item(roles);
