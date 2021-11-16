@@ -5,8 +5,6 @@
 Read more about the game on
 <a href="https://boardgamegeek.com/boardgame/<%= title.bgg %>">boardgamegeek.com</a>.
 
-<% if (user) { %>
-
 <h2>Open Games</h2>
 <table class="game">
 <tr><th>ID<th>Scenario<th>Players<th>Description<th>Created<th>
@@ -39,7 +37,11 @@ Read more about the game on
 <td class="description"><%= row.description %>
 <td class="time"><%= row.mtime %>
 <td class="<%= row.is_active ? "role is_active" : "role" %>"><%= row.active %>
-<td class="command"><a href="/join/<%= row.game_id %>">Enter</a>
+<% if (row.is_yours) { %>
+<td class="command"><a href="/join/<%- row.game_id %>">Enter</a>
+<% } else { %>
+<td class="command"><a href="/play/<%- row.game_id %>/Observer">View</a>
+<% } %>
 <% }); %>
 </table>
 <% } %>
@@ -56,14 +58,11 @@ Read more about the game on
 <td class="description"><%= row.description %>
 <td class="time"><%= row.mtime %>
 <td class="result"><%= row.result %>
-<td class="command"><a href="/join/<%= row.game_id %>">View</a>
+<% if (row.is_yours) { %>
+<td class="command"><a href="/join/<%= row.game_id %>">Enter</a>
+<% } else { %>
+<td class="command"><a href="/play/<%- row.game_id %>/Observer">View</a>
+<% } %>
 <% }); %>
 </table>
-<% } %>
-
-<% } else { %>
-
-<p>
-Login to create or join a game.
-
 <% } %>

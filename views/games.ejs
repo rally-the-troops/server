@@ -31,7 +31,11 @@
 <td class="description"><%= row.description %>
 <td class="time"><%= row.mtime %>
 <td class="role <%= row.is_active ? "is_active" : "" %>"><%= row.active %>
+<% if (row.is_yours) { %>
 <td class="command"><a href="/join/<%= row.game_id %>">Enter</a>
+<% } else { %>
+<td class="command"><a href="/play/<%- row.game_id %>/Observer">View</a>
+<% } %>
 <% }); } else { %>
 <tr><td colspan="8">No active games.
 <% } %>

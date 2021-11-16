@@ -8,7 +8,6 @@ const express = require('express');
 const express_session = require('express-session');
 const passport = require('passport');
 const passport_local = require('passport-local');
-const passport_socket = require('passport.socketio');
 const body_parser = require('body-parser');
 const connect_flash = require('connect-flash');
 const crypto = require('crypto');
@@ -31,11 +30,24 @@ db.pragma("journal_mode = WAL");
 db.pragma("synchronous = NORMAL");
 db.pragma("foreign_keys = ON");
 
+let session = express_session({
+	secret: SESSION_SECRET,
+	resave: false,
+	rolling: true,
+	saveUninitialized: false,
+	store: session_store,
+	cookie: {
+		maxAge: 7 * 24 * 60 * 60 * 1000,
+		sameSite: 'lax',
+	}
+});
+
 let app = express();
 
 let http_port = process.env.HTTP_PORT || 8080;
 let http_server = http.createServer(app);
 let http_io = socket_io(http_server);
+http_server.keepAliveTimeout = 0;
 http_server.listen(http_port, '0.0.0.0', () => console.log('listening HTTP on *:' + http_port));
 let io = http_io;
 
@@ -47,6 +59,7 @@ if (https_port) {
 	}, app);
 	let https_io = socket_io(https_server);
 	https_server.listen(https_port, '0.0.0.0', () => console.log('listening HTTPS on *:' + https_port));
+	http_server.keepAliveTimeout=0;
 	io = {
 		use: function (fn) { http_io.use(fn); https_io.use(fn); },
 		on: function (ev,fn) { http_io.on(ev,fn); https_io.on(ev,fn); },
@@ -65,36 +78,27 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
 	console.log("Mail notifications disabled.");
 }
 
-app.disable('x-powered-by');
+app.set('x-powered-by', false);
+app.set('etag', false);
 app.set('view engine', 'ejs');
+
 app.use(body_parser.urlencoded({extended:false}));
-app.use(express_session({
-	secret: SESSION_SECRET,
-	resave: false,
-	rolling: true,
-	saveUninitialized: false,
-	store: session_store,
-	cookie: {
-		maxAge: 7 * 24 * 60 * 60 * 1000,
-		sameSite: 'lax',
-	}
-}));
+app.use(session);
 app.use(connect_flash());
 
-io.use(passport_socket.authorize({
-	key: 'connect.sid',
-	secret: SESSION_SECRET,
-	store: session_store,
-}));
+const socket_wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
+io.use(socket_wrap(session));
+io.use(socket_wrap(passport.initialize()));
+io.use(socket_wrap(passport.session()));
 
-const is_immutable = /\.(svg|png|jpg|jpeg|woff2)$/;
+const is_immutable = /\.(svg|png|jpg|jpeg|woff2|webp|ico)$/;
 
 function setHeaders(res, path) {
 	if (is_immutable.test(path))
 		res.set("Cache-Control", "public, max-age=86400, immutable");
 }
 
-app.use(express.static('public', { setHeaders: setHeaders }));
+app.use(express.static('public', { setHeaders: setHeaders, lastModified:false }));
 
 /*
  * MISC FUNCTIONS
@@ -106,7 +110,7 @@ function SQL(s) {
 
 function LOG(req, ...msg) {
 	let name;
-	if (req.isAuthenticated())
+	if (req.user)
 		name = `"${req.user.name}" <${req.user.mail}>`;
 	else
 		name = "guest";
@@ -115,10 +119,10 @@ function LOG(req, ...msg) {
 }
 
 function SLOG(socket, ...msg) {
-	let name = `"${socket.request.user.name}" <${socket.request.user.mail}>`;
+	let name = socket.request.user ? `"${socket.request.user.name}" <${socket.request.user.mail}>` : "guest";
 	let time = new Date().toISOString().substring(0,19).replace("T", " ");
 	console.log(time, socket.request.connection.remoteAddress, name,
-		socket.id, socket.title_id, socket.game_id, socket.role, ...msg);
+		socket.title_id + "/" + socket.game_id  + "/" + socket.role, ...msg);
 }
 
 function human_date(time) {
@@ -299,7 +303,7 @@ function must_not_be_logged_in(req, res, next) {
 function must_be_logged_in(req, res, next) {
 	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
 		return res.redirect('/banned');
-	if (!req.isAuthenticated()) {
+	if (!req.user) {
 		req.session.redirect = req.originalUrl;
 		return res.redirect('/login');
 	}
@@ -310,7 +314,7 @@ function must_be_logged_in(req, res, next) {
 function may_be_logged_in(req, res, next) {
 	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
 		return res.redirect('/banned');
-	if (req.isAuthenticated())
+	if (req.user)
 		touch_user(req);
 	return next();
 }
@@ -335,14 +339,14 @@ app.get('/logout', function (req, res) {
 });
 
 app.get('/login', function (req, res) {
-	if (req.isAuthenticated())
+	if (req.user)
 		return res.redirect('/');
 	LOG(req, "GET /login");
 	res.render('login.ejs', { user: req.user, flash: req.flash('message') });
 });
 
 app.get('/signup', function (req, res) {
-	if (req.isAuthenticated())
+	if (req.user)
 		return res.redirect('/');
 	LOG(req, "GET /signup");
 	res.render('signup.ejs', { user: req.user, flash: req.flash('message') });
@@ -973,6 +977,11 @@ function annotate_games(games, user_id) {
 		}).join(", ");
 		game.is_active = is_active(game, players, user_id);
 		game.is_shared = is_shared(game, players, user_id);
+		game.is_yours = false;
+		if (user_id > 0)
+			for (let i = 0; i < players.length; ++i)
+				if (players[i].user_id === user_id)
+					game.is_yours = 1;
 		game.ctime = human_date(game.ctime);
 		game.mtime = human_date(game.mtime);
 	}
@@ -982,7 +991,7 @@ app.get('/games', may_be_logged_in, function (req, res) {
 	LOG(req, "GET /join");
 	let open_games = QUERY_LIST_GAMES.all(0);
 	let active_games = QUERY_LIST_GAMES.all(1);
-	if (req.isAuthenticated()) {
+	if (req.user) {
 		annotate_games(open_games, req.user.user_id);
 		annotate_games(active_games, req.user.user_id);
 	} else {
@@ -1021,31 +1030,20 @@ app.get('/info/:title_id', may_be_logged_in, function (req, res) {
 	let title = TITLES[title_id];
 	if (!title)
 		return res.status(404).send("Invalid title.");
-	if (req.isAuthenticated()) {
-		let open_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1000);
-		let active_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 1, 1000);
-		let finished_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 50);
-		annotate_games(open_games, req.user.user_id);
-		annotate_games(active_games, req.user.user_id);
-		annotate_games(finished_games, req.user.user_id);
-		res.set("Cache-Control", "no-store");
-		res.render('info.ejs', {
-			user: req.user,
-			title: title,
-			open_games: open_games,
-			active_games: active_games,
-			finished_games: finished_games,
-		});
-	} else {
-		res.set("Cache-Control", "no-store");
-		res.render('info.ejs', {
-			user: req.user,
-			title: title,
-			open_games: [],
-			active_games: [],
-			finished_games: [],
-		});
-	}
+	let open_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1000);
+	let active_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 1, 1000);
+	let finished_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 50);
+	res.set("Cache-Control", "no-store");
+	annotate_games(open_games, req.user ? req.user.user_id : 0);
+	annotate_games(active_games, req.user ? req.user.user_id : 0);
+	annotate_games(finished_games, req.user ? req.user.user_id : 0);
+	res.render('info.ejs', {
+		user: req.user,
+		title: title,
+		open_games: open_games,
+		active_games: active_games,
+		finished_games: finished_games,
+	});
 });
 
 app.get('/create/:title_id', must_be_logged_in, function (req, res) {
@@ -1305,7 +1303,7 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 	res.send("SUCCESS");
 });
 
-app.get('/play/:game_id/:role', must_be_logged_in, function (req, res) {
+app.get('/play/:game_id/:role', may_be_logged_in, function (req, res) {
 	LOG(req, "GET /play/" + req.params.game_id + "/" + req.params.role);
 	let game_id = req.params.game_id | 0;
 	let role = req.params.role;
@@ -1315,10 +1313,10 @@ app.get('/play/:game_id/:role', must_be_logged_in, function (req, res) {
 	res.redirect('/'+title+'/play.html?game='+game_id+'&role='+role);
 });
 
-app.get('/play/:game_id', must_be_logged_in, function (req, res) {
+app.get('/play/:game_id', may_be_logged_in, function (req, res) {
 	LOG(req, "GET /play/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
-	let user_id = req.user.user_id | 0;
+	let user_id = req.user ? req.user.user_id : 0;
 	let title = SQL_SELECT_GAME_TITLE.get(game_id);
 	if (!title)
 		return res.redirect('/join/'+game_id);
@@ -1517,7 +1515,7 @@ function put_replay(game_id, role, action, args) {
 }
 
 function on_action(socket, action, arg) {
-	SLOG(socket, "--> ACTION", action, arg);
+	SLOG(socket, "ACTION", action, arg);
 	try {
 		let state = get_game_state(socket.game_id);
 		let old_active = state.active;
@@ -1531,7 +1529,7 @@ function on_action(socket, action, arg) {
 }
 
 function on_resign(socket) {
-	SLOG(socket, "--> RESIGN");
+	SLOG(socket, "RESIGN");
 	try {
 		let state = get_game_state(socket.game_id);
 		let old_active = state.active;
@@ -1547,7 +1545,8 @@ function on_resign(socket) {
 function on_getchat(socket, seen) {
 	try {
 		let chat = SQL_SELECT_GAME_CHAT.all(socket.game_id, seen);
-		SLOG(socket, "<-- CHAT", seen, chat.length);
+		if (chat.length > 0)
+			SLOG(socket, "GETCHAT", seen, chat.length);
 		for (let i = 0; i < chat.length; ++i)
 			socket.emit('chat', chat[i]);
 	} catch (err) {
@@ -1561,7 +1560,7 @@ function on_chat(socket, message) {
 	try {
 		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.user_id, message);
 		chat[2] = socket.user_name;
-		SLOG(socket, "--> CHAT", JSON.stringify(chat));
+		SLOG(socket, "CHAT", JSON.stringify(chat));
 		for (let other of clients[socket.game_id])
 			if (other.role !== "Observer")
 				other.emit('chat', chat);
@@ -1572,7 +1571,7 @@ function on_chat(socket, message) {
 }
 
 function on_debug(socket) {
-	SLOG(socket, "<-- DEBUG");
+	SLOG(socket, "DEBUG");
 	try {
 		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id);
 		if (!game_state)
@@ -1585,7 +1584,7 @@ function on_debug(socket) {
 }
 
 function on_save(socket) {
-	SLOG(socket, "<-- SAVE");
+	SLOG(socket, "SAVE");
 	try {
 		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id);
 		if (!game_state)
@@ -1598,11 +1597,14 @@ function on_save(socket) {
 }
 
 function on_restore(socket, state_text) {
-	SLOG(socket, '--> RESTORE', state_text);
+	SLOG(socket, 'RESTORE');
 	try {
 		let state = JSON.parse(state_text);
-		SQL_UPDATE_GAME_RESULT.run(1, null, game_id);
-		SQL_UPDATE_GAME_STATE.run(game_id, state_text, state.active);
+		state.seed = random_seed(); // reseed!
+		state_text = JSON.stringify(state);
+		SQL_UPDATE_GAME_RESULT.run(1, null, socket.game_id);
+		SQL_UPDATE_GAME_STATE.run(socket.game_id, state_text, state.active);
+		put_replay(socket.game_id, null, 'restore', state_text);
 		for (let other of clients[socket.game_id])
 			send_state(other, state);
 	} catch (err) {
@@ -1620,10 +1622,15 @@ function broadcast_presence(game_id) {
 }
 
 io.on('connection', (socket) => {
+	if (!socket.request.user) {
+		socket.user_id = 0;
+		socket.user_name = "guest";
+	} else {
+		socket.user_id = socket.request.user.user_id | 0;
+		socket.user_name = socket.request.user.name;
+	}
 	socket.title_id = socket.handshake.query.title || "unknown";
 	socket.game_id = socket.handshake.query.game | 0;
-	socket.user_id = socket.request.user.user_id | 0;
-	socket.user_name = socket.request.user.name;
 	socket.role = socket.handshake.query.role;
 	socket.log_length = 0;
 	socket.rules = RULES[socket.title_id];

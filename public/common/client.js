@@ -188,7 +188,7 @@ function init_client(roles) {
 
 	load_chat(game_id);
 
-	console.log("JOINING game", game_id, "role", role);
+	console.log("JOINING", title + "/" + game_id + "/" + role);
 
 	socket = io({
 		transports: ['websocket'],
@@ -220,7 +220,7 @@ function init_client(roles) {
 	});
 
 	socket.on('presence', (presence) => {
-		console.log("PRESENCE", presence);
+		console.log("PRESENCE", JSON.stringify(presence));
 		for (let i = 0; i < roles.length; ++i) {
 			let elt = document.querySelector(ROLE_SEL[i]);
 			if (roles[i] in presence)
@@ -231,7 +231,7 @@ function init_client(roles) {
 	});
 
 	socket.on('state', (new_game, new_game_over) => {
-		console.log("STATE");
+		console.log("STATE", !!new_game.actions, new_game_over);
 		game = new_game;
 		game_over = new_game_over;
 		on_update_log();
@@ -426,14 +426,14 @@ function send_action(verb, noun) {
 	if (noun !== undefined) {
 		if (game.actions && game.actions[verb] && game.actions[verb].includes(noun)) {
 			game.actions = null;
-			console.log("SEND ACTION", verb, noun);
+			console.log("ACTION", verb, JSON.stringify(noun));
 			socket.emit('action', verb, noun);
 			return true;
 		}
 	} else {
 		if (game.actions && game.actions[verb]) {
 			game.actions = null;
-			console.log("SEND ACTION", verb);
+			console.log("ACTION", verb);
 			socket.emit('action', verb);
 			return true;
 		}
