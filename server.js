@@ -210,9 +210,7 @@ const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id
 
 const SQL_COUNT_INBOX = SQL("SELECT COUNT(*) FROM messages WHERE to_id=? AND read=0 AND deleted_from_inbox=0").pluck();
 
-function is_blacklisted(ip, mail) {
-	if (SQL_BLACKLIST_IP.get(ip) === 1)
-		return true;
+function is_blacklisted(mail) {
 	if (SQL_BLACKLIST_MAIL.get(mail) === 1)
 		return true;
 	return false;
@@ -244,7 +242,7 @@ function local_login(req, name_or_mail, password, done) {
 			user = SQL_SELECT_LOGIN_BY_MAIL.get(name_or_mail);
 		if (!user)
 			return setTimeout(() => done(null, false, req.flash('message', "User not found.")), 1000);
-		if (is_blacklisted(req.connection.remoteAddress, user.mail))
+		if (is_blacklisted(user.mail))
 			return setTimeout(() => done(null, false, req.flash('message', "Sorry, but this IP or account has been banned.")), 1000);
 		let hash = hash_password(password, user.salt);
 		if (hash !== user.password)
@@ -262,7 +260,7 @@ function local_signup(req, name, password, done) {
 		if (!is_valid_user_name(name))
 			return done(null, false, req.flash('message', "Invalid user name!"));
 		LOG(req, "POST /signup", name, mail);
-		if (is_blacklisted(req.connection.remoteAddress, mail))
+		if (is_blacklisted(mail))
 			return setTimeout(() => done(null, false, req.flash('message', "Sorry, but this IP or account has been banned.")), 1000);
 		if (password.length < 4)
 			return done(null, false, req.flash('message', "Password is too short!"));
@@ -289,46 +287,29 @@ passport.use('local-signup', new passport_local.Strategy({ passReqToCallback: tr
 app.use(passport.initialize());
 app.use(passport.session());
 
-function touch_user(req) {
-	req.user.unread = SQL_COUNT_INBOX.get(req.user.user_id);
-	SQL_UPDATE_USER_LAST_SEEN.run(req.user.user_id, req.connection.remoteAddress);
-}
-
-function must_not_be_logged_in(req, res, next) {
+app.use(function (req, res, next) {
 	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
-		return res.redirect('/banned');
+		return res.status(403).send('Sorry, but this IP has been banned.');
+	if (req.user) {
+		req.user.unread = SQL_COUNT_INBOX.get(req.user.user_id);
+		SQL_UPDATE_USER_LAST_SEEN.run(req.user.user_id, req.connection.remoteAddress);
+	}
 	return next();
-}
+});
 
 function must_be_logged_in(req, res, next) {
-	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
-		return res.redirect('/banned');
 	if (!req.user) {
 		req.session.redirect = req.originalUrl;
 		return res.redirect('/login');
 	}
-	touch_user(req);
 	return next();
 }
 
-function may_be_logged_in(req, res, next) {
-	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
-		return res.redirect('/banned');
-	if (req.user)
-		touch_user(req);
-	return next();
-}
-
-app.get('/', may_be_logged_in, function (req, res) {
+app.get('/', function (req, res) {
 	res.render('index.ejs', { user: req.user, flash: req.flash('message') });
 });
 
-app.get('/banned', function (req, res) {
-	LOG(req, "GET /banned");
-	res.render('banned.ejs', { user: req.user });
-});
-
-app.get('/about', may_be_logged_in, function (req, res) {
+app.get('/about', function (req, res) {
 	res.render('about.ejs', { user: req.user });
 });
 
@@ -372,12 +353,12 @@ app.post('/signup',
 	})
 );
 
-app.get('/forgot_password', must_not_be_logged_in, function (req, res) {
+app.get('/forgot_password', function (req, res) {
 	LOG(req, "GET /forgot_password");
 	res.render('forgot_password.ejs', { user: req.user, flash: req.flash('message') });
 });
 
-app.post('/forgot_password', must_not_be_logged_in, function (req, res) {
+app.post('/forgot_password', function (req, res) {
 	LOG(req, "POST /forgot_password");
 	let mail = req.body.mail;
 	let user = SQL_SELECT_LOGIN_BY_MAIL.get(mail);
@@ -394,25 +375,25 @@ app.post('/forgot_password', must_not_be_logged_in, function (req, res) {
 	return res.redirect('/forgot_password');
 });
 
-app.get('/reset_password', must_not_be_logged_in, function (req, res) {
+app.get('/reset_password', function (req, res) {
 	LOG(req, "GET /reset_password");
 	res.render('reset_password.ejs', { user: null, mail: "", token: "", flash: req.flash('message') });
 });
 
-app.get('/reset_password/:mail', must_not_be_logged_in, function (req, res) {
+app.get('/reset_password/:mail', function (req, res) {
 	let mail = req.params.mail;
 	LOG(req, "GET /reset_password", mail);
 	res.render('reset_password.ejs', { user: null, mail: mail, token: "", flash: req.flash('message') });
 });
 
-app.get('/reset_password/:mail/:token', must_not_be_logged_in, function (req, res) {
+app.get('/reset_password/:mail/:token', function (req, res) {
 	let mail = req.params.mail;
 	let token = req.params.token;
 	LOG(req, "GET /reset_password", mail, token);
 	res.render('reset_password.ejs', { user: null, mail: mail, token: token, flash: req.flash('message') });
 });
 
-app.post('/reset_password', must_not_be_logged_in, function (req, res) {
+app.post('/reset_password', function (req, res) {
 	let mail = req.body.mail;
 	let token = req.body.token;
 	let password = req.body.password;
@@ -529,7 +510,7 @@ app.post('/change_about', must_be_logged_in, function (req, res) {
 	return res.redirect('/profile');
 });
 
-app.get('/user/:who_name', may_be_logged_in, function (req, res) {
+app.get('/user/:who_name', function (req, res) {
 	LOG(req, "GET /user/" + req.params.who_name);
 	let who = SQL_SELECT_USER_PROFILE.get(req.params.who_name);
 	if (who) {
@@ -542,7 +523,7 @@ app.get('/user/:who_name', may_be_logged_in, function (req, res) {
 	}
 });
 
-app.get('/users', may_be_logged_in, function (req, res) {
+app.get('/users', function (req, res) {
 	LOG(req, "GET /users");
 	let rows = db.prepare("SELECT * FROM user_profile_view ORDER BY atime DESC").all();
 	rows.forEach(row => {
@@ -750,17 +731,17 @@ function linkify_post(text) {
 	return text;
 }
 
-app.get('/forum', may_be_logged_in, function (req, res) {
+app.get('/forum', function (req, res) {
 	LOG(req, "GET /forum");
 	show_forum_page(req, res, 1);
 });
 
-app.get('/forum/page/:page', may_be_logged_in, function (req, res) {
+app.get('/forum/page/:page', function (req, res) {
 	LOG(req, "GET /forum/page/" + req.params.page);
 	show_forum_page(req, res, req.params.page | 0);
 });
 
-app.get('/forum/thread/:thread_id', may_be_logged_in, function (req, res) {
+app.get('/forum/thread/:thread_id', function (req, res) {
 	LOG(req, "GET /forum/thread/" + req.params.thread_id);
 	let thread_id = req.params.thread_id | 0;
 	let thread = FORUM_GET_THREAD.get(thread_id);
@@ -1011,7 +992,7 @@ function annotate_games(games, user_id) {
 		annotate_game(games[i], user_id);
 }
 
-app.get('/games', may_be_logged_in, function (req, res) {
+app.get('/games', function (req, res) {
 	LOG(req, "GET /join");
 	let open_games = QUERY_LIST_GAMES.all(0);
 	let active_games = QUERY_LIST_GAMES.all(1);
@@ -1048,7 +1029,7 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 	});
 });
 
-app.get('/info/:title_id', may_be_logged_in, function (req, res) {
+app.get('/info/:title_id', function (req, res) {
 	LOG(req, "GET /info/" + req.params.title_id);
 	let title_id = req.params.title_id;
 	let title = TITLES[title_id];
@@ -1328,7 +1309,7 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 	res.send("SUCCESS");
 });
 
-app.get('/play/:game_id/:role', may_be_logged_in, function (req, res) {
+app.get('/play/:game_id/:role', function (req, res) {
 	LOG(req, "GET /play/" + req.params.game_id + "/" + req.params.role);
 	let game_id = req.params.game_id | 0;
 	let role = req.params.role;
@@ -1338,7 +1319,7 @@ app.get('/play/:game_id/:role', may_be_logged_in, function (req, res) {
 	res.redirect('/'+title+'/play:'+game_id+':'+role);
 });
 
-app.get('/play/:game_id', may_be_logged_in, function (req, res) {
+app.get('/play/:game_id', function (req, res) {
 	LOG(req, "GET /play/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
 	let user_id = req.user ? req.user.user_id : 0;
@@ -1361,7 +1342,7 @@ app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, re
 	return res.sendFile(__dirname + '/public/' + title_id + '/play.html');
 });
 
-app.get('/:title_id/play\::game_id', may_be_logged_in, function (req, res) {
+app.get('/:title_id/play\::game_id', function (req, res) {
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id;
 	let a_title = SQL_SELECT_GAME_TITLE.get(game_id);
@@ -1765,7 +1746,7 @@ const QUERY_STATS = db.prepare(`
 	GROUP BY title_name, scenario, result
 	`);
 
-app.get('/stats', may_be_logged_in, function (req, res) {
+app.get('/stats', function (req, res) {
 	LOG(req, "GET /stats");
 	let stats = QUERY_STATS.all();
 	res.render('stats.ejs', {
