@@ -907,7 +907,9 @@ const SQL_SELECT_PLAYERS_JOIN = SQL("SELECT role, user_id, name FROM players NAT
 const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck();
 const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id) VALUES (?,?,?)");
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?");
-const SQL_UPDATE_PLAYER_ROLE = db.prepare("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?");
+const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?");
+
+const SQL_AUTHORIZE_GAME_ROLE = SQL("SELECT 1 FROM players NATURAL JOIN games WHERE title_id=? AND game_id=? AND role=? AND user_id=?").pluck();
 
 const SQL_SELECT_OPEN_GAMES = db.prepare("SELECT * FROM games WHERE status=0");
 const SQL_COUNT_OPEN_GAMES = SQL("SELECT COUNT(*) FROM games WHERE owner_id=? AND status=0").pluck();
@@ -927,12 +929,14 @@ const SQL_INSERT_REMATCH = SQL(`
 const QUERY_LIST_GAMES = SQL(`
 	SELECT * FROM game_view
 	WHERE private=0 AND status=?
+	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND user_id = game_view.owner_id )
 	ORDER BY mtime DESC
 	`);
 
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	SELECT * FROM game_view
 	WHERE private=0 AND title_id=? AND status=?
+	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND user_id = game_view.owner_id )
 	ORDER BY mtime DESC
 	LIMIT ?
 	`);
@@ -967,24 +971,44 @@ function is_solo(players) {
 	return players.every(p => p.user_id === players[0].user_id)
 }
 
-function annotate_games(games, user_id) {
-	for (let i = 0; i < games.length; ++i) {
-		let game = games[i];
-		let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id);
-		game.player_names = players.map(p => {
-			let name = p.name.replace(/ /g, '\xa0');
-			return p.user_id > 0 ? `<a href="/user/${p.name}">${name}</a>` : name;
-		}).join(", ");
-		game.is_active = is_active(game, players, user_id);
-		game.is_shared = is_shared(game, players, user_id);
-		game.is_yours = false;
-		if (user_id > 0)
-			for (let i = 0; i < players.length; ++i)
-				if (players[i].user_id === user_id)
-					game.is_yours = 1;
-		game.ctime = human_date(game.ctime);
-		game.mtime = human_date(game.mtime);
+function format_options(options) {
+	function to_english(k) {
+		if (k === true) return 'yes';
+		if (k === false) return 'no';
+		return k.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase());
 	}
+	if (!options || options === '{}')
+		return "None";
+	options = JSON.parse(options);
+	return Object.entries(options||{}).map(([k,v]) => v === true ? to_english(k) : `${to_english(k)}=${to_english(v)}`).join(", ");
+}
+
+function annotate_game(game, user_id) {
+	let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id);
+	game.player_names = players.map(p => {
+		let name = p.name.replace(/ /g, '\xa0');
+		return p.user_id > 0 ? `<a href="/user/${p.name}">${name}</a>` : name;
+	}).join(", ");
+	game.options = format_options(game.options);
+	game.is_active = is_active(game, players, user_id);
+	game.is_shared = is_shared(game, players, user_id);
+	game.is_yours = false;
+	game.your_role = null;
+	if (user_id > 0) {
+		for (let i = 0; i < players.length; ++i) {
+			if (players[i].user_id === user_id) {
+				game.is_yours = 1;
+				game.your_role = players[i].role;
+			}
+		}
+	}
+	game.ctime = human_date(game.ctime);
+	game.mtime = human_date(game.mtime);
+}
+
+function annotate_games(games, user_id) {
+	for (let i = 0; i < games.length; ++i)
+		annotate_game(games[i], user_id);
 }
 
 app.get('/games', may_be_logged_in, function (req, res) {
@@ -1189,6 +1213,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	let game = SQL_SELECT_GAME_VIEW.get(game_id);
 	if (!game)
 		return res.status(404).send("Invalid game ID.");
+	annotate_game(game, req.user.user_id);
 	let roles = ROLES[game.title_id];
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
 	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, game.options, players);
@@ -1310,7 +1335,7 @@ app.get('/play/:game_id/:role', may_be_logged_in, function (req, res) {
 	let title = SQL_SELECT_GAME_TITLE.get(game_id);
 	if (!title)
 		return res.redirect('/join/'+game_id);
-	res.redirect('/'+title+'/play.html?game='+game_id+'&role='+role);
+	res.redirect('/'+title+'/play:'+game_id+':'+role);
 });
 
 app.get('/play/:game_id', may_be_logged_in, function (req, res) {
@@ -1322,8 +1347,27 @@ app.get('/play/:game_id', may_be_logged_in, function (req, res) {
 		return res.redirect('/join/'+game_id);
 	let role = SQL_SELECT_PLAYER_ROLE.get(game_id, user_id);
 	if (!role)
-		return res.redirect('/'+title+'/play.html?game='+game_id+'&role=Observer');
-	return res.redirect('/'+title+'/play.html?game='+game_id+'&role='+role);
+		role = "Observer";
+	res.redirect('/'+title+'/play:'+game_id+':'+role);
+});
+
+app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, res) {
+	let user_id = req.user ? req.user.user_id : 0;
+	let title_id = req.params.title_id
+	let game_id = req.params.game_id;
+	let role = req.params.role;
+	if (!SQL_AUTHORIZE_GAME_ROLE.get(title_id, game_id, role, user_id))
+		return res.send("You are not assigned that role.");
+	return res.sendFile(__dirname + '/public/' + title_id + '/play.html');
+});
+
+app.get('/:title_id/play\::game_id', may_be_logged_in, function (req, res) {
+	let title_id = req.params.title_id
+	let game_id = req.params.game_id;
+	let a_title = SQL_SELECT_GAME_TITLE.get(game_id);
+	if (a_title !== title_id)
+		return res.send("Invalid game ID.");
+	return res.sendFile(__dirname + '/public/' + title_id + '/play.html');
 });
 
 /*

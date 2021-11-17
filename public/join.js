@@ -60,7 +60,7 @@ function start_event_source() {
 		evtsrc.addEventListener("game", function (evt) {
 			console.log("GAME:", evt.data);
 			game = JSON.parse(evt.data);
-			if (game.status > 1) {
+			if (game.status > 0) {
 				clearInterval(timer);
 				evtsrc.close();
 			}
@@ -85,9 +85,6 @@ function is_solo() {
 }
 
 function update() {
-	window.game_status.textContent = ["Open","Active","Finished","Abandoned"][game.status];
-	window.game_result.textContent = game.result || "\u2014";
-
 	for (let i = 0; i < roles.length; ++i) {
 		let role = roles[i];
 		let role_id = "role_" + role.replace(/ /g, "_");
@@ -103,7 +100,7 @@ function update() {
 				else
 					element.className = "";
 				if (player.user_id === user_id)
-					element.innerHTML = `<a href="/play/${game.game_id}/${role}">Play</a>`;
+					element.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}:${role}">Play</a>`;
 				else
 					element.innerHTML = player.name;
 			} else {
@@ -129,7 +126,7 @@ function update() {
 		else
 			message.innerHTML = "Waiting for players to join...";
 	} else {
-		message.innerHTML = `<a class="play" href="/play/${game.game_id}/Observer">Observe</a>`;
+		message.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}">Observe</a>`;
 	}
 
 	if (game.owner_id === user_id) {
@@ -150,7 +147,7 @@ function update() {
 
 window.onload = function () {
 	update();
-	if (game.status < 2) {
+	if (game.status === 0) {
 		start_event_source();
 		timer = setInterval(start_event_source, 15000);
 	}

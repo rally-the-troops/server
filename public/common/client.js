@@ -2,6 +2,16 @@
 
 /* global io, on_update */
 
+/* URL: /$title_id/play:$game_id:$role */
+if (!/\/[\w-]+\/play:\d+(:[\w-]+)?/.test(window.location.pathname)) {
+	document.querySelector("#prompt").textContent = "Invalid game ID.";
+	throw Error("Invalid game ID.");
+}
+
+const param_title_id = window.location.pathname.split("/")[1];
+const param_game_id = window.location.pathname.split("/")[2].split(":")[1] | 0;
+const param_role = window.location.pathname.split("/")[2].split(":")[2] || "Observer";
+
 let game = null;
 let game_over = false;
 let player = null;
@@ -105,8 +115,8 @@ function stop_blinker() {
 
 window.addEventListener("focus", stop_blinker);
 
-function load_chat(game_id) {
-	chat_key = "chat/" + game_id;
+function load_chat() {
+	chat_key = "chat/" + param_game_id;
 	chat_text = document.querySelector(".chat_text");
 	chat_last_day = null;
 	chat_log = 0;
@@ -158,11 +168,6 @@ function update_chat(chat_id, utc_date, user, message) {
 }
 
 function init_client(roles) {
-	let params = new URLSearchParams(window.location.search);
-	let title = window.location.pathname.split("/")[1];
-	let game_id = params.get("game");
-	let role = params.get("role");
-
 	game = null;
 	player = null;
 
@@ -186,13 +191,13 @@ function init_client(roles) {
 		".role.seven .role_user",
 	];
 
-	load_chat(game_id);
+	load_chat();
 
-	console.log("JOINING", title + "/" + game_id + "/" + role);
+	console.log("JOINING", param_title_id + "/" + param_game_id + "/" + param_role);
 
 	socket = io({
 		transports: ['websocket'],
-		query: { title: title, game: game_id, role: role },
+		query: { title: param_title_id, game: param_game_id, role: param_role },
 	});
 
 	socket.on('connect', () => {
@@ -242,7 +247,7 @@ function init_client(roles) {
 
 	socket.on('save', (msg) => {
 		console.log("SAVE");
-		window.localStorage[title + '/save'] = msg;
+		window.localStorage[param_title_id + '/save'] = msg;
 	});
 
 	socket.on('error', (msg) => {
@@ -446,8 +451,7 @@ function send_save() {
 }
 
 function send_restore() {
-	let title = window.location.pathname.split("/")[1];
-	socket.emit('restore', window.localStorage[title + '/save']);
+	socket.emit('restore', window.localStorage[param_title_id + '/save']);
 }
 
 function send_restart(scenario) {
@@ -474,13 +478,9 @@ function on_game_over() {
 }
 
 function send_rematch() {
-	let params = new URLSearchParams(window.location.search);
-	let game_id = params.get("game");
-	let role_id = params.get("role");
-	window.location = '/rematch/' + game_id + '/' + role_id;
+	window.location = '/rematch/' + param_game_id + '/' + param_role;
 }
 
 function send_exit() {
-	let title = window.location.pathname.split("/")[1];
-	window.location = '/info/' + title;
+	window.location = '/info/' + param_title_id;
 }
