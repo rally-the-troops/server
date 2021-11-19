@@ -1742,7 +1742,7 @@ io.on('connection', (socket) => {
 const QUERY_STATS = db.prepare(`
 	SELECT title_id, scenario, result, count(*) AS count
 	FROM game_full_view
-	WHERE status=2 AND private=0
+	WHERE status=2 AND is_solo=0
 	GROUP BY title_name, scenario, result
 	`);
 

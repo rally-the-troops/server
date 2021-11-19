@@ -47,24 +47,31 @@ table { min-width: min(50rem,100%); }
 table { border-collapse: collapse; }
 th { text-align: left; background-color: gainsboro; }
 th, td { border: 1px solid black; padding: 3px 1ex; }
-th a, td:not(.command) a { text-decoration: none; color: black; }
+th a:not(:hover), td:not(.command) a:not(:hover) { text-decoration: none; }
 td.body { white-space: pre-wrap; padding: 10px 10px; }
 
 input[type="text"], input[type="password"], textarea {
 	padding: 5px;
-}
-button, input, select {
 	margin: 5px 0;
+	border: 1px solid black;
 }
 button, select {
 	margin: 5px 10px 5px 0;
 	padding: 1px 10px;
 	background-color: gainsboro;
 	vertical-align: top;
+	border: 2px outset white;
+	outline: 1px solid black;
 }
-button:disabled { color: gray; border: 2px solid gainsboro; outline: 1px solid gray; }
-button:enabled, select { border: 2px outset white; outline: 1px solid black; }
-button:enabled:active:hover, select:active { border: 2px inset white; padding: 2px 9px 0px 11px; }
+button:enabled:active:hover, select:active {
+	border: 2px inset white;
+	padding: 2px 9px 0px 11px;
+}
+button:disabled {
+	color: gray;
+	border: 2px solid gainsboro;
+	outline: 1px solid gray;
+}
 
 td.is_active { background-color: lemonchiffon; }
 p.error { color: brown; font-style: italic; white-space: pre-wrap; }
