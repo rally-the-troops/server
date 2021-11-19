@@ -1,21 +1,22 @@
-<%- include('header', { title: thread.subject }) %>
+<%- include('header', { title: thread.subject }) -%>
 <style>
+table { max-width: 50em; }
 table .author { border-right: none; }
 table .time { border-left: none; font-weight: normal; }
-table .edit { text-align: right; border: none; }
+table .command { border: none; }
 </style>
 <% posts.forEach((row) => { %>
 <p>
 <table class="post">
 <tr>
 <th class="author"><a href="/user/<%- row.author_name %>"><%= row.author_name %></a>
-<th class="time"><%= row.ctime %>
+<th class="r time"><%= row.ctime %>
 <%= row.edited ? "(edited " + row.mtime + ")" : "" %>
 <tr>
 <td class="body" colspan="2"><%- row.body %></td>
 <% if (user) { %>
 <tr>
-<td class="edit" colspan=2>
+<td class="r command" colspan=2>
 <% if (row.author_id === user.user_id) { %>
 <a href="/forum/edit/<%- row.post_id %>">Edit</a>
 <% } %>
@@ -23,8 +24,6 @@ table .edit { text-align: right; border: none; }
 <% } %>
 </table>
 <% }); %>
-<%
-if (user) {
-	%><p><a href="/forum/reply/<%- posts[0].post_id %>">Reply</a><%
-}
-%>
+<% if (user) { %>
+<p><a href="/forum/reply/<%- posts[0].post_id %>">Reply</a>
+<% } %>

@@ -1,9 +1,11 @@
-<%- include('header', { title: "Change profile text" }) %>
+<%- include('header', { title: "Change profile text" }) -%>
 <style>
 textarea { width: 100%; max-width: 45em; }
 </style>
 <form action="/change_about" method="post">
-<textarea name="about" rows="20" cols="80" maxlength="32000" autofocus><%= about %></textarea>
+<p>
+<textarea name="about" rows="20" cols="80" maxlength="32000" autofocus>
+<%= about %></textarea>
 <p>
 <button type="submit">Submit</button>
 </form>

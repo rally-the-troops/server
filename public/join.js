@@ -96,9 +96,9 @@ function update() {
 		if (player) {
 			if (game.status > 0) {
 				if (is_active(player, role))
-					element.className = "is_active";
+					element.classList.add("is_active");
 				else
-					element.className = "";
+					element.classList.remove("is_active");
 				if (player.user_id === user_id)
 					element.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}:${role}">Play</a>`;
 				else

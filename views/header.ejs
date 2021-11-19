@@ -2,40 +2,35 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
-<% if (typeof refresh !== 'undefined' && refresh > 0) { %><meta http-equiv="refresh" content="<%= refresh %>"><% } %>
-<link rel="icon" href="/favicon.svg">
+<% if (typeof refresh !== 'undefined' && refresh > 0) { _%>
+<meta http-equiv="refresh" content="<%= refresh %>">
+<% } _%>
 <title><%= title %></title>
-<style>
-<%- include('../public/fonts/fonts.css') _%>
-<%- include('../public/style.css') _%>
-</style>
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<div class="header">
-<div><a href="/"><img src="/images/rally-the-troops.svg" width="48" height="48"></a></div>
-<div>
-<span><a href="/about">About</a></span>
-<span><a href="/forum">Forum</a></span>
-<%
-	if (user) {
-		let unread = user.unread | 0;
-		if (unread > 0) {
-			%><span><a href="/inbox">Inbox (<%= unread %>)</a></span><%
-		} else {
-			%><span><a href="/inbox">Inbox</a></span><%
-		}
-		%><span><a href="/profile">Profile (<%= user.name %>)</a></span><%
-	} else {
-		%><span><a href="/signup">Signup</a></span><%
-		%><span><a href="/login">Login</a></span><%
-	}
-%>
-</div>
-</div>
-<div class="main">
+<header>
+<a href="/"><img src="/images/rally-the-troops.svg" width="48" height="48"></a>
+<nav>
+<a href="/about">About</a>
+<a href="/forum">Forum</a>
+<%_ if (user) { _%>
+<%_ if (user.unread > 0) { _%>
+<a href="/inbox">Inbox (<%= unread %>)</a>
+<%_ } else { _%>
+<a href="/inbox">Inbox</a>
+<%_ } _%>
+<a href="/profile">Profile (<%= user.name %>)</a>
+<%_ } else { _%>
+<a href="/signup">Signup</a>
+<a href="/login">Login</a>
+<%_ } _%>
+</nav>
+</header>
+<article>
 <h1><%= title %></h1>
-<%
-	if (typeof flash !== 'undefined' && flash.length > 0) {
-		%><p class="error"><%= Array.isArray(flash) ? flash.join("\n") : flash %></p><%
-	}
-%>
+<%_ if (typeof flash !== 'undefined' && flash.length > 0) { _%>
+<p class="error"><%= flash %></p>
+<%_ } _%>

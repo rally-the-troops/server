@@ -1,40 +1,37 @@
-<%- include('header', { title: "Forum", refresh: 900 }) %>
-<table class="post">
-<thead>
+<%- include('header', { title: "Forum", refresh: 900 }) -%>
+<style>
+tfoot{background-color:gainsboro}
+</style>
+<table>
 <tr>
-<th class="subject">Subject
-<th class="author">Author
-<th class="replies">Replies
-<th class="time">Time
-</thead>
+<th>Subject
+<th>Author
+<th>Replies
+<th>Time
 <% threads.forEach((row) => { %>
 <tr>
-<td class="subject"><a href="/forum/thread/<%- row.thread_id %>"><%= row.subject %></a>
-<td class="author"><a href="/user/<%- row.author_name %>"><%= row.author_name %></a>
-<td class="replies"><%= row.replies %>
-<td class="time"><%= row.mtime %>
+<td><a href="/forum/thread/<%- row.thread_id %>"><%= row.subject %></a>
+<td><a href="/user/<%- row.author_name %>"><%= row.author_name %></a>
+<td><%= row.replies %>
+<td><%= row.mtime %>
 <% }); %>
 <tfoot>
 <tr>
 <td colspan="4">
-<%
-if (current_page > 1) {
-	%><a href="/forum/page/<%= current_page-1 %>">&#x2190;</a> <%
-}
-for (let p = 1; p <= page_count && p <= 30; ++p) {
-	if (p === current_page) {
-		%>(<%= p %>) <%
-	} else {
-		%><a href="/forum/page/<%= p %>"><%= p %></a> <%
-	}
-}
-if (current_page < page_count) {
-	%><a href="/forum/page/<%= current_page+1 %>">&#x2192;</a> <%
-}
-%>
+<% if (current_page > 1) { %>
+<a href="/forum/page/<%- current_page-1 %>">&#x2190;</a>
+<% } %>
+<% for (let p = 1; p <= page_count && p <= 30; ++p) { %>
+<% if (p === current_page) { %>
+(<%- p %>)
+<% } else { %>
+<a href="/forum/page/<%- p %>"><%- p %></a>
+<% } %>
+<% } %>
+<% if (current_page < page_count) { %>
+<a href="/forum/page/<%- current_page+1 %>">&#x2192;</a>
+<% } %>
 </table>
-<%
-if (user) {
-	%><p><a href="/forum/post">New thread</a><%
-}
-%>
+<% if (user) { %>
+<p><a href="/forum/post">New thread</a>
+<% } %>

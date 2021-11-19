@@ -1,84 +1,80 @@
-<%- include('header', { title: title.title_name, refresh: (user ? 300 : 0) }) _%>
+<%- include('header', { title: title.title_name, refresh: (user ? 300 : 0) }) -%>
 <img class="logo" src="/<%= title.title_id %>/cover.jpg">
-<%- include('../public/' + title.title_id + '/about.html') %>
+<%- include('../public/' + title.title_id + '/about.html') -%>
 <p>
 Read more about the game on
 <a href="https://boardgamegeek.com/boardgame/<%= title.bgg %>">boardgamegeek.com</a>.
 
 <h2>Open Games</h2>
-<table class="game">
-<tr><th>ID<th>Scenario<th>Options<th>Players<th>Description<th>Created<th>
-<%_ if (open_games.length > 0) { _%>
-<%_ open_games.forEach((row) => { _%>
+<table>
+<tr><th>ID<th>Scenario<th>Players<th>Description<th>Created<th>
+<% if (open_games.length > 0) { -%>
+<% open_games.forEach((row) => { %>
 <tr>
-<td class="id"><%= row.game_id %>
-<td class="scenario"><%= row.scenario %>
-<td class="options"><%- row.options %>
-<td class="players"><%- row.player_names %>
-<td class="description"><%= row.description %>
-<td class="time"><%= row.ctime %>
+<td><%= row.game_id %>
+<td class="w"><%= row.scenario %>
+<td><%- row.player_names %>
+<td><%= row.description %>
+<td class="w"><%= row.ctime %>
 <td class="command"><a href="/join/<%= row.game_id %>">Join</a>
-<%_ }); } else { _%>
-<tr><td colspan="7">No open games.
-<%_ } _%>
+<% }); } else { %>
+<tr><td colspan="6">No open games.
+<% } %>
 </table>
 
 <p>
 <a href="/create/<%= title.title_id %>">Create a new game</a>.
 
-<%_ if (active_games.length > 0) { _%>
+<% if (active_games.length > 0) { %>
 <h2>Active Games</h2>
 <table class="game">
-<tr><th>ID<th>Scenario<th>Options<th>Players<th>Description<th>Changed<th>Turn<th>
-<%_ active_games.forEach((row) => { _%>
+<tr><th>ID<th>Scenario<th>Players<th>Description<th>Changed<th>Turn<th>
+<% active_games.forEach((row) => { %>
 <tr>
-<td class="id"><%= row.game_id %>
-<td class="scenario"><%= row.scenario %>
-<td class="options"><%- row.options %>
-<td class="players"><%- row.player_names %>
-<td class="description"><%= row.description %>
-<td class="time"><%= row.mtime %>
-<td class="<%= row.is_active ? "role is_active" : "role" %>"><%= row.active %>
-<%_
-	if (row.is_yours) {
-		if (row.is_shared) {
-			%><td class="command"><a href="/join/<%= row.game_id %>">Play</a><%
-		} else {
-			%><td class="command"><a href="/<%- row.title_id %>/play:<%- row.game_id %>:<%- row.your_role %>">Play</a><%
-		}
-	} else {
-		%><td class="command"><a href="/<%- row.title_id %>/play:<%- row.game_id %>">View</a><%
-
-	}
-_%>
-<%_ }); _%>
+<td><%= row.game_id %>
+<td class="w"><%= row.scenario %>
+<td><%- row.player_names %>
+<td><%= row.description %>
+<td class="w"><%= row.mtime %>
+<% if (row.is_active) { %>
+<td class="is_active"><%= row.active %>
+<% } else { %>
+<td><%= row.active %>
+<% } %>
+<% if (row.is_yours) { %>
+<% if (row.is_shared) { %>
+<td class="command"><a href="/join/<%= row.game_id %>">Play</a>
+<% } else { %>
+<td class="command"><a href="/<%- row.title_id %>/play:<%- row.game_id %>:<%- row.your_role %>">Play</a>
+<% } %>
+<% } else { %>
+<td class="command"><a href="/<%- row.title_id %>/play:<%- row.game_id %>">View</a>
+<% } %>
+<% }); %>
 </table>
-<%_ } _%>
+<% } %>
 
-<%_ if (finished_games.length > 0) { _%>
+<% if (finished_games.length > 0) { %>
 <h2>Finished Games</h2>
 <table class="game">
-<tr><th>ID<th>Scenario<th>Options<th>Players<th>Description<th>Finished<th>Result<th>
-<%_ finished_games.forEach((row) => { _%>
+<tr><th>ID<th>Scenario<th>Players<th>Description<th>Finished<th>Result<th>
+<% finished_games.forEach((row) => { %>
 <tr>
-<td class="id"><%= row.game_id %>
-<td class="scenario"><%= row.scenario %>
-<td class="options"><%- row.options %>
-<td class="players"><%- row.player_names %>
-<td class="description"><%= row.description %>
-<td class="time"><%= row.mtime %>
-<td class="result"><%= row.result %>
-<%_
-	if (row.is_yours) {
-		if (row.is_shared) {
-			%><td class="command"><a href="/join/<%= row.game_id %>">View</a><%
-		} else {
-			%><td class="command"><a href="/<%- row.title_id %>/play:<%- row.game_id %>:<%- row.your_role %>">View</a><%
-		}
-	} else {
-		%><td class="command"><a href="/<%- row.title_id %>/play:<%- row.game_id %>">View</a><%
-	}
-_%>
-<%_ }); _%>
+<td><%= row.game_id %>
+<td class="w"><%= row.scenario %>
+<td><%- row.player_names %>
+<td><%= row.description %>
+<td class="w"><%= row.mtime %>
+<td><%= row.result %>
+<% if (row.is_yours) { %>
+<% if (row.is_shared) { %>
+<td class="command"><a href="/join/<%= row.game_id %>">View</a>
+<% } else { %>
+<td class="command"><a href="/<%- row.title_id %>/play:<%- row.game_id %>:<%- row.your_role %>">View</a>
+<% } %>
+<% } else { %>
+<td class="command"><a href="/<%- row.title_id %>/play:<%- row.game_id %>">View</a>
+<% } %>
+<% }); %>
 </table>
-<%_ } _%>
+<% } %>

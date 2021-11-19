@@ -1,4 +1,7 @@
-<%- include('header', { title: "Outbox" }) %>
+<%- include('header', { title: "Outbox" }) -%>
+<style>
+.unread { background-color: lightyellow; }
+</style>
 <script>
 function delete_all() {
 	let warning = "Are you sure you want to delete ALL the messages?";
@@ -9,10 +12,14 @@ function delete_all() {
 <table class="post">
 <tr><th>To<th>Subject<th>Date
 <% if (messages.length > 0) { messages.forEach((row) => { %>
-<tr class="<%- row.read ? "read" : "unread" %>">
-<td class="author"><a href="/user/<%- row.to_name %>"><%= row.to_name %></a>
-<td class="subject"><a href="/message/read/<%- row.message_id %>"><%= row.subject %></a>
-<td class="time"><%= row.time %>
+<% if (row.read) { %>
+<tr class="read">
+<% } else {%>
+<tr>
+<% } %>
+<td><a href="/user/<%- row.to_name %>"><%= row.to_name %></a>
+<td><a href="/message/read/<%- row.message_id %>"><%= row.subject %></a>
+<td><%= row.time %>
 <% }); } else { %>
 <tr><td colspan="3">No messages</td>
 <% } %>

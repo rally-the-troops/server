@@ -1,7 +1,8 @@
 <%- include('header', { title: game.title_name }) -%>
 <style>
-th, td { min-width: 10em; font-size: 16px; }
-a.red { text-decoration: none; color: brown; font-size: 15px; }
+table { min-width: auto; }
+th, td { min-width: 10em; }
+a.red { text-decoration: none; color: brown; }
 td a { text-decoration: underline; color: blue; }
 .hide { display: none; }
 </style>
@@ -20,24 +21,30 @@ let ready = <%- ready %>;
 <div class="info">
 <p>
 Owner: <%= game.owner_name %>
-<br>
-Private: <%= game.private ? "yes" : "no" %>
+<% if (game.private) { %>
+(private)
+<% } %>
 <br>
 Scenario: <%= game.scenario %>
 <br>
 Options: <%= game.options %>
-<br>
-Description: <%= game.description || "No description." %>
+
+<p>
+<%= game.description || "No description." %>
 
 <br clear=left>
 
 <table class="small">
 <tr>
-<% roles.forEach((role) => { %><th id="role_<%= role.replace(/ /g, '_') %>_name"><%= role %></th><% }); %>
+<% roles.forEach((role) => { %>
+<th class="command" id="role_<%= role.replace(/ /g, '_') %>_name"><%= role %></th>
+<% }); %>
 <tr>
-<% roles.forEach((role) => { %><td id="role_<%= role.replace(/ /g, '_') %>">-</td><% }); %>
+<% roles.forEach((role) => { %>
+<td class="command" id="role_<%= role.replace(/ /g, '_') %>">-</td>
+<% }); %>
 <tr>
-<td id="message" colspan="<%= roles.length %>">-</td>
+<td class="command" id="message" colspan="<%= roles.length %>">-</td>
 </table>
 
 <p>
