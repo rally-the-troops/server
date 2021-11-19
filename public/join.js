@@ -60,7 +60,7 @@ function start_event_source() {
 		evtsrc.addEventListener("game", function (evt) {
 			console.log("GAME:", evt.data);
 			game = JSON.parse(evt.data);
-			if (game.status > 0) {
+			if (game.status > 1) {
 				clearInterval(timer);
 				evtsrc.close();
 			}
@@ -147,7 +147,7 @@ function update() {
 
 window.onload = function () {
 	update();
-	if (game.status === 0) {
+	if (game.status < 2) {
 		start_event_source();
 		timer = setInterval(start_event_source, 15000);
 	}
