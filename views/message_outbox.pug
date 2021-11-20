@@ -1,0 +1,36 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Outbox
+		script.
+			function delete_all() {
+				let warning = "Are you sure you want to delete ALL the messages?";
+				if (window.confirm(warning))
+					window.location.href = "/outbox/delete";
+			}
+	body
+		include header
+		article
+			h1 Outbox
+
+			p
+				a(href="/message/send") Send message
+
+			table
+				tr
+					th From
+					th Subject
+					th Date
+				each row in messages
+					tr
+						td: a(href="/user/"+row.to_name)= row.to_name
+						td: a(href="/message/read/"+row.message_id)= row.subject
+						td= row.time
+				else
+					tr
+						td(colspan=3) No messages.
+
+			p
+				button(onclick="delete_all()") Delete all

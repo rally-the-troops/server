@@ -1,0 +1,58 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= game.title_name
+		style.
+			table { min-width: auto; }
+			th,td { min-width: 10em; }
+			table td a.red { text-decoration: none; color: brown; font-size: 14px; }
+			td a { text-decoration: underline; color: blue; }
+			.hide { display: none; }
+		script.
+			let game = !{ JSON.stringify(game) };
+			let roles = !{ JSON.stringify(roles) };
+			let players = !{ JSON.stringify(players) };
+			let user_id = !{ user.user_id };
+			let ready = !{ ready };
+		script(src="/join.js")
+	body
+		include header
+		article
+			h1= game.title_name
+			if flash
+				p.error#error= flash
+			else
+				p.error#error
+
+			a(href="/info/"+game.title_id): img.logo(src="/"+game.title_id+"/cover.jpg")
+
+			p
+				if game.private
+					| Owner: #{game.owner_name} (private)
+				else
+					| Owner: #{game.owner_name}
+				br
+				| Scenario: #{game.scenario}
+				br
+				| Options: #{game.options}
+
+			p= game.description || "No description."
+
+			br(clear="left")
+
+			p
+			table
+				tr
+					each role in roles
+						th.command(id="role_"+role.replace(/ /g, "_")+"_name")= role
+				tr
+					each role in roles
+						td.command(id="role_"+role.replace(/ /g, "_")) -
+				tr
+					td.command#message(colspan=roles.length) -
+
+			p
+				button.hide#delete_button(onclick="confirm_delete()") Delete
+				button.hide#start_button(onclick=`javascript:send('/start/${game.game_id}')` disabled) Start

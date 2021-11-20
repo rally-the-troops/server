@@ -80,7 +80,7 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
 
 app.set('x-powered-by', false);
 app.set('etag', false);
-app.set('view engine', 'ejs');
+app.set('view engine', 'pug');
 
 app.use(body_parser.urlencoded({extended:false}));
 app.use(session);
@@ -306,11 +306,11 @@ function must_be_logged_in(req, res, next) {
 }
 
 app.get('/', function (req, res) {
-	res.render('index.ejs', { user: req.user, titles: TITLES, flash: req.flash('message') });
+	res.render('index.pug', { user: req.user, titles: TITLES, flash: req.flash('message') });
 });
 
 app.get('/about', function (req, res) {
-	res.render('about.ejs', { user: req.user });
+	res.render('about.pug', { user: req.user });
 });
 
 app.get('/logout', function (req, res) {
@@ -323,14 +323,14 @@ app.get('/login', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
 	LOG(req, "GET /login");
-	res.render('login.ejs', { user: req.user, flash: req.flash('message') });
+	res.render('login.pug', { user: req.user, flash: req.flash('message') });
 });
 
 app.get('/signup', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
 	LOG(req, "GET /signup");
-	res.render('signup.ejs', { user: req.user, flash: req.flash('message') });
+	res.render('signup.pug', { user: req.user, flash: req.flash('message') });
 });
 
 app.post('/login',
@@ -355,7 +355,7 @@ app.post('/signup',
 
 app.get('/forgot_password', function (req, res) {
 	LOG(req, "GET /forgot_password");
-	res.render('forgot_password.ejs', { user: req.user, flash: req.flash('message') });
+	res.render('forgot_password.pug', { user: req.user, flash: req.flash('message') });
 });
 
 app.post('/forgot_password', function (req, res) {
@@ -377,20 +377,20 @@ app.post('/forgot_password', function (req, res) {
 
 app.get('/reset_password', function (req, res) {
 	LOG(req, "GET /reset_password");
-	res.render('reset_password.ejs', { user: null, mail: "", token: "", flash: req.flash('message') });
+	res.render('reset_password.pug', { user: null, mail: "", token: "", flash: req.flash('message') });
 });
 
 app.get('/reset_password/:mail', function (req, res) {
 	let mail = req.params.mail;
 	LOG(req, "GET /reset_password", mail);
-	res.render('reset_password.ejs', { user: null, mail: mail, token: "", flash: req.flash('message') });
+	res.render('reset_password.pug', { user: null, mail: mail, token: "", flash: req.flash('message') });
 });
 
 app.get('/reset_password/:mail/:token', function (req, res) {
 	let mail = req.params.mail;
 	let token = req.params.token;
 	LOG(req, "GET /reset_password", mail, token);
-	res.render('reset_password.ejs', { user: null, mail: mail, token: token, flash: req.flash('message') });
+	res.render('reset_password.pug', { user: null, mail: mail, token: token, flash: req.flash('message') });
 });
 
 app.post('/reset_password', function (req, res) {
@@ -419,7 +419,7 @@ app.post('/reset_password', function (req, res) {
 
 app.get('/change_password', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change_password");
-	res.render('change_password.ejs', { user: req.user, flash: req.flash('message') });
+	res.render('change_password.pug', { user: req.user, flash: req.flash('message') });
 });
 
 app.post('/change_password', must_be_logged_in, function (req, res) {
@@ -462,7 +462,7 @@ app.get('/unsubscribe', must_be_logged_in, function (req, res) {
 
 app.get('/change_name', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change_name");
-	res.render('change_name.ejs', { user: req.user, flash: req.flash('message') });
+	res.render('change_name.pug', { user: req.user, flash: req.flash('message') });
 });
 
 app.post('/change_name', must_be_logged_in, function (req, res) {
@@ -482,7 +482,7 @@ app.post('/change_name', must_be_logged_in, function (req, res) {
 
 app.get('/change_mail', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change_mail");
-	res.render('change_mail.ejs', { user: req.user, flash: req.flash('message') });
+	res.render('change_mail.pug', { user: req.user, flash: req.flash('message') });
 });
 
 app.post('/change_mail', must_be_logged_in, function (req, res) {
@@ -503,7 +503,7 @@ app.post('/change_mail', must_be_logged_in, function (req, res) {
 app.get('/change_about', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change_about");
 	let about = SQL_SELECT_USER_PROFILE.get(req.user.name).about;
-	res.render('change_about.ejs', { user: req.user, about: about || "" });
+	res.render('change_about.pug', { user: req.user, about: about || "" });
 });
 
 app.post('/change_about', must_be_logged_in, function (req, res) {
@@ -519,13 +519,13 @@ app.get('/user/:who_name', function (req, res) {
 		who.avatar = get_avatar(who.mail);
 		who.ctime = human_date(who.ctime);
 		who.atime = human_date(who.atime);
-		res.render('user.ejs', { user: req.user, who: who });
+		res.render('user.pug', { user: req.user, who: who });
 	} else {
 		return res.status(404).send("Invalid user name.");
 	}
 });
 
-app.get('/users', function (req, res) {
+app.get('/user_list', function (req, res) {
 	LOG(req, "GET /users");
 	let rows = db.prepare("SELECT * FROM user_profile_view ORDER BY atime DESC").all();
 	rows.forEach(row => {
@@ -533,19 +533,19 @@ app.get('/users', function (req, res) {
 		row.ctime = human_date(row.ctime);
 		row.atime = human_date(row.atime);
 	});
-	res.render('users.ejs', { user: req.user, userList: rows });
+	res.render('user_list.pug', { user: req.user, user_list: rows });
 });
 
 app.get('/chat', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /chat");
 	let chat = SQL_SELECT_USER_CHAT_N.all(req.user.user_id, 12*20);
-	res.render('chat.ejs', { user: req.user, chat: chat, page_size: 12 });
+	res.render('chat.pug', { user: req.user, chat: chat, page_size: 12 });
 });
 
 app.get('/chat/all', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /chat/all");
 	let chat = SQL_SELECT_USER_CHAT.all(req.user.user_id);
-	res.render('chat.ejs', { user: req.user, chat: chat, page_size: 0 });
+	res.render('chat.pug', { user: req.user, chat: chat, page_size: 0 });
 });
 
 /*
@@ -577,7 +577,7 @@ app.get('/inbox', must_be_logged_in, function (req, res) {
 	for (let i = 0; i < messages.length; ++i)
 		messages[i].time = human_date(messages[i].time);
 	res.set("Cache-Control", "no-store");
-	res.render('message_inbox.ejs', {
+	res.render('message_inbox.pug', {
 		user: req.user,
 		messages: messages,
 	});
@@ -589,7 +589,7 @@ app.get('/outbox', must_be_logged_in, function (req, res) {
 	for (let i = 0; i < messages.length; ++i)
 		messages[i].time = human_date(messages[i].time);
 	res.set("Cache-Control", "no-store");
-	res.render('message_outbox.ejs', {
+	res.render('message_outbox.pug', {
 		user: req.user,
 		messages: messages,
 	});
@@ -607,14 +607,14 @@ app.get('/message/read/:message_id', must_be_logged_in, function (req, res) {
 	}
 	message.time = human_date(message.time);
 	message.body = linkify_post(message.body);
-	res.render('message_read.ejs', {
+	res.render('message_read.pug', {
 		user: req.user,
 		message: message,
 	});
 });
 
 app.get('/message/send', must_be_logged_in, function (req, res) {
-	res.render('message_send.ejs', {
+	res.render('message_send.pug', {
 		user: req.user,
 		to_name: "",
 		subject: "",
@@ -625,7 +625,7 @@ app.get('/message/send', must_be_logged_in, function (req, res) {
 app.get('/message/send/:to_name', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /message/send/" + req.params.to_name);
 	let to_name = req.params.to_name;
-	res.render('message_send.ejs', {
+	res.render('message_send.pug', {
 		user: req.user,
 		to_name: to_name,
 		subject: "",
@@ -640,7 +640,7 @@ app.post('/message/send', must_be_logged_in, function (req, res) {
 	let body = req.body.body.trim();
 	let to_user = SQL_SELECT_USER_BY_NAME.get(to_name);
 	if (!to_user) {
-		return res.render('message_send.ejs', {
+		return res.render('message_send.pug', {
 			user: req.user,
 			to_id: 0,
 			to_name: to_name,
@@ -668,7 +668,7 @@ app.get('/message/reply/:message_id', must_be_logged_in, function (req, res) {
 	let message = MESSAGE_FETCH.get(message_id, req.user.user_id, req.user.user_id);
 	if (!message)
 		return res.status(404).send("Invalid message ID.");
-	return res.render('message_send.ejs', {
+	return res.render('message_send.pug', {
 		user: req.user,
 		to_id: message.from_id,
 		to_name: message.from_name,
@@ -715,7 +715,7 @@ function show_forum_page(req, res, page) {
 		thread.mtime = human_date(thread.mtime);
 	}
 	res.set("Cache-Control", "no-store");
-	res.render('forum_view.ejs', {
+	res.render('forum_view.pug', {
 		user: req.user,
 		threads: threads,
 		current_page: page,
@@ -757,7 +757,7 @@ app.get('/forum/thread/:thread_id', function (req, res) {
 		posts[i].mtime = human_date(posts[i].mtime);
 	}
 	res.set("Cache-Control", "no-store");
-	res.render('forum_thread.ejs', {
+	res.render('forum_thread.pug', {
 		user: req.user,
 		thread: thread,
 		posts: posts,
@@ -766,7 +766,7 @@ app.get('/forum/thread/:thread_id', function (req, res) {
 
 app.get('/forum/post', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /forum/post");
-	res.render('forum_post.ejs', {
+	res.render('forum_post.pug', {
 		user: req.user,
 	});
 });
@@ -792,7 +792,7 @@ app.get('/forum/edit/:post_id', must_be_logged_in, function (req, res) {
 		return res.status(404).send("Invalid post ID.");
 	post.ctime = human_date(post.ctime);
 	post.mtime = human_date(post.mtime);
-	res.render('forum_edit.ejs', {
+	res.render('forum_edit.pug', {
 		user: req.user,
 		post: post,
 	});
@@ -818,7 +818,7 @@ app.get('/forum/reply/:post_id', must_be_logged_in, function (req, res) {
 	post.edited = post.mtime !== post.ctime;
 	post.ctime = human_date(post.ctime);
 	post.mtime = human_date(post.mtime);
-	res.render('forum_reply.ejs', {
+	res.render('forum_reply.pug', {
 		user: req.user,
 		thread: thread,
 		post: post,
@@ -841,6 +841,8 @@ app.post('/forum/reply/:thread_id', must_be_logged_in, function (req, res) {
 let TITLES = {};
 let RULES = {};
 let ROLES = {};
+let HTML_ABOUT = {};
+let HTML_CREATE = {};
 
 function load_rules() {
 	const SQL_SELECT_TITLES = SQL("SELECT * FROM titles");
@@ -853,6 +855,8 @@ function load_rules() {
 				TITLES[title_id] = title;
 				RULES[title_id] = require("./public/" + title_id + "/rules.js");
 				ROLES[title_id] = SQL_SELECT_TITLE_ROLES.all(title_id);
+				HTML_ABOUT[title_id] = fs.readFileSync("./public/" + title_id + "/about.html");
+				HTML_CREATE[title_id] = fs.readFileSync("./public/" + title_id + "/create.html");
 			} catch (err) {
 				console.log(err);
 			}
@@ -995,7 +999,7 @@ function annotate_games(games, user_id) {
 }
 
 app.get('/games', function (req, res) {
-	LOG(req, "GET /join");
+	LOG(req, "GET /games");
 	let open_games = QUERY_LIST_GAMES.all(0);
 	let active_games = QUERY_LIST_GAMES.all(1);
 	if (req.user) {
@@ -1006,7 +1010,7 @@ app.get('/games', function (req, res) {
 		annotate_games(active_games, 0);
 	}
 	res.set("Cache-Control", "no-store");
-	res.render('games.ejs', {
+	res.render('games.pug', {
 		user: req.user,
 		open_games: open_games,
 		active_games: active_games,
@@ -1022,7 +1026,7 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 	let active_games = games.filter(game => game.status === 1);
 	let finished_games = games.filter(game => game.status === 2);
 	res.set("Cache-Control", "no-store");
-	res.render('profile.ejs', {
+	res.render('profile.pug', {
 		user: req.user,
 		avatar: avatar,
 		open_games: open_games,
@@ -1044,9 +1048,10 @@ app.get('/info/:title_id', function (req, res) {
 	annotate_games(open_games, req.user ? req.user.user_id : 0);
 	annotate_games(active_games, req.user ? req.user.user_id : 0);
 	annotate_games(finished_games, req.user ? req.user.user_id : 0);
-	res.render('info.ejs', {
+	res.render('info.pug', {
 		user: req.user,
 		title: title,
+		about_html: HTML_ABOUT[title_id],
 		open_games: open_games,
 		active_games: active_games,
 		finished_games: finished_games,
@@ -1059,10 +1064,11 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 	let title = TITLES[title_id];
 	if (!title)
 		return res.status(404).send("Invalid title.");
-	res.render('create.ejs', {
+	res.render('create.pug', {
 		user: req.user,
 		title: title,
 		scenarios: RULES[title_id].scenarios,
+		create_html: HTML_CREATE[title_id],
 		flash: req.flash('message')
 	});
 });
@@ -1201,7 +1207,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
 	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, game.options, players);
 	res.set("Cache-Control", "no-store");
-	res.render('join.ejs', {
+	res.render('join.pug', {
 		user: req.user,
 		game: game,
 		roles: roles,
@@ -1479,7 +1485,8 @@ function notify_your_turn_reminder() {
 function notify_ready_to_start_reminder() {
 	for (let game of SQL_SELECT_OPEN_GAMES.all()) {
 		let players = SQL_SELECT_PLAYERS.all(game.game_id);
-		if (RULES[game.title_id].ready(game.scenario, game.options, players)) {
+		let rules = RULES[game.title_id];
+		if (rules && rules.ready(game.scenario, game.options, players)) {
 			let owner = SQL_OFFLINE_USER.get(game.owner_id, '+3 minutes');
 			if (owner) {
 				if (owner.notify)
@@ -1746,7 +1753,7 @@ const QUERY_STATS = db.prepare("SELECT * FROM game_stat_view");
 app.get('/stats', function (req, res) {
 	LOG(req, "GET /stats");
 	let stats = QUERY_STATS.all();
-	res.render('stats.ejs', {
+	res.render('stats.pug', {
 		user: req.user,
 		stats: stats,
 		title_role_map: ROLES,

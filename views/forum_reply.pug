@@ -1,0 +1,39 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= thread.subject
+		style.
+			input, textarea { width: min(45rem,100%) }
+			table { max-width: 50em; }
+			table .author { border-right: none; }
+			table .time { border-left: none; font-weight: normal; }
+			table .command { border: none; }
+	body
+		include header
+		article
+			h1= thread.subject
+
+			table
+				tr
+					th.author: a(href="/user/"+post.author_name)= post.author_name
+					th.r.time= post.ctime
+						if post.edited
+							|
+							| (edited #{post.mtime})
+				tr
+					td.body(colspan=2)!= post.body
+
+			form(method="post" action="/forum/reply/"+thread.thread_id)
+				p Reply:
+					br
+					textarea(
+						name="body"
+						rows=15
+						cols=80
+						maxlength=32000
+						required
+					)
+				p
+					button(type="submit") Submit

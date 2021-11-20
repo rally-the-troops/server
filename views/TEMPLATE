@@ -1,0 +1,13 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title TITLE
+	body
+		include header
+		article
+			h1 TITLE
+			if flash
+				p.error= flash
+

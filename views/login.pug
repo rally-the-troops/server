@@ -1,0 +1,29 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Login
+	body
+		include header
+		article
+			h1 Login
+			if flash
+				p.error= flash
+
+			if user
+				p You're already logged in!
+			else
+				form(method="post" action="/login")
+					p
+						label Name or mail:
+							br
+							input(type="text" id="username" name="username" required)
+					p
+						label Password:
+							br
+							input(type="password" id="password" name="password" required)
+					p
+						button(type="submit") Login
+				p
+					a(href="/forgot_password") Forgot password

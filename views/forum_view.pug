@@ -1,0 +1,41 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Forum
+		meta(http-equiv="refresh" content=900)
+		style tfoot { background-color: gainsboro }
+	body
+		include header
+		article
+			h1 Forum
+
+			table
+				tr
+					th Subject
+					th Author
+					th Replies
+					th Time
+				each row in threads
+					tr
+						td: a(href="/forum/thread/"+row.thread_id)= row.subject
+						td: a(href="/forum/thread/"+row.author_name)= row.author_name
+						td= row.replies
+						td= row.mtime
+				tfoot: tr: td(colspan=4)
+					if current_page > 1
+						| #[a(href="/forum/page/"+(current_page-1)) &#x2190;]
+						|
+					- for (let p=1; p<=page_count && p<=30; ++p)
+						if p === current_page
+							| (#{p})
+							|
+						else
+							| #[a(href="/forum/page/"+p)= p]
+							|
+					if current_page < page_count
+						| #[a(href="/forum/page/"+(current_page+1)) &#x2192;]
+
+			if user
+				p: a(href="/forum/post") New thread

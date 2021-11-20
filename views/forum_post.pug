@@ -1,0 +1,44 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title New Thread
+		style.
+			input, textarea { width: min(45rem,100%) }
+		script.
+			function next(event,sel) {
+				if (event.keyCode === 13) {
+					document.querySelector(sel).focus();
+					return false;
+				}
+				return true;
+			}
+	body
+		include header
+		article
+			h1 New Thread
+			form(method="post" action="/forum/post")
+				p Subject:
+					br
+					input(
+						type="text"
+						name="subject"
+						size=80
+						maxlength=80
+						required
+						pattern=".*\\S+.*"
+						autofocus
+						onkeypress="return next(event,'textarea')"
+					)
+				p Body:
+					br
+					textarea(
+						name="body"
+						rows=20
+						cols=80
+						maxlength=32000
+						required
+					)
+				p
+					button(type="submit") Submit

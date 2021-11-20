@@ -1,0 +1,45 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Game Statistics
+		style.
+			table { table-layout: fixed; min-width: auto; }
+			td:nth-child(1) { width: 240px; }
+			td { width: 100px; }
+			tr.blank { height: 2rem; border: none; }
+	body
+		include header
+		article
+			h1 Game Statistics
+			table
+				-
+					function total(t,s) {
+						return stats
+							.filter(entry => entry.title_id === t && entry.scenario === s)
+							.reduce((acc, entry) => acc + entry.count, 0);
+					}
+					function result(t,s,r) {
+						let info = stats.find(entry => entry.title_id === t && entry.scenario === s && entry.result === r);
+						return info ? info.count : 0;
+					}
+				each title_name, title_id in title_name_map
+					unless title_name_map[title_id].hidden
+						- let scenarios = title_rule_map[title_id].scenarios;
+						- let roles = title_role_map[title_id].concat(["Draw"]);
+						tr
+							th= title_name_map[title_id].title_name
+							each role in roles
+								th= role
+						each scenario in scenarios
+							- let t = total(title_id, scenario);
+							tr
+								td #{scenario} (#{t})
+								each role in roles
+									if t > 0
+										-let r = result(title_id, scenario, role);
+										td= Math.round(r * 100 / t) + "%"
+									else
+										td -
+						tr.blank

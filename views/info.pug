@@ -1,0 +1,32 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= title.title_name
+		if user
+			meta(http-equiv="refresh" content=300)
+	body
+		include header
+		article
+			h1= title.title_name
+
+			img.logo(src="/"+title.title_id+"/cover.jpg")
+
+			| !{ about_html }
+
+			p Read more about the game on #[a(href="https://boardgamegeek.com/boardgame/"+title.bgg) boardgamegeek.com].
+
+			h2 Open games
+			+gametable(0,open_games,1)
+
+			p
+				a(href="/create/"+title.title_id) Create a new game
+
+			if active_games.length > 0
+				h2 Active games
+				+gametable(1,active_games,1)
+
+			if finished_games.length > 0
+				h2 Finished games
+				+gametable(2,finished_games,1)

@@ -1,0 +1,49 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Rally the Troops!
+		style.
+			div.list {
+				max-width: 800px;
+				display: flex;
+				flex-wrap: wrap;
+				justify-content: left;
+			}
+			div.list div {
+				margin: 10px 5px;
+				text-align: center;
+			}
+			div.list a:not(:hover) {
+				color: black;
+				text-decoration: none;
+			}
+			div.list img {
+				box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5);
+				height: 200px;
+				margin: 5px 10px;
+				display: block;
+			}
+	body
+		include header
+		article
+			h1 Rally the Troops!
+			if flash
+				p.error= flash
+
+			p Rally the Troops! is a website where you can play historic games with other players.
+
+			p Registration and use is free, and there are no ads.
+
+			div.list
+				each title in titles
+					unless title.hidden
+						div
+							a(href="/info/"+title.title_id)
+								img(src="/"+title.title_id+"/cover.jpg")
+								| #{title.title_name}
+
+			p: a(href="/games") List of all open and active games.
+
+			p Join the #[a(href="https://discord.gg/CBrTh8k84A") Discord] server to find players or report bugs.

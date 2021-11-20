@@ -1,0 +1,23 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= who.name
+	body
+		include header
+		article
+			h1= who.name
+
+			img.avatar(src=who.avatar width=80 height=80)
+
+			if who.about
+				p(style="white-space:pre-wrap;font-style:italic")= who.about
+			else
+				br(clear="left")
+
+			p Member since #{who.ctime}.
+			p Last seen #{who.atime}.
+			if user
+				p
+					a(href="/message/send/"+who.name) Send message

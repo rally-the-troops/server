@@ -1,0 +1,40 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= title.title_name
+		style.
+			form { margin-left: 170px; }
+	body
+		include header
+		article
+			h1= title.title_name
+			if flash
+				p.error= flash
+
+			a(href="/info/"+title.title_id): img.logo(src="/"+title.title_id+"/cover.jpg")
+
+			form(method="post" action="/create/"+title.title_id)
+				if scenarios.length > 1
+					p Scenario:
+						br
+						select(name="scenario")
+							each scenario in scenarios
+								option(value=scenario)= scenario
+				else
+					input(type="hidden" name="scenario" value=scenarios[0])
+				| !{ create_html }
+				p Description:
+					br
+					input(type="text" autocomplete="off" name="description" size=50)
+				p
+					label
+						input(type="checkbox" name="random" value="true")
+						| Random player roles
+				p
+					label
+						input(type="checkbox" name="private" value="true")
+						| Private
+				p
+				button(type="submit") Create

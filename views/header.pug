@@ -1,0 +1,15 @@
+header
+	a(href="/")
+		img(src="/images/rally-the-troops.svg" width=48 height=48)
+	nav
+		a(href="/about") About
+		a(href="/forum") Forum
+		if user
+			if user.unread > 0
+				a(href="/inbox") Inbox (#{user.unread})
+			else
+				a(href="/inbox") Inbox
+			a(href="/profile") Profile (#{user.name})
+		else
+			a(href="/signup") Signup
+			a(href="/login") Login

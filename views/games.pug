@@ -1,0 +1,18 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Public Games
+		if user
+			meta(http-equiv="refresh" content=300)
+	body
+		include header
+		article
+			h1 Public Games
+
+			h2 Open
+			+gametable(0, open_games)
+
+			h2 Active
+			+gametable(1, active_games)

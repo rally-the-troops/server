@@ -1,0 +1,68 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Send Message
+		style.
+			input, textarea { width: min(45rem,100%) }
+		script.
+			function next(event,sel) {
+				if (event.keyCode === 13) {
+					document.querySelector(sel).focus();
+					return false;
+				}
+				return true;
+			}
+
+	body
+		include header
+		article
+			h1 Send Message
+			form(method="post" action="/message/send")
+
+				p To:
+					br
+					input(
+						id="to"
+						type="text"
+						name="to"
+						required
+						size=80
+						maxlength=80
+						value=to_name
+						onpress="return next(event,'#subject')"
+						autofocus=(to_name === "")
+					)
+
+				p Subject:
+					br
+					input(
+						id="subject"
+						type="text"
+						name="subject"
+						required
+						size=80
+						maxlength=80
+						pattern=".*\\S+.*"
+						value=subject
+						onpress="return next(event,'#body')"
+						autofocus=(to_name !== "" && subject === "")
+					)
+
+				p Body:
+					br
+					textarea(
+						id="body"
+						name="body"
+						required
+						cols=80
+						rows=20
+						maxlength=32000
+						autofocus=(to_name !== "" && subject !== "")
+					)
+						|
+						| #{body}
+
+				p
+					button(type="submit") Send

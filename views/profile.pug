@@ -1,0 +1,49 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Rally the Troops!
+		if active_games.length > 0
+			meta(http-equiv="refresh" content=300)
+	body
+		include header
+		article
+			h1 Rally the Troops!
+			a(href="https://gravatar.com/"): img.avatar(src=avatar)
+
+			p Welcome, #{user.name}!
+			p Your mail address is #{user.mail}
+			br(clear="left")
+
+			p
+			if user.notify
+				| &#xbb; <a href="/unsubscribe">Disable mail notifications</a>
+			else
+				| &#xbb; <a href="/subscribe">Enable mail notifications</a>
+			br
+			| &#xbb;
+			| Change
+			| <a href="/change_password">password</a>,
+			| <a href="/change_mail">mail address</a>,
+			| <a href="/change_name">name</a>,
+			| or <a href="/change_about">profile text</a>.
+			br
+			| &#xbb; <a href="/chat">Chat log</a>
+			br
+			| &#xbb; <a href="/logout">Logout</a>
+
+			if open_games.length > 0
+				h2 Open games
+				+gametable(0,open_games)
+
+			if active_games.length > 0
+				h2 Active games
+				+gametable(1,active_games)
+
+			if finished_games.length > 0
+				h2 Finished games
+				+gametable(2,finished_games)
+
+			if open_games.length === 0 && active_games.length === 0 && finished_games.length === 0
+				p You don't have any current or finished games.

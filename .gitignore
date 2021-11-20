@@ -1,7 +1,11 @@
 package-lock.json
 node_modules
 db
+db-wal
+db-shm
 sessions
+sessions-wal
+sessions-shm
 log
 .env
 *.pem

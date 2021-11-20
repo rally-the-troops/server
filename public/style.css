@@ -26,6 +26,7 @@ header img {
 	margin: 4px 0 -2px 2px;
 }
 header nav a { margin: 0 1em; color: black; }
+header nav a:hover { color: blue; }
 article { margin: 2em; }
 article p, article dl, article ul { max-width: 50rem; }
 
@@ -43,17 +44,35 @@ img.logo {
 	height: 200px;
 }
 
-table { min-width: min(50rem,100%); }
-table { border-collapse: collapse; }
-th { text-align: left; background-color: gainsboro; }
-th, td { border: 1px solid black; padding: 3px 1ex; }
-th a:not(:hover), td:not(.command) a:not(:hover) { text-decoration: none; }
-td.body { white-space: pre-wrap; padding: 10px 10px; }
+table {
+	min-width: min(50rem,100%);
+	border-collapse: collapse;
+}
+th, td {
+	border: 1px solid black;
+	padding: 3px 1ex;
+}
+th {
+	text-align: left;
+	background-color: gainsboro;
+}
+td.body {
+	white-space: pre-wrap;
+	padding: 10px 10px;
+}
+table a:not(:hover) { text-decoration: none; color: black; }
+table td.command a { text-decoration: underline; color: blue; }
 
+input[type="checkbox"] {
+	margin-right: 7px;
+}
 input[type="text"], input[type="password"], textarea {
 	padding: 5px;
 	margin: 5px 0;
 	border: 1px solid black;
+}
+input:focus {
+	outline: 2px solid lightsteelblue;
 }
 button, select {
 	margin: 5px 10px 5px 0;

@@ -1,0 +1,31 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Signup
+	body
+		include header
+		article
+			h1 Signup
+			if flash
+				p.error= flash
+
+			if user
+				p You're already logged in!
+			else
+				form(method="post" action="/signup")
+					p
+						label Name:
+							br
+							input(type="text" id="username" name="username" required)
+					p
+						label Mail:
+							br
+							input(type="text" id="mail" name="mail" required)
+					p
+						label Password:
+							br
+							input(type="password" id="password" name="password" required)
+					p
+						button(type="submit") Create account

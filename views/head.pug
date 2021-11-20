@@ -1,0 +1,67 @@
+//- vim:ts=4:sw=4:
+
+meta(name="viewport" content="width=device-width,height=device-height,initial-scale=1")
+link(rel="icon" href="/favicon.svg")
+link(rel="stylesheet" href="/fonts/fonts.css")
+link(rel="stylesheet" href="/style.css")
+
+mixin gametable(status,table,hide_title=0)
+	table
+		tr
+			th ID
+			unless hide_title
+				th Title
+			th Scenario
+			th Players
+			th Description
+			case status
+				when 0
+					th Created
+				when 1
+					th Changed
+					th Turn
+				when 2
+					th Finished
+					th Result
+			th
+		each row in table
+			tr
+				td= row.game_id
+				unless hide_title
+					td.w: a(href="/info/"+row.title_id)= row.title_name
+				td.w= row.scenario
+				td!= row.player_names
+				td= row.description
+				case status
+					when 0
+						td.w= row.ctime
+					when 1
+						td.w= row.mtime
+						if (row.is_active)
+							td.is_active= row.active
+						else
+							td= row.active
+					when 2
+						td.w= row.mtime
+						td= row.result
+				td.command
+					if status === 0
+						a(href="/join/"+row.game_id) Join
+					else
+						- let cmd = status === 1 ? "Play" : "View"
+						if row.is_yours
+							if row.is_shared
+								a(href="/join/"+row.game_id)= cmd
+							else
+								a(href=`/${row.title_id}/play:${row.game_id}:${row.your_role}`)= cmd
+						else
+							a(href=`/${row.title_id}/play:${row.game_id}`) View
+		else
+			tr
+				case status
+					when 0
+						td(colspan=7-hide_title) No open games.
+					when 1
+						td(colspan=8-hide_title) No active games.
+					when 2
+						td(colspan=8-hide_title) No finished games.

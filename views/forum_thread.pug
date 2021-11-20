@@ -1,0 +1,37 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= thread.subject
+		style.
+			table { max-width: 50em; }
+			table .author { border-right: none; }
+			table .time { border-left: none; font-weight: normal; }
+			table .command { border: none; }
+	body
+		include header
+		article
+			h1= thread.subject
+
+			each row in posts
+				p
+				table
+					tr
+						th.author: a(href="/user/"+row.author_name)= row.author_name
+						th.r.time= row.ctime
+							if row.edited
+								|
+								| (edited #{row.mtime})
+					tr
+						td.body(colspan=2)!= row.body
+					if user
+						tr
+							td.r.command(colspan=2)
+								if row.author_id === user.user_id
+									| #[a(href="/forum/edit/"+row.post_id) Edit]
+									|
+								| #[a(href="/forum/reply/"+row.post_id) Reply]
+
+			if user
+				p: a(href="/forum/reply/"+posts[0].post_id) Reply

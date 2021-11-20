@@ -1,0 +1,25 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Edit Post
+		style.
+			input, textarea { width: min(45rem,100%) }
+	body
+		include header
+		article
+			h1 Edit Post
+
+			form(method="post" action="/forum/edit/"+post.post_id)
+				textarea(
+					name="body"
+					rows=20
+					cols=80
+					maxlength=32000
+					required
+				)
+					|
+					| #{post.body}
+				p
+					button(type="submit") Submit

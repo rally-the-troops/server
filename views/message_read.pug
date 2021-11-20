@@ -1,0 +1,38 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= message.subject
+		style th { font-weight: normal; width: 4em; }
+		script.
+			function delete_message(id) {
+				let warning = "Are you sure you want to DELETE this message?";
+				if (window.confirm(warning))
+					window.location.href = "/message/delete/" + id;
+			}
+			function reply_message(id) {
+				window.location.href = "/message/reply/" + id;
+			}
+	body
+		include header
+		article
+			h1= message.subject
+
+			table
+				tr
+					th From:
+					td: a(href="/user/"+message.from_name)= message.from_name
+				tr
+					th To:
+					td: a(href="/user/"+message.to_name)= message.to_name
+				tr
+					th Date:
+					td= message.time
+				tr
+					td.body(colspan=2)!= message.body
+
+			p
+				if message.from_id !== user.user_id
+					button(onclick="reply_message("+message.message_id+")") Reply
+				button(onclick="delete_message("+message.message_id+")") Delete

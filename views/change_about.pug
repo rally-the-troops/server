@@ -1,0 +1,27 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Change profile text
+		style.
+			input, textarea { width: min(45rem,100%) }
+	body
+		include header
+		article
+			h1 Change profile text
+			form(method="post" action="/change_about")
+				p Name: #{user.name}
+				p Mail: #{user.mail}
+				p
+					textarea(
+						name="about"
+						rows=20
+						cols=80
+						maxlength=32000
+						autofocus
+						)
+						|
+						| #{about}
+				p
+					button(type="submit") Submit
