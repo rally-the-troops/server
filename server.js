@@ -201,7 +201,7 @@ const SQL_UPDATE_USER_NOTIFY = SQL("UPDATE users SET notify=? WHERE user_id=?");
 const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?");
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?");
 const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?");
-const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=? WHERE user_id=?");
+const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?");
 const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime,aip) VALUES (?,datetime('now'),?)");
 
 const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND datetime('now') < datetime(time, '+5 minutes')").pluck();
@@ -411,8 +411,9 @@ app.post('/reset_password', function (req, res) {
 		req.flash('message', "Invalid or expired token!");
 		return res.redirect('/reset_password/'+mail);
 	}
-	let hash = hash_password(password, user.salt);
-	SQL_UPDATE_USER_PASSWORD.run(hash, user.user_id);
+	let salt = crypto.randomBytes(32).toString('hex');
+	let hash = hash_password(password, salt);
+	SQL_UPDATE_USER_PASSWORD.run(hash, salt, user.user_id);
 	return res.redirect('/login');
 });
 
@@ -436,8 +437,9 @@ app.post('/change_password', must_be_logged_in, function (req, res) {
 		req.flash('message', "Wrong password.");
 		return res.redirect('/change_password');
 	}
-	let newhash = hash_password(newpass, user.salt);
-	SQL_UPDATE_USER_PASSWORD.run(newhash, user.user_id);
+	let salt = crypto.randomBytes(32).toString('hex');
+	let hash = hash_password(newpass, salt);
+	SQL_UPDATE_USER_PASSWORD.run(hash, salt, user.user_id);
 	req.flash('message', "Your password has been updated.");
 	return res.redirect('/profile');
 });
