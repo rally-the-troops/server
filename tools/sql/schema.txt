@@ -246,6 +246,15 @@ CREATE VIEW your_turn_reminder AS
 		AND datetime('now') > datetime(mtime, '+1 hour')
 	;
 
+DROP VIEW IF EXISTS your_turn;
+CREATE VIEW your_turn AS
+	SELECT game_id, user_id, role
+	FROM players
+	JOIN games USING(game_id)
+	JOIN game_state USING(game_id)
+	WHERE status=1 AND active IN ( 'All', 'Both', role )
+	;
+
 DROP TRIGGER IF EXISTS no_part_on_active_game;
 CREATE TRIGGER no_part_on_active_game BEFORE DELETE ON players
 BEGIN
