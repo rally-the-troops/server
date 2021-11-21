@@ -5,6 +5,21 @@ link(rel="icon" href="/favicon.svg")
 link(rel="stylesheet" href="/fonts/fonts.css")
 link(rel="stylesheet" href="/style.css")
 
+mixin forumpost(row,show_buttons)
+	.post
+		.from: a(href="/user/"+row.author_name)= row.author_name
+		.time= row.ctime
+			if row.edited
+				|
+				| (edited #{row.mtime})
+		.body!= row.body
+		if show_buttons && user
+			.edit
+				if row.author_id === user.user_id
+					| #[a(href="/forum/edit/"+row.post_id) Edit]
+					|
+				| #[a(href="/forum/reply/"+row.post_id) Reply]
+
 mixin gametable(status,table,hide_title=0)
 	table
 		tr

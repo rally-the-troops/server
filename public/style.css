@@ -61,7 +61,8 @@ td.body {
 	padding: 10px 10px;
 }
 table a:not(:hover) { text-decoration: none; color: black; }
-table td.command a { text-decoration: underline; color: blue; }
+td.command a { text-decoration: underline; color: blue; }
+td.is_active { background-color: lemonchiffon; }
 
 input[type="checkbox"] {
 	margin-right: 7px;
@@ -92,10 +93,47 @@ button:disabled {
 	outline: 1px solid gray;
 }
 
-td.is_active { background-color: lemonchiffon; }
 p.error { color: brown; font-style: italic; white-space: pre-wrap; }
 p.warning { color: brown; }
 p.warning::before { content: "\26a0"; }
+
+div.post {
+	margin-bottom: 2em;
+	max-width: 50em;
+	display: grid;
+	grid-template:
+		"from time" auto
+		"body body" 1fr
+		"xxxx edit" auto
+		/ 1fr auto
+}
+div.post div.from {
+	grid-area: from;
+	background-color: gainsboro;
+	padding: 5px 10px;
+	border-top: 1px solid black;
+	border-left: 1px solid black;
+	font-weight: bold;
+}
+div.post div.time {
+	grid-area: time;
+	background-color: gainsboro;
+	padding: 5px;
+	border-top: 1px solid black;
+	border-right: 1px solid black;
+}
+div.post div.body {
+	grid-area: body;
+	border: 1px solid black;
+	padding: 15px;
+	white-space: pre-wrap;
+}
+div.post div.edit{
+	grid-area: edit;
+	padding: 5px;
+	text-align:right;
+}
+div.post div.from a:not(:hover) {color:black;text-decoration:none}
 
 article hr { max-width: 50rem; margin-right: auto; margin-left: 0; }
 article hr { border: none; border-top: 2px dotted brown; }
