@@ -1364,7 +1364,7 @@ app.get('/:title_id/play\::game_id', function (req, res) {
  */
 
 const MAIL_FROM = process.env.MAIL_FROM || "Rally the Troops! <notifications@rally-the-troops.com>";
-const MAIL_FOOTER = "You can unsubscribe from notifications on your profile page:\n\nhttps://rally-the-troops.com/profile\n";
+const MAIL_FOOTER = "You can unsubscribe from notifications on your profile page:\nhttps://rally-the-troops.com/profile\n";
 
 const SQL_SELECT_NOTIFIED = SQL("SELECT datetime('now') < datetime(time,?) FROM last_notified WHERE game_id=? AND user_id=?").pluck();
 const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,datetime('now'))");
@@ -1404,9 +1404,9 @@ function mail_password_reset_token(user, token) {
 function mail_new_message(user, msg_id, msg_from, msg_subject, msg_body) {
 	let subject = "You have a new message from " + msg_from + ".";
 	let body = "Subject: " + msg_subject + "\n\n" +
-		msg_body + "\n\n" +
-		"https://rally-the-troops.com/message/read/" + msg_id + "\n\n" +
-		MAIL_FOOTER;
+		msg_body + "\n\n--\n" +
+		"You can reply to this message at:\n"
+		"https://rally-the-troops.com/message/read/" + msg_id + "\n\n";
 	console.log("SENT MAIL:", mail_addr(user), subject);
 	if (mailer)
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
@@ -1420,7 +1420,7 @@ function mail_your_turn_notification(user, game_id, interval) {
 		let subject = game.title_name + " - " + game_id + " - Your turn!";
 		let body = mail_describe(game) +
 			"It's your turn.\n\n" +
-			"https://rally-the-troops.com/play/" + game_id + "\n\n" +
+			"https://rally-the-troops.com/play/" + game_id + "\n\n--\n" +
 			MAIL_FOOTER;
 		console.log("SENT MAIL:", mail_addr(user), subject);
 		if (mailer)
@@ -1440,7 +1440,7 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 		let subject = game.title_name + " - " + game_id + " - Ready to start!";
 		let body = mail_describe(game) +
 			"Your game is ready to start.\n\n" +
-			"https://rally-the-troops.com/join/" + game_id + "\n\n" +
+			"https://rally-the-troops.com/join/" + game_id + "\n\n--\n" +
 			MAIL_FOOTER;
 		console.log("SENT MAIL:", mail_addr(user), subject);
 		if (mailer)
