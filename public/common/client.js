@@ -9,8 +9,8 @@ if (!/\/[\w-]+\/play:\d+(:[\w-]+)?/.test(window.location.pathname)) {
 }
 
 const param_title_id = window.location.pathname.split("/")[1];
-const param_game_id = window.location.pathname.split("/")[2].split(":")[1] | 0;
-const param_role = window.location.pathname.split("/")[2].split(":")[2] || "Observer";
+const param_game_id = decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[1] | 0;
+const param_role = decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[2] || "Observer";
 
 let game = null;
 let game_over = false;
