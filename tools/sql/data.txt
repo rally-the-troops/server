@@ -20,7 +20,7 @@ INSERT OR REPLACE INTO titles VALUES ( 'richard-iii', 'Richard III', 25277, 0 );
 INSERT OR REPLACE INTO roles VALUES ( 'richard-iii', 'York' );
 INSERT OR REPLACE INTO roles VALUES ( 'richard-iii', 'Lancaster' );
 
-INSERT OR REPLACE INTO titles VALUES ( 'shores-of-tripoli', 'The Shores of Tripoli', 237860, 0 );
+INSERT OR REPLACE INTO titles VALUES ( 'shores-of-tripoli', 'Shores of Tripoli', 237860, 0 );
 INSERT OR REPLACE INTO roles VALUES ( 'shores-of-tripoli', 'Tripolitania' );
 INSERT OR REPLACE INTO roles VALUES ( 'shores-of-tripoli', 'United States' );
 
