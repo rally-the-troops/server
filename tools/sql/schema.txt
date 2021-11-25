@@ -121,8 +121,8 @@ DROP VIEW IF EXISTS thread_view;
 CREATE VIEW thread_view AS
 	SELECT *
 		, author.name AS author_name
-		, ( SELECT COUNT(*) FROM posts WHERE posts.thread_id = threads.thread_id ) - 1 AS replies
-		, ( SELECT MAX(posts.mtime) FROM posts WHERE posts.thread_id = threads.thread_id ) AS mtime
+		, ( SELECT count(*) FROM posts WHERE posts.thread_id = threads.thread_id ) - 1 AS replies
+		, ( SELECT max(posts.mtime) FROM posts WHERE posts.thread_id = threads.thread_id ) AS mtime
 	FROM threads
 	JOIN users AS author ON threads.author_id = author.user_id
 	;
@@ -227,11 +227,24 @@ CREATE VIEW game_full_view AS
 			NATURAL JOIN users
 			WHERE players.game_id=game_view.game_id
 		) AS player_names,
-		( SELECT COUNT(DISTINCT user_id) = 1
+		( SELECT count(DISTINCT user_id) = 1
 			FROM players
 			WHERE players.game_id=game_view.game_id
 		) AS is_solo
 	FROM game_view
+	;
+
+DROP VIEW IF EXISTS opposed_games;
+CREATE VIEW opposed_games AS
+	SELECT *
+	FROM GAMES
+	WHERE
+		STATUS > 0 AND
+		(
+			SELECT count(DISTINCT user_id) > 1
+			FROM players
+			where players.game_id=games.game_id
+		)
 	;
 
 DROP VIEW IF EXISTS your_turn_reminder;
@@ -287,6 +300,7 @@ BEGIN
 		AND new.role <> 'Random 4'
 		AND new.role <> 'Random 5'
 		AND new.role <> 'Random 6'
+		AND new.role <> 'Random 7'
 	;
 END;
 
@@ -301,11 +315,39 @@ BEGIN
 	DELETE FROM players WHERE game_id = old.game_id;
 END;
 
+-- Game Stats
+
+DROP VIEW IF EXISTS role_index_view;
+CREATE VIEW role_index_view(t,i,r) AS
+	SELECT title_id, row_number() OVER ( PARTITION BY title_id ), role
+	FROM roles;
+
 DROP VIEW IF EXISTS game_stat_view;
 CREATE VIEW game_stat_view AS
-	SELECT title_id, scenario, result, count(*) AS count
-	FROM game_full_view
+	SELECT title_name, NULL AS scenario
+		, NULL as total
+		, (SELECT r FROM role_index_view WHERE t=titles.title_id AND i=1) AS r1
+		, (SELECT r FROM role_index_view WHERE t=titles.title_id AND i=2) AS r2
+		, (SELECT r FROM role_index_view WHERE t=titles.title_id AND i=3) AS r3
+		, (SELECT r FROM role_index_view WHERE t=titles.title_id AND i=4) AS r4
+		, (SELECT r FROM role_index_view WHERE t=titles.title_id AND i=5) AS r5
+		, (SELECT r FROM role_index_view WHERE t=titles.title_id AND i=6) AS r6
+		, (SELECT r FROM role_index_view WHERE t=titles.title_id AND i=7) AS r7
+	FROM titles
+	WHERE hidden=0
+	UNION
+	SELECT title_name, scenario
+		, count(*) as total
+		, sum((SELECT i FROM role_index_view WHERE t=title_id AND r=result)=1) AS r1
+		, sum((SELECT i FROM role_index_view WHERE t=title_id AND r=result)=2) AS r2
+		, sum((SELECT i FROM role_index_view WHERE t=title_id AND r=result)=3) AS r3
+		, sum((SELECT i FROM role_index_view WHERE t=title_id AND r=result)=4) AS r4
+		, sum((SELECT i FROM role_index_view WHERE t=title_id AND r=result)=5) AS r5
+		, sum((SELECT i FROM role_index_view WHERE t=title_id AND r=result)=6) AS r6
+		, sum((SELECT i FROM role_index_view WHERE t=title_id AND r=result)=7) AS r7
+	FROM games
 	NATURAL JOIN titles
-	WHERE hidden=0 AND is_solo=0 AND status=2
-	GROUP BY title_name, scenario, result
+	WHERE hidden=0 AND status=2 AND game_id IN (SELECT game_id FROM opposed_games)
+	GROUP BY title_id, scenario
+	ORDER BY title_name, total DESC NULLS FIRST
 	;

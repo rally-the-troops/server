@@ -1,0 +1,38 @@
+//- vim:ts=4:sw=4:
+- let all_won = 0
+- let all_total = 0
+doctype html
+html
+	head
+		include head
+		title Stats for #{who.name}
+		style td:nth-child(3),td:nth-child(4){text-align:right}
+	body
+		include header
+		article
+			h1 Stats for #{who.name}
+
+			table(style="min-width:auto")
+				tr
+					th Title
+					th Scenario
+					th Won
+					th Total
+				each row in stats
+					tr
+						- all_won += row.won
+						- all_total += row.total
+						td= row.title_name
+						td= row.scenario
+						td= row.won
+						td= row.total
+				tr
+					th
+					th
+					th
+					th
+				tr
+					td
+					td
+					td= Math.round(all_won * 100 / all_total) + "%"
+					td= all_total

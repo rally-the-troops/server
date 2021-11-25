@@ -210,6 +210,15 @@ const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id
 
 const SQL_COUNT_INBOX = SQL("SELECT COUNT(*) FROM messages WHERE to_id=? AND read=0 AND deleted_from_inbox=0").pluck();
 
+const SQL_USER_STATS = SQL(`
+	SELECT title_name, scenario, SUM(role=result) AS won, count(*) AS total
+	FROM players
+	NATURAL JOIN games
+	NATURAL JOIN titles
+	WHERE user_id=? AND status=2 AND game_id IN (SELECT game_id FROM opposed_games)
+	GROUP BY title_name, scenario
+	`);
+
 function is_blacklisted(mail) {
 	if (SQL_BLACKLIST_MAIL.get(mail) === 1)
 		return true;
@@ -510,6 +519,17 @@ app.post('/change_about', must_be_logged_in, function (req, res) {
 	LOG(req, "POST /change_about", req.user.name);
 	SQL_UPDATE_USER_ABOUT.run(req.body.about, req.user.user_id);
 	return res.redirect('/profile');
+});
+
+app.get('/user/:who_name/stats', function (req, res) {
+	LOG(req, "GET /user/" + req.params.who_name + "/stats");
+	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name);
+	if (who) {
+		let stats = SQL_USER_STATS.all(who.user_id);
+		res.render('user_stats.pug', { user: req.user, who: who, stats: stats });
+	} else {
+		return res.status(404).send("Invalid user name.");
+	}
 });
 
 app.get('/user/:who_name', function (req, res) {
@@ -1594,7 +1614,7 @@ function on_chat(socket, message) {
 	try {
 		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.user_id, message);
 		chat[2] = socket.user_name;
-		SLOG(socket, "CHAT", JSON.stringify(chat));
+		SLOG(socket, "CHAT");
 		for (let other of clients[socket.game_id])
 			if (other.role !== "Observer")
 				other.emit('chat', chat);
@@ -1748,16 +1768,13 @@ io.on('connection', (socket) => {
  * HIDDEN EXTRAS
  */
 
-const QUERY_STATS = db.prepare("SELECT * FROM game_stat_view");
+const SQL_GAME_STATS = db.prepare("SELECT * FROM game_stat_view");
 
 app.get('/stats', function (req, res) {
 	LOG(req, "GET /stats");
-	let stats = QUERY_STATS.all();
+	let stats = SQL_GAME_STATS.all();
 	res.render('stats.pug', {
 		user: req.user,
 		stats: stats,
-		title_role_map: ROLES,
-		title_name_map: TITLES,
-		title_rule_map: RULES,
 	});
 });
