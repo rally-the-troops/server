@@ -256,6 +256,7 @@ body.Observer .menu .resign {
 }
 
 .map {
+	isolation:isolate;
 	transform-origin: 0 0;
 }
 
