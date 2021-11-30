@@ -1355,9 +1355,10 @@ app.get('/play/:game_id', function (req, res) {
 	if (!title)
 		return res.redirect('/join/'+game_id);
 	let role = SQL_SELECT_PLAYER_ROLE.get(game_id, user_id);
-	if (!role)
-		role = "Observer";
-	res.redirect('/'+title+'/play:'+game_id+':'+role);
+	if (role)
+		res.redirect('/'+title+'/play:'+game_id+':'+role);
+	else
+		res.redirect('/'+title+'/play:'+game_id);
 });
 
 app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, res) {
