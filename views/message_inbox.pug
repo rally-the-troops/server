@@ -19,7 +19,7 @@ html
 					th Subject
 					th Date
 				each row in messages
-					tr(class=row.read?"read":"unread")
+					tr(class=row.is_read?"read":"unread")
 						td: a(href="/user/"+row.from_name)= row.from_name
 						td: a(href="/message/read/"+row.message_id)= row.subject
 						td= row.time

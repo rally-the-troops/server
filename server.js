@@ -208,7 +208,7 @@ const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND datetim
 const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime('now')) RETURNING token").pluck();
 const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id=? AND datetime('now') < datetime(time, '+20 minutes') AND token=? )").pluck();
 
-const SQL_COUNT_INBOX = SQL("SELECT COUNT(*) FROM messages WHERE to_id=? AND read=0 AND deleted_from_inbox=0").pluck();
+const SQL_COUNT_INBOX = SQL("SELECT COUNT(*) FROM messages WHERE to_id=? AND is_read=0 AND is_deleted_from_inbox=0").pluck();
 
 const SQL_USER_STATS = SQL(`
 	SELECT title_name, scenario, SUM(role=result) AS won, count(*) AS total
@@ -573,23 +573,23 @@ app.get('/chat/all', must_be_logged_in, function (req, res) {
  */
 
 const MESSAGE_LIST_INBOX = db.prepare(`
-	SELECT message_id, from_name, subject, time, read
+	SELECT message_id, from_name, subject, time, is_read
 	FROM message_view
-	WHERE to_id=? AND deleted_from_inbox=0
+	WHERE to_id=? AND is_deleted_from_inbox=0
 	ORDER BY message_id DESC`);
 
 const MESSAGE_LIST_OUTBOX = db.prepare(`
-	SELECT message_id, to_name, subject, time, 1 as read
+	SELECT message_id, to_name, subject, time, 1 as is_read
 	FROM message_view
-	WHERE from_id=? AND deleted_from_outbox=0
+	WHERE from_id=? AND is_deleted_from_outbox=0
 	ORDER BY message_id DESC`);
 
 const MESSAGE_FETCH = db.prepare("SELECT * FROM message_view WHERE message_id=? AND ( from_id=? OR to_id=? )");
 const MESSAGE_SEND = db.prepare("INSERT INTO messages (from_id,to_id,subject,body) VALUES (?,?,?,?)");
-const MESSAGE_MARK_READ = db.prepare("UPDATE messages SET read=1 WHERE message_id=? AND read = 0");
-const MESSAGE_DELETE_INBOX = db.prepare("UPDATE messages SET deleted_from_inbox=1 WHERE message_id=? AND to_id=?");
-const MESSAGE_DELETE_OUTBOX = db.prepare("UPDATE messages SET deleted_from_outbox=1 WHERE message_id=? AND from_id=?");
-const MESSAGE_DELETE_ALL_OUTBOX = db.prepare("UPDATE messages SET deleted_from_outbox=1 WHERE from_id=?");
+const MESSAGE_MARK_READ = db.prepare("UPDATE messages SET is_read=1 WHERE message_id=? AND is_read = 0");
+const MESSAGE_DELETE_INBOX = db.prepare("UPDATE messages SET is_deleted_from_inbox=1 WHERE message_id=? AND to_id=?");
+const MESSAGE_DELETE_OUTBOX = db.prepare("UPDATE messages SET is_deleted_from_outbox=1 WHERE message_id=? AND from_id=?");
+const MESSAGE_DELETE_ALL_OUTBOX = db.prepare("UPDATE messages SET is_deleted_from_outbox=1 WHERE from_id=?");
 
 app.get('/inbox', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /inbox");
@@ -621,7 +621,7 @@ app.get('/message/read/:message_id', must_be_logged_in, function (req, res) {
 	let message = MESSAGE_FETCH.get(message_id, req.user.user_id, req.user.user_id);
 	if (!message)
 		return res.status(404).send("Invalid message ID.");
-	if (message.to_id === req.user.user_id && message.read === 0) {
+	if (message.to_id === req.user.user_id && message.is_read === 0) {
 		MESSAGE_MARK_READ.run(message_id);
 		req.user.unread --;
 	}
@@ -888,7 +888,7 @@ function load_rules() {
 
 load_rules();
 
-const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,private,random,description) VALUES (?,?,?,?,?,?,?)");
+const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,is_private,is_random,description) VALUES (?,?,?,?,?,?,?)");
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?");
 
 const SQL_SELECT_USER_CHAT = SQL("SELECT game_id,time,name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC").raw();
@@ -900,14 +900,14 @@ const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,user_id,message
 const SQL_SELECT_GAME_STATE = SQL("SELECT state FROM game_state WHERE game_id=?").pluck();
 const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,state,active,mtime) VALUES (?,?,?,datetime('now'))");
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?");
-const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET private=1 WHERE game_id=?");
+const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?");
 const SQL_INSERT_REPLAY = SQL("INSERT INTO game_replay (game_id,role,action,arguments) VALUES (?,?,?,?)");
 
 const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?");
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?");
 const SQL_SELECT_GAME_FULL_VIEW = SQL("SELECT * FROM game_full_view WHERE game_id=?");
 const SQL_SELECT_GAME_TITLE = SQL("SELECT title_id FROM games WHERE game_id=?").pluck();
-const SQL_SELECT_GAME_RANDOM = SQL("SELECT random FROM games WHERE game_id=?").pluck();
+const SQL_SELECT_GAME_RANDOM = SQL("SELECT is_random FROM games WHERE game_id=?").pluck();
 
 const SQL_SELECT_PLAYERS = SQL("SELECT * FROM players NATURAL JOIN user_view WHERE game_id=?");
 const SQL_SELECT_PLAYERS_JOIN = SQL("SELECT role, user_id, name FROM players NATURAL JOIN users WHERE game_id=?");
@@ -924,9 +924,9 @@ const SQL_COUNT_OPEN_GAMES = SQL("SELECT COUNT(*) FROM games WHERE owner_id=? AN
 const SQL_SELECT_REMATCH = SQL("SELECT game_id FROM games WHERE status < 3 AND description=?").pluck();
 const SQL_INSERT_REMATCH = SQL(`
 	INSERT INTO games
-		(owner_id, title_id, scenario, options, private, random, description)
+		(owner_id, title_id, scenario, options, is_private, is_random, description)
 	SELECT
-		$user_id, title_id, scenario, options, private, random, $magic
+		$user_id, title_id, scenario, options, is_private, is_random, $magic
 	FROM games
 	WHERE game_id = $game_id AND NOT EXISTS (
 		SELECT * FROM games WHERE description=$magic
@@ -935,14 +935,14 @@ const SQL_INSERT_REMATCH = SQL(`
 
 const QUERY_LIST_GAMES = SQL(`
 	SELECT * FROM game_view
-	WHERE private=0 AND status=?
+	WHERE is_private=0 AND status=?
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND user_id = game_view.owner_id )
 	ORDER BY mtime DESC
 	`);
 
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	SELECT * FROM game_view
-	WHERE private=0 AND title_id=? AND status=?
+	WHERE is_private=0 AND title_id=? AND status=?
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND user_id = game_view.owner_id )
 	ORDER BY mtime DESC
 	LIMIT ?
@@ -1096,8 +1096,8 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 function options_json_replacer(key, value) {
 	if (key === 'scenario') return undefined;
 	if (key === 'description') return undefined;
-	if (key === 'random') return undefined;
-	if (key === 'private') return undefined;
+	if (key === 'is_random') return undefined;
+	if (key === 'is_private') return undefined;
 	if (value === 'true') return true;
 	if (value === 'false') return false;
 	if (value === '') return undefined;
@@ -1107,8 +1107,8 @@ function options_json_replacer(key, value) {
 app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 	let title_id = req.params.title_id;
 	let descr = req.body.description;
-	let priv = req.body.private === 'true';
-	let rand = req.body.random === 'true';
+	let priv = req.body.is_private === 'true';
+	let rand = req.body.is_random === 'true';
 	let user_id = req.user.user_id;
 	let scenario = req.body.scenario;
 	let options = JSON.stringify(req.body, options_json_replacer);
@@ -1321,7 +1321,7 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 	let players = SQL_SELECT_PLAYERS.all(game_id);
 	if (!RULES[game.title_id].ready(game.scenario, game.options, players))
 		return res.send("Invalid scenario/options/player configuration!");
-	if (game.random) {
+	if (game.is_random) {
 		assign_random_roles(game, players);
 		players = SQL_SELECT_PLAYERS.all(game_id);
 		update_join_clients_players(game_id);

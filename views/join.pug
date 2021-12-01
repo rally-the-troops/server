@@ -29,7 +29,7 @@ html
 			a(href="/info/"+game.title_id): img.logo(src="/"+game.title_id+"/cover.jpg")
 
 			p
-				if game.private
+				if game.is_private
 					| Owner: #{game.owner_name} (private)
 				else
 					| Owner: #{game.owner_name}

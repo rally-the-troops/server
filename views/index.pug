@@ -38,7 +38,7 @@ html
 
 			div.list
 				each title in titles
-					unless title.hidden
+					unless title.is_hidden
 						div
 							a(href="/info/"+title.title_id)
 								img(src="/"+title.title_id+"/cover.jpg")
