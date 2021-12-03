@@ -1,47 +1,47 @@
 "use strict";
 
 const fs = require('fs');
+const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 const socket_io = require('socket.io');
 const express = require('express');
 const express_session = require('express-session');
-const passport = require('passport');
-const passport_local = require('passport-local');
+const express_session_store = require('./connect-better-sqlite3')(express_session);
 const body_parser = require('body-parser');
-const crypto = require('crypto');
 const sqlite3 = require('better-sqlite3');
-const SQLiteStore = require('./connect-better-sqlite3')(express_session);
 
 require('dotenv').config();
 
-function random_seed() {
-	return crypto.randomInt(1, 0x7ffffffe);
-}
-
-const SESSION_SECRET = process.env.SECRET || "Caesar has a big head!";
-
-const MAX_OPEN_GAMES = 5;
-
-let session_store = new SQLiteStore();
 let db = new sqlite3(process.env.DATABASE || "./db");
 db.pragma("journal_mode = WAL");
 db.pragma("synchronous = NORMAL");
 db.pragma("foreign_keys = ON");
 
-let session = express_session({
-	secret: SESSION_SECRET,
-	resave: false,
-	rolling: true,
-	saveUninitialized: false,
-	store: session_store,
-	cookie: {
-		maxAge: 7 * 24 * 60 * 60 * 1000,
-		sameSite: 'lax',
-	}
-});
+let mailer = null;
+if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
+	mailer = require('nodemailer').createTransport({
+		host: process.env.MAIL_HOST,
+		port: process.env.MAIL_PORT,
+		ignoreTLS: true
+	});
+	console.log("Mail notifications enabled: ", mailer.options);
+} else {
+	console.log("Mail notifications disabled.");
+}
+
+const is_immutable = /\.(svg|png|jpg|jpeg|woff2|webp|ico)$/;
+function set_static_headers(res, path) {
+	if (is_immutable.test(path))
+		res.set("Cache-Control", "public, max-age=86400, immutable");
+}
 
 let app = express();
+app.set('x-powered-by', false);
+app.set('etag', false);
+app.set('view engine', 'pug');
+app.use(body_parser.urlencoded({extended:false}));
+app.use(express.static('public', { setHeaders: set_static_headers, lastModified:false }));
 
 let http_port = process.env.HTTP_PORT || 8080;
 let http_server = http.createServer(app);
@@ -65,42 +65,27 @@ if (https_port) {
 	};
 }
 
-let mailer = null;
-if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
-	mailer = require('nodemailer').createTransport({
-		host: process.env.MAIL_HOST,
-		port: process.env.MAIL_PORT,
-		ignoreTLS: true
-	});
-	console.log("Mail notifications enabled: ", mailer.options);
-} else {
-	console.log("Mail notifications disabled.");
-}
-
-app.set('x-powered-by', false);
-app.set('etag', false);
-app.set('view engine', 'pug');
-
-app.use(body_parser.urlencoded({extended:false}));
+let session = express_session({
+	secret: process.env.SECRET || "Caesar has a big head!",
+	resave: false,
+	rolling: true,
+	saveUninitialized: false,
+	store: new express_session_store(),
+	cookie: {
+		maxAge: 7 * 24 * 60 * 60 * 1000,
+		sameSite: 'lax',
+	}
+});
 app.use(session);
-
-const socket_wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
-io.use(socket_wrap(session));
-io.use(socket_wrap(passport.initialize()));
-io.use(socket_wrap(passport.session()));
-
-const is_immutable = /\.(svg|png|jpg|jpeg|woff2|webp|ico)$/;
-
-function setHeaders(res, path) {
-	if (is_immutable.test(path))
-		res.set("Cache-Control", "public, max-age=86400, immutable");
-}
-
-app.use(express.static('public', { setHeaders: setHeaders, lastModified:false }));
+io.use((socket, next) => session(socket.request, {}, next));
 
 /*
  * MISC FUNCTIONS
  */
+
+function random_seed() {
+	return crypto.randomInt(1, 0x7ffffffe);
+}
 
 function SQL(s) {
 	return db.prepare(s);
@@ -235,81 +220,11 @@ function is_blacklisted(mail) {
 	return false;
 }
 
-passport.serializeUser(function (user, done) {
-	return done(null, user.user_id);
-});
-
-passport.deserializeUser(function (user_id, done) {
-	try {
-		let user = SQL_SELECT_USER.get(user_id);
-		if (!user)
-			return done(null, false);
-		return done(null, user);
-	} catch (err) {
-		console.log(err);
-		return done(null, false);
-	}
-});
-
-function local_login(req, name_or_mail, password, done) {
-	try {
-		if (!is_email(name_or_mail))
-			name_or_mail = clean_user_name(name_or_mail);
-		LOG(req, "POST /login", name_or_mail);
-		let user = SQL_SELECT_LOGIN_BY_NAME.get(name_or_mail);
-		if (!user)
-			user = SQL_SELECT_LOGIN_BY_MAIL.get(name_or_mail);
-		if (!user)
-			return setTimeout(() => done(null, false, flash(req, "User not found.")), 1000);
-		if (is_blacklisted(user.mail))
-			return setTimeout(() => done(null, false, flash(req, "Sorry, but this mail account has been banned.")), 1000);
-		let hash = hash_password(password, user.salt);
-		if (hash !== user.password)
-			return setTimeout(() => done(null, false, flash(req, "Wrong password.")), 1000);
-		done(null, user);
-	} catch (err) {
-		done(null, false, flash(req, err.toString()));
-	}
-}
-
-function local_signup(req, name, password, done) {
-	try {
-		let mail = req.body.mail;
-		name = clean_user_name(name);
-		if (!is_valid_user_name(name))
-			return done(null, false, flash(req, "Invalid user name!"));
-		LOG(req, "POST /signup", name, mail);
-		if (is_blacklisted(mail))
-			return setTimeout(() => done(null, false, flash(req, "Sorry, but this mail account has been banned.")), 1000);
-		if (password.length < 4)
-			return done(null, false, flash(req, "Password is too short!"));
-		if (password.length > 100)
-			return done(null, false, flash(req, "Password is too long!"));
-		if (!is_email(mail))
-			return done(null, false, flash(req, "Invalid mail address!"));
-		if (SQL_EXISTS_USER_NAME.get(name))
-			return done(null, false, flash(req, "That name is already taken."));
-		if (SQL_EXISTS_USER_MAIL.get(mail))
-			return done(null, false, flash(req, "That mail is already taken."));
-		let salt = crypto.randomBytes(32).toString('hex');
-		let hash = hash_password(password, salt);
-		let user = SQL_INSERT_USER.get(name, mail, hash, salt);
-		done(null, user);
-	} catch (err) {
-		done(null, false, flash(req, err.toString()));
-	}
-}
-
-passport.use('local-login', new passport_local.Strategy({ passReqToCallback: true }, local_login));
-passport.use('local-signup', new passport_local.Strategy({ passReqToCallback: true }, local_signup));
-
-app.use(passport.initialize());
-app.use(passport.session());
-
 app.use(function (req, res, next) {
 	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
 		return res.status(403).send('Sorry, but this IP has been banned.');
-	if (req.user) {
+	if (req.session.user_id) {
+		req.user = SQL_SELECT_USER.get(req.session.user_id);
 		req.user.unread = SQL_COUNT_INBOX.get(req.user.user_id);
 		SQL_UPDATE_USER_LAST_SEEN.run(req.user.user_id, req.connection.remoteAddress);
 	}
@@ -334,7 +249,7 @@ app.get('/about', function (req, res) {
 
 app.get('/logout', function (req, res) {
 	LOG(req, "GET /logout");
-	req.logout();
+	req.session.destroy();
 	res.redirect('/login');
 });
 
@@ -342,33 +257,61 @@ app.get('/login', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
 	LOG(req, "GET /login");
-	res.render('login.pug', { user: req.user, flash: flash(req) });
+	res.render('login.pug', { user: null, flash: null });
+});
+
+app.post('/login', function (req, res) {
+	let name_or_mail = req.body.username;
+	let password = req.body.password;
+	if (!is_email(name_or_mail))
+		name_or_mail = clean_user_name(name_or_mail);
+	LOG(req, "POST /login", name_or_mail);
+	let user = SQL_SELECT_LOGIN_BY_NAME.get(name_or_mail);
+	if (!user)
+		user = SQL_SELECT_LOGIN_BY_MAIL.get(name_or_mail);
+	if (!user || is_blacklisted(user.mail) || hash_password(password, user.salt) != user.password)
+		return setTimeout(() => res.render('login.pug', { user: null, flash: "Invalid login." }), 1000);
+	req.session.user_id = user.user_id;
+	let redirect = req.session.redirect || '/profile';
+	console.log("redirect", redirect);
+	delete req.session.redirect;
+	res.redirect(redirect);
 });
 
 app.get('/signup', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
 	LOG(req, "GET /signup");
-	res.render('signup.pug', { user: req.user, flash: flash(req) });
+	res.render('signup.pug', { user: null, flash: null });
 });
 
-app.post('/login',
-	passport.authenticate('local-login', {
-		failureRedirect: '/login',
-	}),
-	(req, res) => {
-		let redirect = req.session.redirect || '/profile';
-		delete req.session.redirect;
-		res.redirect(redirect);
+app.post('/signup', function (req, res) {
+	function err(msg) {
+		res.render('signup.pug', { user: null, flash: msg });
 	}
-);
-
-app.post('/signup',
-	passport.authenticate('local-signup', {
-		successRedirect: '/profile',
-		failureRedirect: '/signup',
-	})
-);
+	let name = req.body.username;
+	let mail = req.body.mail;
+	let password = req.body.password;
+	name = clean_user_name(name);
+	LOG(req, "POST /signup", name, mail);
+	if (!is_valid_user_name(name))
+		return err("Invalid user name!");
+	if (SQL_EXISTS_USER_NAME.get(name))
+		return err("That name is already taken.");
+	if (!is_email(mail) || is_blacklisted(mail))
+		return err("Invalid mail address!");
+	if (SQL_EXISTS_USER_MAIL.get(mail))
+		return err("That mail is already taken.");
+	if (password.length < 4)
+		return err("Password is too short!");
+	if (password.length > 100)
+		return err("Password is too long!");
+	let salt = crypto.randomBytes(32).toString('hex');
+	let hash = hash_password(password, salt);
+	let user = SQL_INSERT_USER.get(name, mail, hash, salt);
+	req.session.user_id = user.user_id;
+	res.redirect('/profile');
+});
 
 app.get('/forgot-password', function (req, res) {
 	LOG(req, "GET /forgot-password");
@@ -1122,7 +1065,7 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 	let options = JSON.stringify(req.body, options_json_replacer);
 	LOG(req, "POST /create/" + req.params.title_id, scenario, options, priv, JSON.stringify(descr));
 	let count = SQL_COUNT_OPEN_GAMES.get(user_id);
-	if (count >= MAX_OPEN_GAMES) {
+	if (count >= 5) {
 		flash(req, "You have too many open games!");
 		return res.redirect('/create/'+title_id);
 	}
@@ -1686,13 +1629,11 @@ function broadcast_presence(game_id) {
 }
 
 io.on('connection', (socket) => {
-	if (!socket.request.user) {
-		socket.user_id = 0;
+	socket.user_id = socket.request.session.user_id || 0;
+	if (!socket.user_id)
 		socket.user_name = "guest";
-	} else {
-		socket.user_id = socket.request.user.user_id | 0;
-		socket.user_name = socket.request.user.name;
-	}
+	else
+		socket.user_name = SQL_SELECT_USER.get(socket.user_id).name;
 	socket.title_id = socket.handshake.query.title || "unknown";
 	socket.game_id = socket.handshake.query.game | 0;
 	socket.role = socket.handshake.query.role;
