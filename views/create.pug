@@ -10,8 +10,6 @@ html
 		include header
 		article
 			h1= title.title_name
-			if flash
-				p.error= flash
 
 			a(href="/info/"+title.title_id): img.logo(src="/"+title.title_id+"/cover.jpg")
 

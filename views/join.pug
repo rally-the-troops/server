@@ -21,10 +21,6 @@ html
 		include header
 		article
 			h1= game.title_name
-			if flash
-				p.error#error= flash
-			else
-				p.error#error
 
 			a(href="/info/"+game.title_id): img.logo(src="/"+game.title_id+"/cover.jpg")
 

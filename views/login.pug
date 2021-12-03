@@ -15,6 +15,7 @@ html
 				p You're already logged in!
 			else
 				form(method="post" action="/login")
+					input(type="hidden" name="redirect" value=redirect)
 					p
 						label Name or mail:
 							br

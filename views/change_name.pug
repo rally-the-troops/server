@@ -10,6 +10,7 @@ html
 			h1 Change name
 			if flash
 				p.error= flash
+
 			form(method="post" action="/change-name")
 				p Name: #{user.name}
 				p Mail: #{user.mail}
