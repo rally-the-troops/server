@@ -9,7 +9,6 @@ const express_session = require('express-session');
 const passport = require('passport');
 const passport_local = require('passport-local');
 const body_parser = require('body-parser');
-const connect_flash = require('connect-flash');
 const crypto = require('crypto');
 const sqlite3 = require('better-sqlite3');
 const SQLiteStore = require('./connect-better-sqlite3')(express_session);
@@ -20,7 +19,7 @@ function random_seed() {
 	return crypto.randomInt(1, 0x7ffffffe);
 }
 
-const SESSION_SECRET = "Caesar has a big head!";
+const SESSION_SECRET = process.env.SECRET || "Caesar has a big head!";
 
 const MAX_OPEN_GAMES = 5;
 
@@ -84,7 +83,6 @@ app.set('view engine', 'pug');
 
 app.use(body_parser.urlencoded({extended:false}));
 app.use(session);
-app.use(connect_flash());
 
 const socket_wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
 io.use(socket_wrap(session));
@@ -123,6 +121,18 @@ function SLOG(socket, ...msg) {
 	let time = new Date().toISOString().substring(0,19).replace("T", " ");
 	console.log(time, socket.request.connection.remoteAddress, name,
 		socket.title_id + "/" + socket.game_id  + "/" + socket.role, ...msg);
+}
+
+function flash(req, msg) {
+	if (req.session) {
+		if (msg === undefined) {
+			msg = req.session.flash;
+			delete req.session.flash;
+		} else {
+			req.session.flash = msg;
+		}
+	}
+	return msg;
 }
 
 function human_date(time) {
@@ -250,15 +260,15 @@ function local_login(req, name_or_mail, password, done) {
 		if (!user)
 			user = SQL_SELECT_LOGIN_BY_MAIL.get(name_or_mail);
 		if (!user)
-			return setTimeout(() => done(null, false, req.flash('message', "User not found.")), 1000);
+			return setTimeout(() => done(null, false, flash(req, "User not found.")), 1000);
 		if (is_blacklisted(user.mail))
-			return setTimeout(() => done(null, false, req.flash('message', "Sorry, but this IP or account has been banned.")), 1000);
+			return setTimeout(() => done(null, false, flash(req, "Sorry, but this mail account has been banned.")), 1000);
 		let hash = hash_password(password, user.salt);
 		if (hash !== user.password)
-			return setTimeout(() => done(null, false, req.flash('message', "Wrong password.")), 1000);
+			return setTimeout(() => done(null, false, flash(req, "Wrong password.")), 1000);
 		done(null, user);
 	} catch (err) {
-		done(null, false, req.flash('message', err.toString()));
+		done(null, false, flash(req, err.toString()));
 	}
 }
 
@@ -267,26 +277,26 @@ function local_signup(req, name, password, done) {
 		let mail = req.body.mail;
 		name = clean_user_name(name);
 		if (!is_valid_user_name(name))
-			return done(null, false, req.flash('message', "Invalid user name!"));
+			return done(null, false, flash(req, "Invalid user name!"));
 		LOG(req, "POST /signup", name, mail);
 		if (is_blacklisted(mail))
-			return setTimeout(() => done(null, false, req.flash('message', "Sorry, but this IP or account has been banned.")), 1000);
+			return setTimeout(() => done(null, false, flash(req, "Sorry, but this mail account has been banned.")), 1000);
 		if (password.length < 4)
-			return done(null, false, req.flash('message', "Password is too short!"));
+			return done(null, false, flash(req, "Password is too short!"));
 		if (password.length > 100)
-			return done(null, false, req.flash('message', "Password is too long!"));
+			return done(null, false, flash(req, "Password is too long!"));
 		if (!is_email(mail))
-			return done(null, false, req.flash('message', "Invalid mail address!"));
+			return done(null, false, flash(req, "Invalid mail address!"));
 		if (SQL_EXISTS_USER_NAME.get(name))
-			return done(null, false, req.flash('message', "That name is already taken."));
+			return done(null, false, flash(req, "That name is already taken."));
 		if (SQL_EXISTS_USER_MAIL.get(mail))
-			return done(null, false, req.flash('message', "That mail is already taken."));
+			return done(null, false, flash(req, "That mail is already taken."));
 		let salt = crypto.randomBytes(32).toString('hex');
 		let hash = hash_password(password, salt);
 		let user = SQL_INSERT_USER.get(name, mail, hash, salt);
 		done(null, user);
 	} catch (err) {
-		done(null, false, req.flash('message', err.toString()));
+		done(null, false, flash(req, err.toString()));
 	}
 }
 
@@ -315,7 +325,7 @@ function must_be_logged_in(req, res, next) {
 }
 
 app.get('/', function (req, res) {
-	res.render('index.pug', { user: req.user, titles: TITLES, flash: req.flash('message') });
+	res.render('index.pug', { user: req.user, titles: TITLES, flash: flash(req) });
 });
 
 app.get('/about', function (req, res) {
@@ -332,20 +342,19 @@ app.get('/login', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
 	LOG(req, "GET /login");
-	res.render('login.pug', { user: req.user, flash: req.flash('message') });
+	res.render('login.pug', { user: req.user, flash: flash(req) });
 });
 
 app.get('/signup', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
 	LOG(req, "GET /signup");
-	res.render('signup.pug', { user: req.user, flash: req.flash('message') });
+	res.render('signup.pug', { user: req.user, flash: flash(req) });
 });
 
 app.post('/login',
 	passport.authenticate('local-login', {
 		failureRedirect: '/login',
-		failureFlash: true
 	}),
 	(req, res) => {
 		let redirect = req.session.redirect || '/profile';
@@ -358,13 +367,12 @@ app.post('/signup',
 	passport.authenticate('local-signup', {
 		successRedirect: '/profile',
 		failureRedirect: '/signup',
-		failureFlash: true
 	})
 );
 
 app.get('/forgot-password', function (req, res) {
 	LOG(req, "GET /forgot-password");
-	res.render('forgot_password.pug', { user: req.user, flash: req.flash('message') });
+	res.render('forgot_password.pug', { user: req.user, flash: flash(req) });
 });
 
 app.post('/forgot-password', function (req, res) {
@@ -377,29 +385,29 @@ app.post('/forgot-password', function (req, res) {
 			token = SQL_CREATE_TOKEN.run(user.user_id);
 			mail_password_reset_token(user, token);
 		}
-		req.flash('message', "A password reset token has been sent to " + mail + ".");
+		flash(req, "A password reset token has been sent to " + mail + ".");
 		return res.redirect('/reset-password/' + mail);
 	}
-	req.flash('message', "User not found.");
+	flash(req, "User not found.");
 	return res.redirect('/forgot-password');
 });
 
 app.get('/reset-password', function (req, res) {
 	LOG(req, "GET /reset-password");
-	res.render('reset_password.pug', { user: null, mail: "", token: "", flash: req.flash('message') });
+	res.render('reset_password.pug', { user: null, mail: "", token: "", flash: flash(req) });
 });
 
 app.get('/reset-password/:mail', function (req, res) {
 	let mail = req.params.mail;
 	LOG(req, "GET /reset-password", mail);
-	res.render('reset_password.pug', { user: null, mail: mail, token: "", flash: req.flash('message') });
+	res.render('reset_password.pug', { user: null, mail: mail, token: "", flash: flash(req) });
 });
 
 app.get('/reset-password/:mail/:token', function (req, res) {
 	let mail = req.params.mail;
 	let token = req.params.token;
 	LOG(req, "GET /reset-password", mail, token);
-	res.render('reset_password.pug', { user: null, mail: mail, token: token, flash: req.flash('message') });
+	res.render('reset_password.pug', { user: null, mail: mail, token: token, flash: flash(req) });
 });
 
 app.post('/reset-password', function (req, res) {
@@ -409,15 +417,15 @@ app.post('/reset-password', function (req, res) {
 	LOG(req, "POST /reset-password", mail, token);
 	let user = SQL_SELECT_LOGIN_BY_MAIL.get(mail);
 	if (!user) {
-		req.flash('message', "User not found.");
+		flash(req, "User not found.");
 		return res.redirect('/reset-password/'+mail+'/'+token);
 	}
 	if (password.length < 4) {
-		req.flash('message', "Password is too short!");
+		flash(req, "Password is too short!");
 		return res.redirect('/reset-password/'+mail+'/'+token);
 	}
 	if (!SQL_VERIFY_TOKEN.get(user.user_id, token)) {
-		req.flash('message', "Invalid or expired token!");
+		flash(req, "Invalid or expired token!");
 		return res.redirect('/reset-password/'+mail);
 	}
 	let salt = crypto.randomBytes(32).toString('hex');
@@ -428,7 +436,7 @@ app.post('/reset-password', function (req, res) {
 
 app.get('/change-password', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change-password");
-	res.render('change_password.pug', { user: req.user, flash: req.flash('message') });
+	res.render('change_password.pug', { user: req.user, flash: flash(req) });
 });
 
 app.post('/change-password', must_be_logged_in, function (req, res) {
@@ -438,18 +446,18 @@ app.post('/change-password', must_be_logged_in, function (req, res) {
 	// Get full user record including password and salt
 	let user = SQL_SELECT_LOGIN_BY_MAIL.get(req.user.mail);
 	if (newpass.length < 4) {
-		req.flash('message', "Password is too short!");
+		flash(req, "Password is too short!");
 		return res.redirect('/change-password');
 	}
 	let oldhash = hash_password(oldpass, user.salt);
 	if (oldhash !== user.password) {
-		req.flash('message', "Wrong password.");
+		flash(req, "Wrong password.");
 		return res.redirect('/change-password');
 	}
 	let salt = crypto.randomBytes(32).toString('hex');
 	let hash = hash_password(newpass, salt);
 	SQL_UPDATE_USER_PASSWORD.run(hash, salt, user.user_id);
-	req.flash('message', "Your password has been updated.");
+	flash(req, "Your password has been updated.");
 	return res.redirect('/profile');
 });
 
@@ -471,18 +479,18 @@ app.get('/unsubscribe', must_be_logged_in, function (req, res) {
 
 app.get('/change-name', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change-name");
-	res.render('change_name.pug', { user: req.user, flash: req.flash('message') });
+	res.render('change_name.pug', { user: req.user, flash: flash(req) });
 });
 
 app.post('/change-name', must_be_logged_in, function (req, res) {
 	let newname = clean_user_name(req.body.newname);
 	LOG(req, "POST /change-name", req.user, req.body, newname);
 	if (!is_valid_user_name(newname)) {
-		req.flash('message', "Invalid user name!");
+		flash(req, "Invalid user name!");
 		return res.redirect('/change-name');
 	}
 	if (SQL_EXISTS_USER_NAME.get(newname)) {
-		req.flash('message', "That name is already taken!");
+		flash(req, "That name is already taken!");
 		return res.redirect('/change-name');
 	}
 	SQL_UPDATE_USER_NAME.run(newname, req.user.user_id);
@@ -491,18 +499,18 @@ app.post('/change-name', must_be_logged_in, function (req, res) {
 
 app.get('/change-mail', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /change-mail");
-	res.render('change_mail.pug', { user: req.user, flash: req.flash('message') });
+	res.render('change_mail.pug', { user: req.user, flash: flash(req) });
 });
 
 app.post('/change-mail', must_be_logged_in, function (req, res) {
 	let newmail = req.body.newmail;
 	LOG(req, "POST /change-mail", req.user, req.body);
 	if (!is_email(newmail)) {
-		req.flash('message', "Invalid mail address!");
+		flash(req, "Invalid mail address!");
 		return res.redirect('/change-mail');
 	}
 	if (SQL_EXISTS_USER_MAIL.get(newmail)) {
-		req.flash('message', "That mail address is already taken!");
+		flash(req, "That mail address is already taken!");
 		return res.redirect('/change-mail');
 	}
 	SQL_UPDATE_USER_MAIL.run(newmail, req.user.user_id);
@@ -1089,7 +1097,7 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 		title: title,
 		scenarios: RULES[title_id].scenarios,
 		create_html: HTML_CREATE[title_id],
-		flash: req.flash('message')
+		flash: flash(req)
 	});
 });
 
@@ -1115,7 +1123,7 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 	LOG(req, "POST /create/" + req.params.title_id, scenario, options, priv, JSON.stringify(descr));
 	let count = SQL_COUNT_OPEN_GAMES.get(user_id);
 	if (count >= MAX_OPEN_GAMES) {
-		req.flash('message', "You have too many open games!");
+		flash(req, "You have too many open games!");
 		return res.redirect('/create/'+title_id);
 	}
 	if (!(title_id in RULES)) {
@@ -1172,7 +1180,7 @@ app.get('/rematch/:old_game_id/:role', must_be_logged_in, function (req, res) {
 		new_game_id = SQL_SELECT_REMATCH.get(magic);
 	if (new_game_id)
 		return join_rematch(req, res, new_game_id, role);
-	req.flash('message', "Can't create or find rematch game!");
+	flash(req, "Can't create or find rematch game!");
 	return res.redirect('/join/'+old_game_id);
 });
 
@@ -1233,7 +1241,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 		roles: roles,
 		players: players,
 		ready: ready,
-		flash: req.flash('message')
+		flash: flash(req)
 	});
 });
 

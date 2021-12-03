@@ -31,15 +31,15 @@ module.exports = function (session) {
 			let db = new SQLite(db_path, options.mode);
 			db.pragma("journal_mode = WAL");
 			db.pragma("synchronous = OFF");
-			db.exec("CREATE TABLE IF NOT EXISTS "+table+" (sid PRIMARY KEY, expires INTEGER, sess TEXT) WITHOUT ROWID");
-			db.exec("DELETE FROM "+table+" WHERE "+now()+" > expires");
+			db.exec(`CREATE TABLE IF NOT EXISTS ${table} (sid PRIMARY KEY, expires INTEGER, sess TEXT) WITHOUT ROWID`);
+			db.exec(`DELETE FROM ${table} WHERE ${now()} > expires`);
 			db.exec("VACUUM");
 			db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
 
-			this.sql_destroy = db.prepare("DELETE FROM "+table+" WHERE sid = ?");
-			this.sql_get = db.prepare("SELECT sess FROM "+table+" WHERE sid = ? AND ? <= expires");
-			this.sql_set = db.prepare("INSERT OR REPLACE INTO "+table+" VALUES (?,?,?)");
-			this.sql_touch = db.prepare("UPDATE "+table+" SET expires = ? WHERE sid = ? AND expires < ?");
+			this.sql_destroy = db.prepare(`DELETE FROM ${table} WHERE sid = ?`);
+			this.sql_get = db.prepare(`SELECT sess FROM ${table} WHERE sid = ? AND ? <= expires`).pluck();
+			this.sql_set = db.prepare(`INSERT OR REPLACE INTO ${table} VALUES (?,?,?)`);
+			this.sql_touch = db.prepare(`UPDATE ${table} SET expires = ? WHERE sid = ? AND expires < ?`);
 		}
 
 		destroy(sid, cb = noop) {
@@ -55,7 +55,7 @@ module.exports = function (session) {
 			try {
 				let sess = this.sql_get.get(sid, now());
 				if (sess)
-					return cb(null, JSON.parse(sess.sess));
+					return cb(null, JSON.parse(sess));
 				return cb(null, null);
 			} catch (err) {
 				return cb(err, null);
