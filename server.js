@@ -1326,9 +1326,10 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 		players = SQL_SELECT_PLAYERS.all(game_id);
 		update_join_clients_players(game_id);
 	}
+	let options = game.options ? JSON.parse(game.options) : {};
 	let seed = random_seed();
-	let state = RULES[game.title_id].setup(seed, game.scenario, game.options, players);
-	put_replay(game_id, null, 'setup', [seed, game.scenario, game.options, players]);
+	let state = RULES[game.title_id].setup(seed, game.scenario, options, players);
+	put_replay(game_id, null, 'setup', [seed, game.scenario, options, players]);
 	SQL_UPDATE_GAME_RESULT.run(1, null, game_id);
 	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active);
 	if (is_solo(players))
@@ -1739,7 +1740,7 @@ io.on('connection', (socket) => {
 			socket.on('restart', (scenario) => {
 				try {
 					let seed = random_seed();
-					let state = socket.rules.setup(seed, scenario, players);
+					let state = socket.rules.setup(seed, scenario, {}, players);
 					put_replay(socket.game_id, null, 'setup', [seed, scenario, null, players]);
 					for (let other of clients[socket.game_id]) {
 						other.log_length = 0;
