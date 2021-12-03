@@ -11,7 +11,8 @@ html
 		article
 			h1= title.title_name
 
-			img.logo(src="/"+title.title_id+"/cover.jpg")
+			div.logo
+				img.logo(src="/"+title.title_id+"/cover.jpg")
 
 			| !{ about_html }
 

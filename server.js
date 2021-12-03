@@ -6,6 +6,7 @@ const http = require('http');
 const https = require('https');
 const socket_io = require('socket.io');
 const express = require('express');
+const compression = require('compression');
 const sqlite3 = require('better-sqlite3');
 
 require('dotenv').config();
@@ -82,17 +83,12 @@ function login_delete(res, sid) {
  * Web server setup.
  */
 
-const is_immutable = /\.(svg|png|jpg|jpeg|woff2|webp|ico)$/;
-function set_static_headers(res, path) {
-	if (is_immutable.test(path))
-		res.set("Cache-Control", "public, max-age=86400, immutable");
-}
-
 let app = express();
 app.set('x-powered-by', false);
 app.set('etag', false);
 app.set('view engine', 'pug');
-app.use(express.static('public', { setHeaders: set_static_headers, lastModified:false }));
+app.use(compression());
+app.use(express.static('public', { etag: false, maxAge: 24*3600*1000 }));
 app.use(express.urlencoded({extended:false}));
 
 let http_port = process.env.HTTP_PORT || 8080;
@@ -269,6 +265,7 @@ function is_blacklisted(mail) {
 }
 
 app.use(function (req, res, next) {
+	res.setHeader('Cache-Control', 'no-store');
 	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
 		return res.status(403).send('Sorry, but this IP has been banned.');
 	let sid = login_cookie(req);
@@ -1187,6 +1184,7 @@ function update_join_clients_deleted(game_id) {
 			res.write("retry: 15000\n");
 			res.write("event: deleted\n");
 			res.write("data: The game doesn't exist.\n\n");
+			res.flush();
 		}
 	}
 }
@@ -1199,6 +1197,7 @@ function update_join_clients_game(game_id) {
 			res.write("retry: 15000\n");
 			res.write("event: game\n");
 			res.write("data: " + JSON.stringify(game) + "\n\n");
+			res.flush();
 		}
 	}
 }
@@ -1214,6 +1213,7 @@ function update_join_clients_players(game_id) {
 			res.write("data: " + JSON.stringify(players) + "\n\n");
 			res.write("event: ready\n");
 			res.write("data: " + ready + "\n\n");
+			res.flush();
 		}
 	}
 }
@@ -1271,6 +1271,7 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	res.write("data: " + JSON.stringify(game) + "\n\n");
 	res.write("event: players\n");
 	res.write("data: " + JSON.stringify(players) + "\n\n");
+	res.flush();
 });
 
 app.get('/join/:game_id/:role', must_be_logged_in, function (req, res) {
@@ -1695,15 +1696,16 @@ io.on('connection', (socket) => {
 		let players = SQL_SELECT_PLAYERS_JOIN.all(socket.game_id);
 
 		if (socket.role !== "Observer") {
-			let me;
+			if (!socket.user_id)
+				return socket.emit('error', "You are not logged in!");
 			if (socket.role && socket.role !== 'undefined' && socket.role !== 'null') {
-				me = players.find(p => p.user_id === socket.user_id && p.role === socket.role);
+				let me = players.find(p => p.user_id === socket.user_id && p.role === socket.role);
 				if (!me) {
 					socket.role = "Observer";
 					return socket.emit('error', "You aren't assigned that role!");
 				}
 			} else {
-				me = players.find(p => p.user_id === socket.user_id);
+				let me = players.find(p => p.user_id === socket.user_id);
 				socket.role = me ? me.role : "Observer";
 			}
 		}
