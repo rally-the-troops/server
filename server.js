@@ -6,17 +6,26 @@ const http = require('http');
 const https = require('https');
 const socket_io = require('socket.io');
 const express = require('express');
-const express_session = require('express-session');
-const express_session_store = require('./connect-better-sqlite3')(express_session);
-const body_parser = require('body-parser');
 const sqlite3 = require('better-sqlite3');
 
 require('dotenv').config();
+
+/*
+ * Main database.
+ */
 
 let db = new sqlite3(process.env.DATABASE || "./db");
 db.pragma("journal_mode = WAL");
 db.pragma("synchronous = NORMAL");
 db.pragma("foreign_keys = ON");
+
+function SQL(s) {
+	return db.prepare(s);
+}
+
+/*
+ * Notification mail setup.
+ */
 
 let mailer = null;
 if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
@@ -30,6 +39,49 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
 	console.log("Mail notifications disabled.");
 }
 
+/*
+ * Login session management.
+ */
+
+const login_db = new sqlite3(process.env.LOGIN || "./login");
+login_db.pragma("journal_mode = WAL");
+login_db.pragma("synchronous = OFF");
+login_db.exec("create table if not exists sessions (sid integer primary key, user_id integer, expires real)");
+login_db.exec("delete from sessions where expires < julianday()");
+const login_sql_select = login_db.prepare("select user_id from sessions where sid = ? and expires > julianday()").pluck();
+const login_sql_insert = login_db.prepare("insert into sessions values (abs(random()) % (1<<48), ?, julianday() + 28) returning sid").pluck();
+const login_sql_delete = login_db.prepare("delete from sessions where sid = ?");
+const login_sql_touch = login_db.prepare("update sessions set expires = julianday() + 28 where sid=? and expires < julianday() + 27");
+
+function login_cookie(req) {
+	let c = req.headers.cookie;
+	if (c) {
+		let i = c.indexOf('login=');
+		if (i >= 0)
+			return parseInt(c.substring(i+6));
+	}
+	return 0;
+}
+
+function login_insert(res, user_id) {
+	let sid = login_sql_insert.get(user_id);
+	res.setHeader('Set-Cookie', 'login=' + sid + '; Max-Age=2419200');
+}
+
+function login_touch(res, sid) {
+	if (login_sql_touch.run(sid).changes === 1)
+		res.setHeader('Set-Cookie', 'login=' + sid + '; Max-Age=2419200');
+}
+
+function login_delete(res, sid) {
+	login_sql_delete.run(sid);
+	res.setHeader('Set-Cookie', 'login=; Max-Age=0');
+}
+
+/*
+ * Web server setup.
+ */
+
 const is_immutable = /\.(svg|png|jpg|jpeg|woff2|webp|ico)$/;
 function set_static_headers(res, path) {
 	if (is_immutable.test(path))
@@ -41,7 +93,7 @@ app.set('x-powered-by', false);
 app.set('etag', false);
 app.set('view engine', 'pug');
 app.use(express.static('public', { setHeaders: set_static_headers, lastModified:false }));
-app.use(body_parser.urlencoded({extended:false}));
+app.use(express.urlencoded({extended:false}));
 
 let http_port = process.env.HTTP_PORT || 8080;
 let http_server = http.createServer(app);
@@ -65,30 +117,12 @@ if (https_port) {
 	};
 }
 
-let session = express_session({
-	secret: process.env.SECRET || "Caesar has a big head!",
-	resave: false,
-	rolling: true,
-	saveUninitialized: false,
-	store: new express_session_store(),
-	cookie: {
-		maxAge: 7 * 24 * 60 * 60 * 1000,
-		sameSite: 'lax',
-	}
-});
-app.use(session);
-io.use((socket, next) => session(socket.request, {}, next));
-
 /*
  * MISC FUNCTIONS
  */
 
 function random_seed() {
 	return crypto.randomInt(1, 0x7ffffffe);
-}
-
-function SQL(s) {
-	return db.prepare(s);
 }
 
 function LOG(req, ...msg) {
@@ -102,9 +136,8 @@ function LOG(req, ...msg) {
 }
 
 function SLOG(socket, ...msg) {
-	let name = socket.request.user ? `"${socket.request.user.name}" <${socket.request.user.mail}>` : "guest";
 	let time = new Date().toISOString().substring(0,19).replace("T", " ");
-	console.log(time, socket.request.connection.remoteAddress, name,
+	console.log(time, socket.request.connection.remoteAddress, socket.user_name,
 		socket.title_id + "/" + socket.game_id  + "/" + socket.role, ...msg);
 }
 
@@ -172,11 +205,30 @@ const SQL_EXISTS_USER_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE mail
 
 const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt) VALUES (?,?,?,?) RETURNING user_id,name,mail,notify");
 
-const SQL_SELECT_USER = SQL("SELECT * FROM user_view WHERE user_id=?");
 const SQL_SELECT_USER_BY_NAME = SQL("SELECT * FROM user_view WHERE name=?");
 const SQL_SELECT_LOGIN_BY_MAIL = SQL("SELECT * FROM user_login_view WHERE mail=?");
 const SQL_SELECT_LOGIN_BY_NAME = SQL("SELECT * FROM user_login_view WHERE name=?");
 const SQL_SELECT_USER_PROFILE = SQL("SELECT * FROM user_profile_view WHERE name=?");
+const SQL_SELECT_USER_NAME = SQL("SELECT name FROM users WHERE user_id=?").pluck();
+const SQL_SELECT_USER_INFO = SQL(`
+	select
+		user_id,
+		name,
+		mail,
+		(
+			select
+				count(*)
+			from
+				messages
+			where
+				to_id = user_id
+				and is_read = 0
+				and is_deleted_from_inbox = 0
+		) as unread
+	from
+		users
+	where user_id = ?
+	`);
 
 const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND datetime('now') > datetime(atime,?)");
 
@@ -191,15 +243,23 @@ const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND datetim
 const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime('now')) RETURNING token").pluck();
 const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id=? AND datetime('now') < datetime(time, '+20 minutes') AND token=? )").pluck();
 
-const SQL_COUNT_INBOX = SQL("SELECT COUNT(*) FROM messages WHERE to_id=? AND is_read=0 AND is_deleted_from_inbox=0").pluck();
-
 const SQL_USER_STATS = SQL(`
-	SELECT title_name, scenario, SUM(role=result) AS won, count(*) AS total
-	FROM players
-	NATURAL JOIN games
-	NATURAL JOIN titles
-	WHERE user_id=? AND status=2 AND game_id IN (SELECT game_id FROM opposed_games)
-	GROUP BY title_name, scenario
+	select
+		title_name,
+		scenario,
+		sum(role=result) as won,
+		count(*) as total
+	from
+		players
+		natural join games
+		natural join titles
+	where
+		user_id = ?
+		and status = 2
+		and game_id in (select game_id from opposed_games)
+	group by
+		title_name,
+		scenario
 	`);
 
 function is_blacklisted(mail) {
@@ -211,11 +271,28 @@ function is_blacklisted(mail) {
 app.use(function (req, res, next) {
 	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
 		return res.status(403).send('Sorry, but this IP has been banned.');
-	if (req.session.user_id) {
-		req.user = SQL_SELECT_USER.get(req.session.user_id);
-		req.user.unread = SQL_COUNT_INBOX.get(req.user.user_id);
-		SQL_UPDATE_USER_LAST_SEEN.run(req.user.user_id, req.connection.remoteAddress);
+	let sid = login_cookie(req);
+	if (sid) {
+		let user_id = login_sql_select.get(sid);
+		if (user_id) {
+			login_touch(res, sid);
+			req.user = SQL_SELECT_USER_INFO.get(user_id);
+			SQL_UPDATE_USER_LAST_SEEN.run(user_id, req.connection.remoteAddress);
+		}
 	}
+	return next();
+});
+
+io.use(function (socket, next) {
+	let sid = login_cookie(socket.request);
+	if (sid)
+		socket.user_id = login_sql_select.get(sid);
+	else
+		socket.user_id = 0;
+	if (socket.user_id)
+		socket.user_name = SQL_SELECT_USER_NAME.get(socket.user_id);
+	else
+		socket.user_name = "guest";
 	return next();
 });
 
@@ -235,7 +312,9 @@ app.get('/about', function (req, res) {
 
 app.get('/logout', function (req, res) {
 	LOG(req, "GET /logout");
-	req.session.destroy();
+	let sid = login_cookie(req);
+	if (sid)
+		login_delete(res, sid);
 	res.redirect('/login');
 });
 
@@ -258,7 +337,7 @@ app.post('/login', function (req, res) {
 		user = SQL_SELECT_LOGIN_BY_MAIL.get(name_or_mail);
 	if (!user || is_blacklisted(user.mail) || hash_password(password, user.salt) != user.password)
 		return setTimeout(() => res.render('login.pug', { flash: "Invalid login." }), 1000);
-	req.session.user_id = user.user_id;
+	login_insert(res, user.user_id);
 	res.redirect(redirect);
 });
 
@@ -293,7 +372,7 @@ app.post('/signup', function (req, res) {
 	let salt = crypto.randomBytes(32).toString('hex');
 	let hash = hash_password(password, salt);
 	let user = SQL_INSERT_USER.get(name, mail, hash, salt);
-	req.session.user_id = user.user_id;
+	login_insert(res, user.user_id);
 	res.redirect('/profile');
 });
 
@@ -320,17 +399,23 @@ app.post('/forgot-password', function (req, res) {
 });
 
 app.get('/reset-password', function (req, res) {
+	if (req.user)
+		return res.redirect('/');
 	LOG(req, "GET /reset-password");
 	res.render('reset_password.pug', { mail: "", token: "" });
 });
 
 app.get('/reset-password/:mail', function (req, res) {
+	if (req.user)
+		return res.redirect('/');
 	let mail = req.params.mail;
 	LOG(req, "GET /reset-password", mail);
 	res.render('reset_password.pug', { mail: mail, token: "" });
 });
 
 app.get('/reset-password/:mail/:token', function (req, res) {
+	if (req.user)
+		return res.redirect('/');
 	let mail = req.params.mail;
 	let token = req.params.token;
 	LOG(req, "GET /reset-password", mail, token);
@@ -357,7 +442,7 @@ app.post('/reset-password', function (req, res) {
 	let salt = crypto.randomBytes(32).toString('hex');
 	let hash = hash_password(password, salt);
 	SQL_UPDATE_USER_PASSWORD.run(hash, salt, user.user_id);
-	req.session.user_id = user.user_id;
+	login_insert(res, user.user_id);
 	return res.redirect('/profile');
 });
 
@@ -470,7 +555,7 @@ app.get('/user-stats/:who_name', function (req, res) {
 
 app.get('/users', function (req, res) {
 	LOG(req, "GET /users");
-	let rows = db.prepare("SELECT * FROM user_profile_view ORDER BY atime DESC").all();
+	let rows = SQL("SELECT * FROM user_profile_view ORDER BY atime DESC").all();
 	rows.forEach(row => {
 		row.avatar = get_avatar(row.mail);
 		row.ctime = human_date(row.ctime);
@@ -495,24 +580,24 @@ app.get('/chat/all', must_be_logged_in, function (req, res) {
  * MESSAGES
  */
 
-const MESSAGE_LIST_INBOX = db.prepare(`
+const MESSAGE_LIST_INBOX = SQL(`
 	SELECT message_id, from_name, subject, time, is_read
 	FROM message_view
 	WHERE to_id=? AND is_deleted_from_inbox=0
 	ORDER BY message_id DESC`);
 
-const MESSAGE_LIST_OUTBOX = db.prepare(`
+const MESSAGE_LIST_OUTBOX = SQL(`
 	SELECT message_id, to_name, subject, time, 1 as is_read
 	FROM message_view
 	WHERE from_id=? AND is_deleted_from_outbox=0
 	ORDER BY message_id DESC`);
 
-const MESSAGE_FETCH = db.prepare("SELECT * FROM message_view WHERE message_id=? AND ( from_id=? OR to_id=? )");
-const MESSAGE_SEND = db.prepare("INSERT INTO messages (from_id,to_id,subject,body) VALUES (?,?,?,?)");
-const MESSAGE_MARK_READ = db.prepare("UPDATE messages SET is_read=1 WHERE message_id=? AND is_read = 0");
-const MESSAGE_DELETE_INBOX = db.prepare("UPDATE messages SET is_deleted_from_inbox=1 WHERE message_id=? AND to_id=?");
-const MESSAGE_DELETE_OUTBOX = db.prepare("UPDATE messages SET is_deleted_from_outbox=1 WHERE message_id=? AND from_id=?");
-const MESSAGE_DELETE_ALL_OUTBOX = db.prepare("UPDATE messages SET is_deleted_from_outbox=1 WHERE from_id=?");
+const MESSAGE_FETCH = SQL("SELECT * FROM message_view WHERE message_id=? AND ( from_id=? OR to_id=? )");
+const MESSAGE_SEND = SQL("INSERT INTO messages (from_id,to_id,subject,body) VALUES (?,?,?,?)");
+const MESSAGE_MARK_READ = SQL("UPDATE messages SET is_read=1 WHERE message_id=? AND is_read = 0");
+const MESSAGE_DELETE_INBOX = SQL("UPDATE messages SET is_deleted_from_inbox=1 WHERE message_id=? AND to_id=?");
+const MESSAGE_DELETE_OUTBOX = SQL("UPDATE messages SET is_deleted_from_outbox=1 WHERE message_id=? AND from_id=?");
+const MESSAGE_DELETE_ALL_OUTBOX = SQL("UPDATE messages SET is_deleted_from_outbox=1 WHERE from_id=?");
 
 app.get('/inbox', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /inbox");
@@ -640,14 +725,14 @@ app.get('/outbox/delete', must_be_logged_in, function (req, res) {
 
 const FORUM_PAGE_SIZE = 15;
 
-const FORUM_COUNT_THREADS = db.prepare("SELECT COUNT(*) FROM threads").pluck();
-const FORUM_LIST_THREADS = db.prepare("SELECT * FROM thread_view ORDER BY mtime DESC LIMIT ? OFFSET ?");
-const FORUM_GET_THREAD = db.prepare("SELECT * FROM thread_view WHERE thread_id=?");
-const FORUM_LIST_POSTS = db.prepare("SELECT * FROM post_view WHERE thread_id=?");
-const FORUM_GET_POST = db.prepare("SELECT * FROM post_view WHERE post_id=?");
-const FORUM_NEW_THREAD = db.prepare("INSERT INTO threads (author_id,subject) VALUES (?,?)");
-const FORUM_NEW_POST = db.prepare("INSERT INTO posts (thread_id,author_id,body) VALUES (?,?,?)");
-const FORUM_EDIT_POST = db.prepare("UPDATE posts SET body=?, mtime=datetime('now') WHERE post_id=? AND author_id=? RETURNING thread_id").pluck();
+const FORUM_COUNT_THREADS = SQL("SELECT COUNT(*) FROM threads").pluck();
+const FORUM_LIST_THREADS = SQL("SELECT * FROM thread_view ORDER BY mtime DESC LIMIT ? OFFSET ?");
+const FORUM_GET_THREAD = SQL("SELECT * FROM thread_view WHERE thread_id=?");
+const FORUM_LIST_POSTS = SQL("SELECT * FROM post_view WHERE thread_id=?");
+const FORUM_GET_POST = SQL("SELECT * FROM post_view WHERE post_id=?");
+const FORUM_NEW_THREAD = SQL("INSERT INTO threads (author_id,subject) VALUES (?,?)");
+const FORUM_NEW_POST = SQL("INSERT INTO posts (thread_id,author_id,body) VALUES (?,?,?)");
+const FORUM_EDIT_POST = SQL("UPDATE posts SET body=?, mtime=datetime('now') WHERE post_id=? AND author_id=? RETURNING thread_id").pluck();
 
 function show_forum_page(req, res, page) {
 	let thread_count = FORUM_COUNT_THREADS.get();
@@ -841,7 +926,7 @@ const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AN
 
 const SQL_AUTHORIZE_GAME_ROLE = SQL("SELECT 1 FROM players NATURAL JOIN games WHERE title_id=? AND game_id=? AND role=? AND user_id=?").pluck();
 
-const SQL_SELECT_OPEN_GAMES = db.prepare("SELECT * FROM games WHERE status=0");
+const SQL_SELECT_OPEN_GAMES = SQL("SELECT * FROM games WHERE status=0");
 const SQL_COUNT_OPEN_GAMES = SQL("SELECT COUNT(*) FROM games WHERE owner_id=? AND status=0").pluck();
 
 const SQL_SELECT_REMATCH = SQL("SELECT game_id FROM games WHERE status < 3 AND description=?").pluck();
@@ -1594,11 +1679,6 @@ function broadcast_presence(game_id) {
 }
 
 io.on('connection', (socket) => {
-	socket.user_id = socket.request.session.user_id || 0;
-	if (!socket.user_id)
-		socket.user_name = "guest";
-	else
-		socket.user_name = SQL_SELECT_USER.get(socket.user_id).name;
 	socket.title_id = socket.handshake.query.title || "unknown";
 	socket.game_id = socket.handshake.query.game | 0;
 	socket.role = socket.handshake.query.role;
@@ -1684,7 +1764,7 @@ io.on('connection', (socket) => {
  * HIDDEN EXTRAS
  */
 
-const SQL_GAME_STATS = db.prepare("SELECT * FROM game_stat_view");
+const SQL_GAME_STATS = SQL("SELECT * FROM game_stat_view");
 
 app.get('/stats', function (req, res) {
 	LOG(req, "GET /stats");
