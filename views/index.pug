@@ -38,10 +38,10 @@ html
 			div.list
 				each title in titles
 					unless title.is_hidden
+						- let cover = "/" + title.title_id + "/cover"
 						div
-							a(href="/info/"+title.title_id)
-								img(src="/"+title.title_id+"/cover.jpg")
-								| #{title.title_name}
+							+gamecover(title.title_id)
+							| #{title.title_name}
 
 			p: a(href="/games") List of all open and active games.
 

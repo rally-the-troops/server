@@ -12,6 +12,10 @@ link(rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/SourceSa
 //- link(rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/Dingbats.woff2")
 //- link(rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/NotoEmoji.woff2")
 
+mixin gamecover(title_id)
+	a(href="/info/"+title_id)
+		img(src=`/${title_id}/cover.1x.jpg` srcset=`/${title_id}/cover.2x.jpg 2x`)
+
 mixin forumpost(row,show_buttons)
 	.post
 		.head

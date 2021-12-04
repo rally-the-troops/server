@@ -11,7 +11,8 @@ html
 		article
 			h1= title.title_name
 
-			a(href="/info/"+title.title_id): img.logo(src="/"+title.title_id+"/cover.jpg")
+			div.logo
+				+gamecover(title.title_id)
 
 			form(method="post" action="/create/"+title.title_id)
 				if scenarios.length > 1

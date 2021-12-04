@@ -12,7 +12,7 @@ html
 			h1= title.title_name
 
 			div.logo
-				img.logo(src="/"+title.title_id+"/cover.jpg")
+				+gamecover(title.title_id)
 
 			| !{ about_html }
 

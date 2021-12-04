@@ -3,9 +3,9 @@ node_modules
 db
 db-wal
 db-shm
-sessions
-sessions-wal
-sessions-shm
+login
+login-wal
+login-shm
 log
 .env
 *.pem

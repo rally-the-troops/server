@@ -22,7 +22,8 @@ html
 		article
 			h1= game.title_name
 
-			a(href="/info/"+game.title_id): img.logo(src="/"+game.title_id+"/cover.jpg")
+			div.logo
+				+gamecover(game.title_id)
 
 			p
 				if game.is_private
