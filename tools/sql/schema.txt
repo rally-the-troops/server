@@ -22,6 +22,15 @@ create table if not exists roles (
 
 -- Users --
 
+create table if not exists logins (
+	sid integer
+		primary key,
+	user_id integer
+		references users
+			on delete cascade,
+	expires real
+);
+
 create table if not exists users (
 	user_id integer
 		primary key,

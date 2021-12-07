@@ -44,15 +44,11 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
  * Login session management.
  */
 
-const login_db = new sqlite3(process.env.LOGIN || "./login");
-login_db.pragma("journal_mode = WAL");
-login_db.pragma("synchronous = OFF");
-login_db.exec("create table if not exists sessions (sid integer primary key, user_id integer, expires real)");
-login_db.exec("delete from sessions where expires < julianday()");
-const login_sql_select = login_db.prepare("select user_id from sessions where sid = ? and expires > julianday()").pluck();
-const login_sql_insert = login_db.prepare("insert into sessions values (abs(random()) % (1<<48), ?, julianday() + 28) returning sid").pluck();
-const login_sql_delete = login_db.prepare("delete from sessions where sid = ?");
-const login_sql_touch = login_db.prepare("update sessions set expires = julianday() + 28 where sid=? and expires < julianday() + 27");
+db.exec("delete from logins where expires < julianday()");
+const login_sql_select = SQL("select user_id from logins where sid = ? and expires > julianday()").pluck();
+const login_sql_insert = SQL("insert into logins values (abs(random()) % (1<<48), ?, julianday() + 28) returning sid").pluck();
+const login_sql_delete = SQL("delete from logins where sid = ?");
+const login_sql_touch = SQL("update logins set expires = julianday() + 28 where sid = ? and expires < julianday() + 27");
 
 function login_cookie(req) {
 	let c = req.headers.cookie;
