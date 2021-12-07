@@ -1,11 +1,18 @@
-package-lock.json
-node_modules
-db
-db-wal
-db-shm
-log
-.env
-*.pem
+# Source assets and working files
+HIRES
 vassal
 tmp
-HIRES
+*.ppm
+
+# Live database files
+.env
+db
+db-shm
+db-wal
+key.pem
+cert.pem
+
+# Development clutter
+node_modules
+package-lock.json
+tags
