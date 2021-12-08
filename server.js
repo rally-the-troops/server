@@ -597,7 +597,6 @@ app.get('/inbox', must_be_logged_in, function (req, res) {
 	let messages = MESSAGE_LIST_INBOX.all(req.user.user_id);
 	for (let i = 0; i < messages.length; ++i)
 		messages[i].time = human_date(messages[i].time);
-	res.set("Cache-Control", "no-store");
 	res.render('message_inbox.pug', {
 		user: req.user,
 		messages: messages,
@@ -609,7 +608,6 @@ app.get('/outbox', must_be_logged_in, function (req, res) {
 	let messages = MESSAGE_LIST_OUTBOX.all(req.user.user_id);
 	for (let i = 0; i < messages.length; ++i)
 		messages[i].time = human_date(messages[i].time);
-	res.set("Cache-Control", "no-store");
 	res.render('message_outbox.pug', {
 		user: req.user,
 		messages: messages,
@@ -735,7 +733,6 @@ function show_forum_page(req, res, page) {
 		thread.ctime = human_date(thread.ctime);
 		thread.mtime = human_date(thread.mtime);
 	}
-	res.set("Cache-Control", "no-store");
 	res.render('forum_view.pug', {
 		user: req.user,
 		threads: threads,
@@ -777,7 +774,6 @@ app.get('/forum/thread/:thread_id', function (req, res) {
 		posts[i].ctime = human_date(posts[i].ctime);
 		posts[i].mtime = human_date(posts[i].mtime);
 	}
-	res.set("Cache-Control", "no-store");
 	res.render('forum_thread.pug', {
 		user: req.user,
 		thread: thread,
@@ -1030,7 +1026,6 @@ app.get('/games', function (req, res) {
 		annotate_games(open_games, 0);
 		annotate_games(active_games, 0);
 	}
-	res.set("Cache-Control", "no-store");
 	res.render('games.pug', {
 		user: req.user,
 		open_games: open_games,
@@ -1046,7 +1041,6 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 	let open_games = games.filter(game => game.status === 0);
 	let active_games = games.filter(game => game.status === 1);
 	let finished_games = games.filter(game => game.status === 2);
-	res.set("Cache-Control", "no-store");
 	res.render('profile.pug', {
 		user: req.user,
 		avatar: avatar,
@@ -1065,7 +1059,6 @@ app.get('/info/:title_id', function (req, res) {
 	let open_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1000);
 	let active_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 1, 1000);
 	let finished_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 50);
-	res.set("Cache-Control", "no-store");
 	annotate_games(open_games, req.user ? req.user.user_id : 0);
 	annotate_games(active_games, req.user ? req.user.user_id : 0);
 	annotate_games(finished_games, req.user ? req.user.user_id : 0);
@@ -1224,7 +1217,6 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	let roles = ROLES[game.title_id];
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
 	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, game.options, players);
-	res.set("Cache-Control", "no-store");
 	res.render('join.pug', {
 		user: req.user,
 		game: game,
@@ -1240,7 +1232,6 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	let game = SQL_SELECT_GAME_VIEW.get(game_id);
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
 
-	res.setHeader("Cache-Control", "no-store");
 	res.setHeader("Content-Type", "text/event-stream");
 	res.setHeader("Connection", "keep-alive");
 
