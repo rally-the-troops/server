@@ -4,6 +4,7 @@
 	"description": "Rally the Troops!",
 	"dependencies": {
 		"better-sqlite3": "^7.4.4",
+		"compression": "^1.7.4",
 		"dotenv": "^10.0.0",
 		"express": "^4.17.1",
 		"nodemailer": "^6.7.0",
