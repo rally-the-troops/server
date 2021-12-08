@@ -81,23 +81,23 @@ create table if not exists last_notified (
 ) without rowid;
 
 drop view if exists user_view;
-create view if not exists user_view as
+create view user_view as
 	select
 		user_id, name, mail, notify
 	from
 		users
 	;
 
-drop view if exists user_profile_view;
 drop view if exists user_login_view;
-create view if not exists user_login_view as
+create view user_login_view as
 	select
 		user_id, name, mail, notify, password, salt
 	from
 		users
 	;
 
-create view if not exists user_profile_view as
+drop view if exists user_profile_view;
+create view user_profile_view as
 	select
 		user_id, name, mail, notify, ctime, atime, about
 	from
@@ -127,7 +127,7 @@ create table if not exists messages (
 );
 
 drop view if exists message_view;
-create view if not exists message_view as
+create view message_view as
 	select
 		messages.*,
 		users_from.name as from_name,
@@ -182,7 +182,7 @@ create table if not exists posts (
 );
 
 drop view if exists thread_view;
-create view if not exists thread_view as
+create view thread_view as
 	select
 		threads.*,
 		author.name as author_name,
@@ -209,7 +209,7 @@ create view if not exists thread_view as
 	;
 
 drop view if exists post_view;
-create view if not exists post_view as
+create view post_view as
 	select
 		posts.*,
 		author.name as author_name
@@ -271,7 +271,7 @@ create table if not exists game_chat (
 );
 
 drop view if exists game_chat_view;
-create view if not exists game_chat_view as
+create view game_chat_view as
 	select
 		chat_id, game_id, time, name, message
 	from
@@ -306,7 +306,7 @@ create index if not exists player_user_idx on players(user_id);
 create index if not exists player_game_user_idx on players(game_id, user_id);
 
 drop view if exists game_view;
-create view if not exists game_view as
+create view game_view as
 	select
 		games.*,
 		titles.title_name,
@@ -322,7 +322,7 @@ create view if not exists game_view as
 	;
 
 drop view if exists game_full_view;
-create view if not exists game_full_view as
+create view game_full_view as
 	select
 		*,
 		(
@@ -347,7 +347,7 @@ create view if not exists game_full_view as
 	;
 
 drop view if exists opposed_games;
-create view if not exists opposed_games as
+create view opposed_games as
 	select
 		*
 	from
@@ -365,7 +365,7 @@ create view if not exists opposed_games as
 	;
 
 drop view if exists your_turn_reminder;
-create view if not exists your_turn_reminder as
+create view your_turn_reminder as
 	select
 		game_id, role, user_id, name, mail, notify
 	from
@@ -381,7 +381,7 @@ create view if not exists your_turn_reminder as
 	;
 
 drop view if exists your_turn;
-create view if not exists your_turn as
+create view your_turn as
 	select
 		game_id, user_id, role
 	from
@@ -461,7 +461,7 @@ end;
 -- Game stats
 
 drop view if exists role_index_view;
-create view if not exists role_index_view (t, i, r) as
+create view role_index_view (t, i, r) as
 	select
 		title_id,
 		row_number() over (partition by title_id),
@@ -471,7 +471,7 @@ create view if not exists role_index_view (t, i, r) as
 	;
 
 drop view if exists game_stat_view;
-create view if not exists game_stat_view as
+create view game_stat_view as
 	select
 		title_name,
 		null as scenario,
