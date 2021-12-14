@@ -322,9 +322,9 @@ app.post('/login', function (req, res) {
 	let name_or_mail = req.body.username;
 	let password = req.body.password;
 	let redirect = req.body.redirect;
+	LOG(req, "POST /login", name_or_mail);
 	if (!is_email(name_or_mail))
 		name_or_mail = clean_user_name(name_or_mail);
-	LOG(req, "POST /login", name_or_mail);
 	let user = SQL_SELECT_LOGIN_BY_NAME.get(name_or_mail);
 	if (!user)
 		user = SQL_SELECT_LOGIN_BY_MAIL.get(name_or_mail);
@@ -1416,7 +1416,7 @@ function mail_new_message(user, msg_id, msg_from, msg_subject, msg_body) {
 	let subject = "You have a new message from " + msg_from + ".";
 	let body = "Subject: " + msg_subject + "\n\n" +
 		msg_body + "\n\n--\n" +
-		"You can reply to this message at:\n"
+		"You can reply to this message at:\n" +
 		"https://rally-the-troops.com/message/read/" + msg_id + "\n\n";
 	console.log("SENT MAIL:", mail_addr(user), subject);
 	if (mailer)
