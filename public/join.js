@@ -88,7 +88,7 @@ function update() {
 	for (let i = 0; i < roles.length; ++i) {
 		let role = roles[i];
 		let role_id = "role_" + role.replace(/ /g, "_");
-		if (game.random && game.status === 0)
+		if (game.is_random && game.status === 0)
 			role = "Random " + (i+1);
 		document.getElementById(role_id + "_name").textContent = role;
 		let player = players.find(p => p.role === role);
