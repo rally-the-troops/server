@@ -13,7 +13,7 @@ html, button, input, select {
 	font-family: "Source Serif", "Circled Numbers", "Dingbats", "Noto Emoji", "Georgia", serif;
 }
 
-.log {
+#log {
 	font-family: "Source Serif SmText", "Circled Numbers", "Dingbats", "Noto Emoji", "Georgia", serif;
 }
 
@@ -51,7 +51,7 @@ html {
 .grid_window.hide_log .grid_role {
 	display: none;
 }
-.grid_window.hide_log .grid_log {
+.grid_window.hide_log #log {
 	display: none;
 }
 
@@ -107,26 +107,22 @@ html {
 	font-family: "Source Serif SmText";
 }
 
-.grid_log {
+#log {
 	grid-column: 2;
 	grid-row: 3;
 	border-left: 1px solid black;
 	overflow-y: scroll;
 	scrollbar-width: thin;
-}
-
-.log {
-	padding-left: 20px;
-	padding-top: 8px;
-	padding-right: 8px;
-	padding-bottom: 8px;
-	text-indent: -12px;
+	padding: 12px 0;
 	font-size: 12px;
 	line-height: 18px;
 	white-space: pre-wrap;
 }
 
-.log > * {
+#log > * {
+	padding-left: 20px;
+	padding-right: 4px;
+	text-indent: -12px;
 	min-height: 9px;
 }
 

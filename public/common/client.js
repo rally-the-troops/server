@@ -315,7 +315,7 @@ let create_log_entry = function (text) {
 	return p;
 }
 
-let log_scroller = document.querySelector(".grid_log");
+let log_scroller = document.getElementById("log");
 
 function on_update_log() {
 	let parent = document.getElementById("log");
