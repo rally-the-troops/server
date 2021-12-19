@@ -239,10 +239,10 @@ function init_client(roles) {
 		console.log("STATE", !!new_game.actions, new_game_over);
 		game = new_game;
 		game_over = new_game_over;
-		on_update_log();
 		on_update_bar();
 		on_update();
 		on_game_over();
+		on_update_log();
 	});
 
 	socket.on('save', (msg) => {
@@ -315,16 +315,26 @@ let create_log_entry = function (text) {
 	return p;
 }
 
+let log_scroller = document.querySelector(".grid_log");
+
 function on_update_log() {
 	let parent = document.getElementById("log");
 	let to_delete = parent.children.length - game.log_start;
-	while (to_delete > 0) {
-		parent.removeChild(parent.firstChild);
-		--to_delete;
-	}
-	for (let entry of game.log) {
-		parent.prepend(create_log_entry(entry));
-	}
+	while (to_delete-- > 0)
+		parent.removeChild(parent.lastChild);
+	for (let entry of game.log)
+		parent.appendChild(create_log_entry(entry));
+	log_scroller.scrollTop = log_scroller.scrollHeight;
+}
+
+try {
+	new ResizeObserver(entries => {
+		log_scroller.scrollTop = log_scroller.scrollHeight;
+	}).observe(log_scroller);
+} catch (err) {
+	window.addEventListener("resize", evt => {
+		log_scroller.scrollTop = log_scroller.scrollHeight;
+	});
 }
 
 function toggle_fullscreen() {
