@@ -62,12 +62,12 @@ function login_cookie(req) {
 
 function login_insert(res, user_id) {
 	let sid = login_sql_insert.get(user_id);
-	res.setHeader('Set-Cookie', 'login=' + sid + '; Max-Age=2419200');
+	res.setHeader('Set-Cookie', 'login=' + sid + '; Path=/; Max-Age=2419200');
 }
 
 function login_touch(res, sid) {
 	if (login_sql_touch.run(sid).changes === 1)
-		res.setHeader('Set-Cookie', 'login=' + sid + '; Max-Age=2419200');
+		res.setHeader('Set-Cookie', 'login=' + sid + '; Path=/; Max-Age=2419200');
 }
 
 function login_delete(res, sid) {
