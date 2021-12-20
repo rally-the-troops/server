@@ -117,7 +117,7 @@ window.addEventListener("focus", stop_blinker);
 
 function load_chat() {
 	chat_key = "chat/" + param_game_id;
-	chat_text = document.querySelector(".chat_text");
+	chat_text = document.getElementById("chat_text");
 	chat_last_day = null;
 	chat_log = 0;
 	chat_seen = window.localStorage.getItem(chat_key) | 0;
@@ -158,7 +158,7 @@ function update_chat(chat_id, utc_date, user, message) {
 		add_chat_line(format_time(date), user, message);
 	}
 	if (chat_id > chat_seen) {
-		let button = document.querySelector(".chat_button");
+		let button = document.getElementById("chat_button");
 		start_blinker("NEW MESSAGE");
 		if (!chat_is_visible)
 			button.classList.add("new");
@@ -216,7 +216,7 @@ function init_client(roles) {
 		console.log("ROLES", me, JSON.stringify(players));
 		player = me.replace(/ /g, '_');
 		if (player === "Observer")
-			document.querySelector(".chat_button").style.display = "none";
+			document.getElementById("chat_button").style.display = "none";
 		document.querySelector("body").classList.add(player);
 		for (let i = 0; i < roles.length; ++i) {
 			let pr = players.find(p => p.role === roles[i]);
@@ -260,7 +260,7 @@ function init_client(roles) {
 		update_chat(item[0], item[1], item[2], item[3]);
 	});
 
-	document.querySelector(".chat_form").addEventListener("submit", e => {
+	document.getElementById("chat_form").addEventListener("submit", e => {
 		let input = document.getElementById("chat_input");
 		e.preventDefault();
 		if (input.value) {
@@ -289,7 +289,7 @@ function init_client(roles) {
 		}
 	});
 
-	drag_element_with_mouse(".chat_window", ".chat_header");
+	drag_element_with_mouse("#chat_window", "#chat_header");
 }
 
 let is_your_turn = false;
@@ -346,8 +346,8 @@ function toggle_fullscreen() {
 
 function show_chat() {
 	if (!chat_is_visible) {
-		document.querySelector(".chat_button").classList.remove("new");
-		document.querySelector(".chat_window").classList.add("show");
+		document.getElementById("chat_button").classList.remove("new");
+		document.getElementById("chat_window").classList.add("show");
 		document.getElementById("chat_input").focus();
 		chat_is_visible = true;
 		save_chat();
@@ -356,7 +356,7 @@ function show_chat() {
 
 function hide_chat() {
 	if (chat_is_visible) {
-		document.querySelector(".chat_window").classList.remove("show");
+		document.getElementById("chat_window").classList.remove("show");
 		document.getElementById("chat_input").blur();
 		chat_is_visible = false;
 	}

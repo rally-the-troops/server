@@ -9,7 +9,7 @@ html, button, input, select {
 	font-size: 16px;
 }
 
-.chat_text, #chat_input {
+#chat_text, #chat_input {
 	font-family: "Source Serif", "Circled Numbers", "Dingbats", "Noto Emoji", "Georgia", serif;
 }
 
@@ -30,7 +30,7 @@ html {
 	overflow: clip;
 }
 
-.status {
+#status {
 	position:absolute;
 	z-index: 100;
 	left: 0;
@@ -180,7 +180,6 @@ body.Observer .menu .resign {
 	display: none;
 }
 
-
 .image_button {
 	user-select: none;
 }
@@ -204,7 +203,7 @@ body.Observer .menu .resign {
 	display: none;
 }
 
-.prompt {
+#prompt {
 	margin: 0 50px;
 	font-size: large;
 	flex-grow: 1;
@@ -279,10 +278,10 @@ button:enabled:active:hover {
 
 /* CHAT WINDOW */
 
-.chat_button.new {
+#chat_button.new {
 	filter: invert(100%);
 }
-.chat_window {
+#chat_window {
 	position: absolute;
 	left: 10px;
 	top: 55px;
@@ -295,26 +294,26 @@ button:enabled:active:hover {
 	display: grid;
 	grid-template-rows: min-content 1fr min-content;
 }
-.chat_window.show {
+#chat_window.show {
 	visibility: visible;
 }
-.chat_header {
+#chat_header {
 	cursor: move;
 	background-color: gainsboro;
 	border-bottom: 1px solid black;
 	padding: 5px 10px;
 }
-.chat_text {
+#chat_text {
 	font-size: 16px;
 	line-height: 24px;
 	height: 216px;
 	padding: 0px 5px;
 	overflow-y: scroll;
 }
-.chat_text .date {
+#chat_text .date {
 	font-weight: bold;
 }
-.chat_form {
+#chat_form {
 	display: block;
 	margin: 0;
 	padding: 0;
