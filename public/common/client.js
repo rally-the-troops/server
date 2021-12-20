@@ -371,8 +371,8 @@ function toggle_chat() {
 
 function zoom_map() {
 	let grid = document.getElementById("grid_center");
-	let mapwrap = document.querySelector(".mapwrap");
-	let map = document.querySelector(".map");
+	let mapwrap = document.getElementById("mapwrap");
+	let map = document.getElementById("map");
 	map.style.transform = null;
 	mapwrap.style.width = null;
 	mapwrap.style.height = null;
@@ -390,7 +390,7 @@ function zoom_map() {
 }
 
 function toggle_zoom() {
-	document.querySelector(".mapwrap").classList.toggle('fit');
+	document.getElementById("mapwrap").classList.toggle('fit');
 	zoom_map();
 }
 
