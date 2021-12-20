@@ -15,7 +15,6 @@
 	visibility: visible;
 }
 #battle th {
-	font-weight: normal;
 	padding: 0;
 	border: 1px solid black;
 }
@@ -25,6 +24,7 @@
 	vertical-align: top;
 }
 #battle_header {
+	font-weight: bold;
 	height: 2em;
 	line-height: 2em;
 	font-weight: bold;
@@ -32,6 +32,7 @@
 	cursor: move;
 }
 #battle_message {
+	font-weight: normal;
 	height: 2em;
 	line-height: 2em;
 	padding: 0 8px;
