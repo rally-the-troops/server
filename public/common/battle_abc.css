@@ -1,6 +1,6 @@
 /* ABC BATTLE DISPLAY FOR COLUMBIA BLOCK GAMES */
 
-.battle {
+#battle {
 	position: absolute;
 	left: 100px;
 	top: 100px;
@@ -11,27 +11,27 @@
 	box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.5);
 	visibility: hidden;
 }
-.battle.show {
+#battle.show {
 	visibility: visible;
 }
-.battle th {
+#battle th {
 	font-weight: normal;
 	padding: 0;
 	border: 1px solid black;
 }
-.battle td {
+#battle td {
 	padding: 0;
 	border: 1px solid black;
 	vertical-align: top;
 }
-.battle .battle_header {
+#battle_header {
 	height: 2em;
 	line-height: 2em;
 	font-weight: bold;
 	user-select: none;
 	cursor: move;
 }
-.battle .battle_message {
+#battle_message {
 	height: 2em;
 	line-height: 2em;
 	padding: 0 8px;
