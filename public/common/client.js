@@ -4,7 +4,7 @@
 
 /* URL: /$title_id/play:$game_id:$role */
 if (!/\/[\w-]+\/play:\d+(:[\w-]+)?/.test(window.location.pathname)) {
-	document.querySelector("#prompt").textContent = "Invalid game ID.";
+	document.getElementById("prompt").textContent = "Invalid game ID.";
 	throw Error("Invalid game ID.");
 }
 
@@ -202,14 +202,14 @@ function init_client(roles) {
 
 	socket.on('connect', () => {
 		console.log("CONNECTED");
-		document.querySelector(".grid_top").classList.remove('disconnected');
+		document.getElementById("grid_top").classList.remove('disconnected');
 		socket.emit('getchat', chat_log); // only send new messages when we reconnect!
 	});
 
 	socket.on('disconnect', () => {
 		console.log("DISCONNECTED");
 		document.getElementById("prompt").textContent = "Disconnected from server!";
-		document.querySelector(".grid_top").classList.add('disconnected');
+		document.getElementById("grid_top").classList.add('disconnected');
 	});
 
 	socket.on('roles', (me, players) => {
@@ -261,7 +261,7 @@ function init_client(roles) {
 	});
 
 	document.querySelector(".chat_form").addEventListener("submit", e => {
-		let input = document.querySelector("#chat_input");
+		let input = document.getElementById("chat_input");
 		e.preventDefault();
 		if (input.value) {
 			socket.emit('chat', input.value);
@@ -280,7 +280,7 @@ function init_client(roles) {
 				}
 			}
 			if (e.key === "Enter") {
-				let input = document.querySelector("#chat_input");
+				let input = document.getElementById("chat_input");
 				if (document.activeElement !== input) {
 					e.preventDefault();
 					show_chat();
@@ -298,12 +298,12 @@ let old_active = null;
 function on_update_bar() {
 	document.getElementById("prompt").textContent = game.prompt;
 	if (game.actions) {
-		document.querySelector(".grid_top").classList.add("your_turn");
+		document.getElementById("grid_top").classList.add("your_turn");
 		if (!is_your_turn || old_active !== game.active)
 			start_blinker("YOUR TURN");
 		is_your_turn = true;
 	} else {
-		document.querySelector(".grid_top").classList.remove("your_turn");
+		document.getElementById("grid_top").classList.remove("your_turn");
 		is_your_turn = false;
 	}
 	old_active = game.active;
@@ -348,7 +348,7 @@ function show_chat() {
 	if (!chat_is_visible) {
 		document.querySelector(".chat_button").classList.remove("new");
 		document.querySelector(".chat_window").classList.add("show");
-		document.querySelector("#chat_input").focus();
+		document.getElementById("chat_input").focus();
 		chat_is_visible = true;
 		save_chat();
 	}
@@ -357,7 +357,7 @@ function show_chat() {
 function hide_chat() {
 	if (chat_is_visible) {
 		document.querySelector(".chat_window").classList.remove("show");
-		document.querySelector("#chat_input").blur();
+		document.getElementById("chat_input").blur();
 		chat_is_visible = false;
 	}
 }
@@ -370,7 +370,7 @@ function toggle_chat() {
 }
 
 function zoom_map() {
-	let grid = document.querySelector(".grid_center");
+	let grid = document.getElementById("grid_center");
 	let mapwrap = document.querySelector(".mapwrap");
 	let map = document.querySelector(".map");
 	map.style.transform = null;
@@ -411,7 +411,7 @@ function init_shift_zoom() {
 }
 
 function toggle_log() {
-	document.querySelector(".grid_window").classList.toggle("hide_log");
+	document.getElementById("grid_window").classList.toggle("hide_log");
 	zoom_map();
 }
 
@@ -470,14 +470,14 @@ function send_restart(scenario) {
 
 function on_game_over() {
 	if (player) {
-		let exit_button = document.querySelector("#exit_button");
+		let exit_button = document.getElementById("exit_button");
 		if (exit_button) {
 			if (game_over || player === "Observer")
 				exit_button.classList.remove("hide");
 			else
 				exit_button.classList.add("hide");
 		}
-		let rematch_button = document.querySelector("#rematch_button");
+		let rematch_button = document.getElementById("rematch_button");
 		if (rematch_button) {
 			if (game_over && player !== "Observer")
 				rematch_button.classList.remove("hide");
