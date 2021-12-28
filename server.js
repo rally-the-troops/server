@@ -79,12 +79,19 @@ function login_delete(res, sid) {
  * Web server setup.
  */
 
+function set_static_headers(res, path) {
+	if (path.match(/\.(jpg|png|svg|webp|ico|woff2)/))
+		res.setHeader('Cache-Control', 'max-age=86400');
+	else
+		res.setHeader('Cache-Control', 'max-age=0');
+}
+
 let app = express();
 app.set('x-powered-by', false);
 app.set('etag', false);
 app.set('view engine', 'pug');
 app.use(compression());
-app.use(express.static('public', { etag: false, maxAge: 24*3600*1000 }));
+app.use(express.static('public', { etag: false, cacheControl: false, setHeaders: set_static_headers }));
 app.use(express.urlencoded({extended:false}));
 
 let http_port = process.env.HTTP_PORT || 8080;
