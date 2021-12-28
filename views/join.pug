@@ -3,6 +3,9 @@ doctype html
 html
 	head
 		include head
+		+social(game.title_name,
+			"Play " + game.title_name + " with " + players.map(x=>x.name).join(" and ") + ".",
+			game.title_id)
 		title= game.title_name
 		style.
 			table { min-width: auto; }

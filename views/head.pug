@@ -5,6 +5,15 @@ link(rel="icon" type="image/svg+xml" href="/favicon.svg")
 link(rel="stylesheet" href="/fonts/fonts.css")
 link(rel="stylesheet" href="/style.css")
 
+mixin social(title,description,game)
+	meta(property="og:title" content=title)
+	meta(property="og:type" content="website")
+	if game
+		meta(property="og:image" content="https://rally-the-troops.com/"+game+"/cover.2x.jpg")
+	else
+		meta(property="og:image" content="https://rally-the-troops.com/images/rally-the-troops.png")
+	meta(property="og:description" content=description)
+
 mixin gamecover(title_id)
 	a(href="/info/"+title_id)
 		img(src=`/${title_id}/cover.1x.jpg` srcset=`/${title_id}/cover.2x.jpg 2x`)
