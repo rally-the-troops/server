@@ -116,6 +116,22 @@ function stop_blinker() {
 window.addEventListener("focus", stop_blinker);
 
 function load_chat() {
+	let chat_window = document.createElement("div");
+	chat_window.id = "chat_window";
+	chat_window.innerHTML = `
+		<div id="chat_header">Chat</div>
+		<div id="chat_text"></div>
+		<form id="chat_form" action=""><input id="chat_input" autocomplete="off"></form>
+		`;
+	document.querySelector("body").appendChild(chat_window);
+
+	let chat_button = document.createElement("div");
+	chat_button.id = "chat_button";
+	chat_button.className = "icon_button";
+	chat_button.innerHTML = '<img src="/images/chat-bubble.svg">';
+	chat_button.addEventListener("click", toggle_chat);
+	document.querySelector("header").insertBefore(chat_button, document.getElementById("prompt"));
+
 	chat_key = "chat/" + param_game_id;
 	chat_text = document.getElementById("chat_text");
 	chat_last_day = null;
@@ -202,14 +218,14 @@ function init_client(roles) {
 
 	socket.on('connect', () => {
 		console.log("CONNECTED");
-		document.getElementById("grid_top").classList.remove('disconnected');
+		document.querySelector("header").classList.remove('disconnected');
 		socket.emit('getchat', chat_log); // only send new messages when we reconnect!
 	});
 
 	socket.on('disconnect', () => {
 		console.log("DISCONNECTED");
 		document.getElementById("prompt").textContent = "Disconnected from server!";
-		document.getElementById("grid_top").classList.add('disconnected');
+		document.querySelector("header").classList.add('disconnected');
 	});
 
 	socket.on('roles', (me, players) => {
@@ -298,12 +314,12 @@ let old_active = null;
 function on_update_bar() {
 	document.getElementById("prompt").textContent = game.prompt;
 	if (game.actions) {
-		document.getElementById("grid_top").classList.add("your_turn");
+		document.querySelector("header").classList.add("your_turn");
 		if (!is_your_turn || old_active !== game.active)
 			start_blinker("YOUR TURN");
 		is_your_turn = true;
 	} else {
-		document.getElementById("grid_top").classList.remove("your_turn");
+		document.querySelector("header").classList.remove("your_turn");
 		is_your_turn = false;
 	}
 	old_active = game.active;
@@ -370,7 +386,7 @@ function toggle_chat() {
 }
 
 function zoom_map() {
-	let grid = document.getElementById("grid_center");
+	let grid = document.querySelector("main");
 	let mapwrap = document.getElementById("mapwrap");
 	let map = document.getElementById("map");
 	map.style.transform = null;
@@ -411,16 +427,24 @@ function init_shift_zoom() {
 }
 
 function toggle_log() {
-	document.getElementById("grid_window").classList.toggle("hide_log");
+	document.querySelector("aside").classList.toggle("hide");
 	zoom_map();
 }
 
-function show_action_button(sel, action, use_label = false) {
-	let button = document.querySelector(sel);
+function action_button(action, label) {
+	let id = action + "_button";
+	let button = document.getElementById(id);
+	if (!button) {
+		button = document.createElement("button");
+		button.id = id;
+		button.textContent = label;
+		button.addEventListener("click", evt => send_action(action));
+		document.getElementById("actions").appendChild(button);
+	}
 	if (game.actions && action in game.actions) {
 		button.classList.remove("hide");
 		if (game.actions[action]) {
-			if (use_label)
+			if (label === undefined)
 				button.textContent = game.actions[action];
 			button.disabled = false;
 		} else {
