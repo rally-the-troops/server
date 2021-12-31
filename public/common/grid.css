@@ -91,7 +91,7 @@ aside {
 	display: grid;
 	overflow: clip;
 	grid-template-rows: min-content 1fr;
-	width: 209px;
+	width: 210px;
 	border-left: 1px solid black;
 }
 
@@ -110,10 +110,9 @@ aside {
 footer {
 	position:absolute;
 	z-index: 100;
-	left: 0;
 	bottom: 0;
 	background-color: white;
-	padding: 0 1ex;
+	padding: 0 8px;
 }
 
 /* MENU */
@@ -180,7 +179,7 @@ header button {
 
 #prompt {
 	margin: 0 50px;
-	font-size: large;
+	font-size: 18px;
 	flex-grow: 1;
 }
 
@@ -257,25 +256,9 @@ header button {
 
 /* CARDS */
 
-.hand {
-	margin: 15px;
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	min-height: 370px;
-}
-
 .card {
-	margin: 10px;
 	background-size: cover;
 	background-repeat: no-repeat;
-	transition: 100ms;
-	box-shadow: 1px 1px 5px rgba(0,0,0,0.5);
-	display: none;
-}
-
-.card.show {
-	display: block;
 }
 
 .card.enabled {
@@ -286,12 +269,16 @@ header button {
 	filter: grayscale(100%);
 }
 
-.small_card {
-	margin: 0 auto;
-	background-size: cover;
-	background-repeat: no-repeat;
-	transition: 100ms;
-	box-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+.hand {
+	margin: 15px;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	min-height: 370px;
+}
+
+.hand .card {
+	margin: 10px;
 }
 
 /* CHAT WINDOW */
@@ -309,13 +296,12 @@ header button {
 	border: 1px solid black;
 	background-color: white;
 	box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.5);
-	visibility: hidden;
-	display: grid;
+	display: none;
 	grid-template-rows: min-content 1fr min-content;
 }
 
 #chat_window.show {
-	visibility: visible;
+	display: grid;
 }
 
 #chat_header {

@@ -11,6 +11,7 @@ create table if not exists titles (
 	title_name text,
 	bgg integer,
 	is_hidden boolean
+		default 0
 ) without rowid;
 
 create table if not exists roles (
