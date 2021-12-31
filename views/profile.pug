@@ -3,13 +3,13 @@ doctype html
 html
 	head
 		include head
-		title Rally the Troops!
+		title= SITE_NAME
 		if active_games.length > 0
 			meta(http-equiv="refresh" content=300)
 	body
 		include header
 		article
-			h1 Rally the Troops!
+			h1= SITE_NAME
 			a(href="https://gravatar.com/"): img.avatar(src=avatar)
 
 			p Welcome, #{user.name}!

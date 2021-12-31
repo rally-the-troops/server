@@ -9,9 +9,9 @@ mixin social(title,description,game)
 	meta(property="og:title" content=title)
 	meta(property="og:type" content="website")
 	if game
-		meta(property="og:image" content="https://rally-the-troops.com/"+game+"/cover.2x.jpg")
+		meta(property="og:image" content=SITE_URL+"/"+game+"/cover.2x.jpg")
 	else
-		meta(property="og:image" content="https://rally-the-troops.com/images/rally-the-troops.png")
+		meta(property="og:image" content=SITE_URL+"/images/rally-the-troops.png")
 	meta(property="og:description" content=description)
 
 mixin gamecover(title_id)

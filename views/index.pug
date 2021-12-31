@@ -3,9 +3,9 @@ doctype html
 html
 	head
 		include head
-		+social("Rally the Troops!", "Play historic board games on the web.")
+		+social(SITE_NAME, "Play historic board games on the web.")
 		meta(name="keywords" content="wargames, war games, block games")
-		title Rally the Troops!
+		title= SITE_NAME
 		style.
 			div.list {
 				max-width: 800px;
@@ -31,9 +31,9 @@ html
 	body
 		include header
 		article
-			h1 Rally the Troops!
+			h1= SITE_NAME
 
-			p Rally the Troops! is a website where you can play historic board games online.
+			p #{SITE_NAME} is a website where you can play historic board games online.
 
 			p Registration and use is free, and there are no ads.
 
@@ -47,4 +47,4 @@ html
 
 			p: a(href="/games") List of all open and active games.
 
-			p Join the #[a(href="https://discord.gg/CBrTh8k84A") Discord] server to find players or report bugs.
+			p!= process.env.SITE_INVITE

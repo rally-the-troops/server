@@ -11,6 +11,9 @@ const sqlite3 = require('better-sqlite3');
 
 require('dotenv').config();
 
+const SITE_URL = process.env.SITE_URL || "http://localhost:8080";
+const SITE_NAME = process.env.SITE_NAME || "Untitled";
+
 /*
  * Main database.
  */
@@ -29,7 +32,7 @@ function SQL(s) {
  */
 
 let mailer = null;
-if (process.env.MAIL_HOST && process.env.MAIL_PORT) {
+if (process.env.MAIL_HOST && process.env.MAIL_PORT && process.env.MAIL_FROM) {
 	mailer = require('nodemailer').createTransport({
 		host: process.env.MAIL_HOST,
 		port: process.env.MAIL_PORT,
@@ -93,6 +96,7 @@ app.set('view engine', 'pug');
 app.use(compression());
 app.use(express.static('public', { etag: false, cacheControl: false, setHeaders: set_static_headers }));
 app.use(express.urlencoded({extended:false}));
+app.locals.SITE_NAME = SITE_NAME;
 
 let http_port = process.env.HTTP_PORT || 8080;
 let http_server = http.createServer(app);
@@ -1381,8 +1385,8 @@ app.get('/:title_id/play\::game_id', function (req, res) {
  * MAIL NOTIFICATIONS
  */
 
-const MAIL_FROM = process.env.MAIL_FROM || "Rally the Troops! <notifications@rally-the-troops.com>";
-const MAIL_FOOTER = "You can unsubscribe from notifications on your profile page:\nhttps://rally-the-troops.com/profile\n";
+const MAIL_FROM = process.env.MAIL_FROM || "user@localhost";
+const MAIL_FOOTER = `You can unsubscribe from notifications on your profile page:\n${SITE_URL}/profile\n`;
 
 const SQL_SELECT_NOTIFIED = SQL("SELECT datetime('now') < datetime(time,?) FROM last_notified WHERE game_id=? AND user_id=?").pluck();
 const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,datetime('now'))");
@@ -1409,14 +1413,17 @@ function mail_describe(game) {
 }
 
 function mail_password_reset_token(user, token) {
-	let subject = "Rally the Troops - Password reset request";
+	let subject = "Password reset request";
 	let body =
 		"Your password reset token is: " + token + "\n\n" +
-		"https://rally-the-troops.com/reset-password/" + user.mail + "/" + token + "\n\n" +
+		SITE_URL + "/reset-password/" + user.mail + "/" + token + "\n\n" +
 		"If you did not request a password reset you can ignore this mail.\n";
-	console.log("SENT MAIL:", mail_addr(user), subject);
-	if (mailer)
+	if (mailer) {
+		console.log("SENT MAIL:", mail_addr(user), subject);
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
+	} else {
+		console.log("DID NOT SEND MAIL:", mail_addr(user), subject);
+	}
 }
 
 function mail_new_message(user, msg_id, msg_from, msg_subject, msg_body) {
@@ -1424,7 +1431,7 @@ function mail_new_message(user, msg_id, msg_from, msg_subject, msg_body) {
 	let body = "Subject: " + msg_subject + "\n\n" +
 		msg_body + "\n\n--\n" +
 		"You can reply to this message at:\n" +
-		"https://rally-the-troops.com/message/read/" + msg_id + "\n\n";
+		SITE_URL + "/message/read/" + msg_id + "\n\n";
 	console.log("SENT MAIL:", mail_addr(user), subject);
 	if (mailer)
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
@@ -1438,7 +1445,7 @@ function mail_your_turn_notification(user, game_id, interval) {
 		let subject = game.title_name + " - " + game_id + " - Your turn!";
 		let body = mail_describe(game) +
 			"It's your turn.\n\n" +
-			"https://rally-the-troops.com/play/" + game_id + "\n\n--\n" +
+			SITE_URL + "/play/" + game_id + "\n\n--\n" +
 			MAIL_FOOTER;
 		console.log("SENT MAIL:", mail_addr(user), subject);
 		if (mailer)
@@ -1458,7 +1465,7 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 		let subject = game.title_name + " - " + game_id + " - Ready to start!";
 		let body = mail_describe(game) +
 			"Your game is ready to start.\n\n" +
-			"https://rally-the-troops.com/join/" + game_id + "\n\n--\n" +
+			SITE_URL + "/join/" + game_id + "\n\n--\n" +
 			MAIL_FOOTER;
 		console.log("SENT MAIL:", mail_addr(user), subject);
 		if (mailer)
