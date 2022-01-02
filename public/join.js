@@ -68,11 +68,14 @@ function start_event_source() {
 		});
 		evtsrc.addEventListener("deleted", function (evt) {
 			console.log("DELETED");
-			window.location.href = '/info/' + game.title_id;
+			window.location.href = '/' + game.title_id;
 		});
 		evtsrc.onerror = function (err) {
 			window.message.innerHTML = "Disconnected from server...";
 		};
+		window.addEventListener('beforeunload', function (evt) {
+			evtsrc.close();
+		});
 	}
 }
 

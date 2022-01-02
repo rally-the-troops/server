@@ -25,14 +25,16 @@ body:not(.shift) .debug {
 	display: none;
 }
 
-body.Observer .resign {
+body.Observer .resign, body.replay .resign {
 	display: none;
 }
 
 button {
-	font-size: 1rem;
+	box-sizing: border-box;
+	font-size: 16px;
+	height: 28px;
 	margin: 0;
-	padding: 1px 12px;
+	padding: 1px 12px 1px 12px;
 	background-color: gainsboro;
 }
 button:disabled {
@@ -175,6 +177,15 @@ footer {
 
 header button {
 	margin: 0 10px;
+}
+
+header .replay {
+	margin: 0 10px;
+	display: flex;
+}
+
+header button.replay_button {
+	margin: 0;
 }
 
 #prompt {

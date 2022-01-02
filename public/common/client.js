@@ -1,28 +1,25 @@
 "use strict";
 
-/* global io, on_update */
+/* URL: /$title_id/(re)play:$game_id:$role */
 
-/* URL: /$title_id/play:$game_id:$role */
-if (!/\/[\w-]+\/play:\d+(:[\w-]+)?/.test(window.location.pathname)) {
+if (!/\/[\w-]+\/(re)?play:\d+(:[\w-]+)?/.test(window.location.pathname)) {
 	document.getElementById("prompt").textContent = "Invalid game ID.";
 	throw Error("Invalid game ID.");
 }
 
-const param_title_id = window.location.pathname.split("/")[1];
-const param_game_id = decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[1] | 0;
-const param_role = decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[2] || "Observer";
+let params = {
+	mode: window.location.pathname.split("/")[2].split(":")[0],
+	title_id: window.location.pathname.split("/")[1],
+	game_id: decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[1] | 0,
+	role: decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[2] || "Observer",
+}
 
-let game = null;
-let game_over = false;
-let player = null;
+let roles = Array.from(document.querySelectorAll(".role")).map(x=>({id:x.id,role:x.id.replace(/^role_/,"").replace(/_/g," ")}));
+
+let view = null;
+let player = "Observer";
 let socket = null;
-
-let chat_is_visible = false;
-let chat_text = null;
-let chat_key = null;
-let chat_last_day = null;
-let chat_log = 0;
-let chat_seen = 0;
+let chat = null;
 
 function scroll_with_middle_mouse(panel_sel, multiplier) {
 	let panel = document.querySelector(panel_sel);
@@ -35,8 +32,8 @@ function scroll_with_middle_mouse(panel_sel, multiplier) {
 			down_y = e.clientY;
 			scroll_x = panel.scrollLeft;
 			scroll_y = panel.scrollTop;
-			window.addEventListener('mousemove', mm);
-			window.addEventListener('mouseup', mu);
+			window.addEventListener("mousemove", mm);
+			window.addEventListener("mouseup", mu);
 			e.preventDefault();
 		}
 	}
@@ -49,12 +46,12 @@ function scroll_with_middle_mouse(panel_sel, multiplier) {
 	}
 	function mu(e) {
 		if (e.button === 1) {
-			window.removeEventListener('mousemove', mm);
-			window.removeEventListener('mouseup', mu);
+			window.removeEventListener("mousemove", mm);
+			window.removeEventListener("mouseup", mu);
 			e.preventDefault();
 		}
 	}
-	panel.addEventListener('mousedown', md);
+	panel.addEventListener("mousedown", md);
 }
 
 function drag_element_with_mouse(element_sel, grabber_sel) {
@@ -65,8 +62,8 @@ function drag_element_with_mouse(element_sel, grabber_sel) {
 		if (e.button === 0) {
 			save_x = e.clientX;
 			save_y = e.clientY;
-			window.addEventListener('mousemove', mm);
-			window.addEventListener('mouseup', mu);
+			window.addEventListener("mousemove", mm);
+			window.addEventListener("mouseup", mu);
 			e.preventDefault();
 		}
 	}
@@ -81,12 +78,12 @@ function drag_element_with_mouse(element_sel, grabber_sel) {
 	}
 	function mu(e) {
 		if (e.button === 0) {
-			window.removeEventListener('mousemove', mm);
-			window.removeEventListener('mouseup', mu);
+			window.removeEventListener("mousemove", mm);
+			window.removeEventListener("mouseup", mu);
 			e.preventDefault();
 		}
 	}
-	grabber.addEventListener('mousedown', md);
+	grabber.addEventListener("mousedown", md);
 }
 
 /* TITLE BLINKER */
@@ -115,7 +112,18 @@ function stop_blinker() {
 
 window.addEventListener("focus", stop_blinker);
 
-function load_chat() {
+/* CHAT */
+
+function init_chat() {
+	// only fetch new messages when we reconnect!
+	if (chat !== null) {
+		console.log("RECONNECT CHAT");
+		socket.emit("getchat", chat.log);
+		return;
+	}
+
+	console.log("CONNECT CHAT");
+
 	let chat_window = document.createElement("div");
 	chat_window.id = "chat_window";
 	chat_window.innerHTML = `
@@ -132,15 +140,50 @@ function load_chat() {
 	chat_button.addEventListener("click", toggle_chat);
 	document.querySelector("header").insertBefore(chat_button, document.getElementById("prompt"));
 
-	chat_key = "chat/" + param_game_id;
-	chat_text = document.getElementById("chat_text");
-	chat_last_day = null;
-	chat_log = 0;
-	chat_seen = window.localStorage.getItem(chat_key) | 0;
+	chat = {
+		is_visible: false,
+		text_element: document.getElementById("chat_text"),
+		key: "chat/" + params.game_id,
+		last_day: null,
+		log: 0
+	}
+
+	chat.seen = window.localStorage.getItem(chat.key) | 0;
+
+	drag_element_with_mouse("#chat_window", "#chat_header");
+
+	document.getElementById("chat_form").addEventListener("submit", e => {
+		let input = document.getElementById("chat_input");
+		e.preventDefault();
+		if (input.value) {
+			socket.emit("chat", input.value);
+			input.value = "";
+		} else {
+			hide_chat();
+		}
+	});
+
+	document.querySelector("body").addEventListener("keydown", e => {
+		if (e.key === "Escape") {
+			if (chat.is_visible) {
+				e.preventDefault();
+				hide_chat();
+			}
+		}
+		if (e.key === "Enter") {
+			let input = document.getElementById("chat_input");
+			if (document.activeElement !== input) {
+				e.preventDefault();
+				show_chat();
+			}
+		}
+	});
+
+	socket.emit("getchat", 0);
 }
 
 function save_chat() {
-	window.localStorage.setItem(chat_key, chat_log);
+	window.localStorage.setItem(chat.key, chat.log);
 }
 
 function update_chat(chat_id, utc_date, user, message) {
@@ -155,38 +198,70 @@ function update_chat(chat_id, utc_date, user, message) {
 		let line = document.createElement("div");
 		line.className = "date";
 		line.textContent = "~ " + date + " ~";
-		chat_text.appendChild(line);
+		chat.text_element.appendChild(line);
 	}
 	function add_chat_line(time, user, message) {
 		let line = document.createElement("div");
 		line.textContent = "[" + time + "] " + user + " \xbb " + message;
-		chat_text.appendChild(line);
-		chat_text.scrollTop = chat_text.scrollHeight;
+		chat.text_element.appendChild(line);
+		chat.text_element.scrollTop = chat.text_element.scrollHeight;
 	}
-	if (chat_id > chat_log) {
-		chat_log = chat_id;
+	if (chat_id > chat.log) {
+		chat.log = chat_id;
 		let date = new Date(utc_date + "Z");
 		let day = date.toDateString();
-		if (day !== chat_last_day) {
+		if (day !== chat.last_day) {
 			add_date_line(day);
-			chat_last_day = day;
+			chat.last_day = day;
 		}
 		add_chat_line(format_time(date), user, message);
 	}
-	if (chat_id > chat_seen) {
+	if (chat_id > chat.seen) {
 		let button = document.getElementById("chat_button");
 		start_blinker("NEW MESSAGE");
-		if (!chat_is_visible)
+		if (!chat.is_visible)
 			button.classList.add("new");
 		else
 			save_chat();
 	}
 }
 
-function init_client(roles) {
-	game = null;
-	player = null;
+function show_chat() {
+	if (!chat.is_visible) {
+		document.getElementById("chat_button").classList.remove("new");
+		document.getElementById("chat_window").classList.add("show");
+		document.getElementById("chat_input").focus();
+		chat.is_visible = true;
+		save_chat();
+	}
+}
 
+function hide_chat() {
+	if (chat.is_visible) {
+		document.getElementById("chat_window").classList.remove("show");
+		document.getElementById("chat_input").blur();
+		chat.is_visible = false;
+	}
+}
+
+function toggle_chat() {
+	if (chat.is_visible)
+		hide_chat();
+	else
+		show_chat();
+}
+
+/* CONNECT TO GAME SERVER */
+
+function init_player_names(players) {
+	for (let i = 0; i < roles.length; ++i) {
+		let sel = "#" + roles[i].id + " .role_user";
+		let p = players.find(p => p.role === roles[i].role);
+		document.querySelector(sel).textContent = p ? p.name : "NONE";
+	}
+}
+
+function init_play_client() {
 	const ROLE_SEL = [
 		".role.one",
 		".role.two",
@@ -197,161 +272,118 @@ function init_client(roles) {
 		".role.seven",
 	];
 
-	const USER_SEL = [
-		".role.one .role_user",
-		".role.two .role_user",
-		".role.three .role_user",
-		".role.four .role_user",
-		".role.five .role_user",
-		".role.six .role_user",
-		".role.seven .role_user",
-	];
-
-	load_chat();
-
-	console.log("JOINING", param_title_id + "/" + param_game_id + "/" + param_role);
+	console.log("JOINING", params.title_id + "/" + params.game_id + "/" + params.role);
 
 	socket = io({
-		transports: ['websocket'],
-		query: { title: param_title_id, game: param_game_id, role: param_role },
+		transports: ["websocket"],
+		query: { title: params.title_id, game: params.game_id, role: params.role },
 	});
 
-	socket.on('connect', () => {
+	socket.on("connect", () => {
 		console.log("CONNECTED");
-		document.querySelector("header").classList.remove('disconnected');
-		socket.emit('getchat', chat_log); // only send new messages when we reconnect!
+		document.querySelector("header").classList.remove("disconnected");
 	});
 
-	socket.on('disconnect', () => {
+	socket.on("disconnect", () => {
 		console.log("DISCONNECTED");
 		document.getElementById("prompt").textContent = "Disconnected from server!";
-		document.querySelector("header").classList.add('disconnected');
+		document.querySelector("header").classList.add("disconnected");
 	});
 
-	socket.on('roles', (me, players) => {
-		console.log("ROLES", me, JSON.stringify(players));
-		player = me.replace(/ /g, '_');
-		if (player === "Observer")
-			document.getElementById("chat_button").style.display = "none";
-		document.querySelector("body").classList.add(player);
-		for (let i = 0; i < roles.length; ++i) {
-			let pr = players.find(p => p.role === roles[i]);
-			document.querySelector(USER_SEL[i]).textContent = pr ? pr.name : "NONE";
-		}
+	socket.on("roles", (me, players) => {
+		console.log("PLAYERS", me, JSON.stringify(players));
+		player = me;
+		document.querySelector("body").classList.add(player.replace(/ /g, "_"));
+		if (player !== "Observer")
+			init_chat();
+		init_player_names(players);
 	});
 
-	socket.on('presence', (presence) => {
+	socket.on("presence", (presence) => {
 		console.log("PRESENCE", JSON.stringify(presence));
 		for (let i = 0; i < roles.length; ++i) {
-			let elt = document.querySelector(ROLE_SEL[i]);
-			if (roles[i] in presence)
-				elt.classList.add('present');
+			let elt = document.getElementById(roles[i].id);
+			if (roles[i].role in presence)
+				elt.classList.add("present");
 			else
-				elt.classList.remove('present');
+				elt.classList.remove("present");
 		}
 	});
 
-	socket.on('state', (new_game, new_game_over) => {
-		console.log("STATE", !!new_game.actions, new_game_over);
-		game = new_game;
-		game_over = new_game_over;
-		on_update_bar();
+	socket.on("state", (new_view) => {
+		console.log("STATE");
+		view = new_view;
+		on_update_header();
 		on_update();
-		on_game_over();
 		on_update_log();
 	});
 
-	socket.on('save', (msg) => {
+	socket.on("save", (msg) => {
 		console.log("SAVE");
-		window.localStorage[param_title_id + '/save'] = msg;
+		window.localStorage[params.title_id + "/save"] = msg;
 	});
 
-	socket.on('error', (msg) => {
+	socket.on("error", (msg) => {
 		console.log("ERROR", msg);
 		document.getElementById("prompt").textContent = msg;
 	});
 
-	socket.on('chat', function (item) {
-		console.log("CHAT", JSON.stringify(item));
+	socket.on("chat", function (item) {
 		update_chat(item[0], item[1], item[2], item[3]);
 	});
-
-	document.getElementById("chat_form").addEventListener("submit", e => {
-		let input = document.getElementById("chat_input");
-		e.preventDefault();
-		if (input.value) {
-			socket.emit('chat', input.value);
-			input.value = '';
-		} else {
-			hide_chat();
-		}
-	});
-
-	document.querySelector("body").addEventListener("keydown", e => {
-		if (player && player !== "Observer") {
-			if (e.key === "Escape") {
-				if (chat_is_visible) {
-					e.preventDefault();
-					hide_chat();
-				}
-			}
-			if (e.key === "Enter") {
-				let input = document.getElementById("chat_input");
-				if (document.activeElement !== input) {
-					e.preventDefault();
-					show_chat();
-				}
-			}
-		}
-	});
-
-	drag_element_with_mouse("#chat_window", "#chat_header");
 }
+
+/* HEADER */
 
 let is_your_turn = false;
 let old_active = null;
 
-function on_update_bar() {
-	document.getElementById("prompt").textContent = game.prompt;
-	if (game.actions) {
+function on_update_header() {
+	document.getElementById("prompt").textContent = view.prompt;
+	if (params.mode === "replay")
+		return;
+	if (view.actions) {
 		document.querySelector("header").classList.add("your_turn");
-		if (!is_your_turn || old_active !== game.active)
+		if (!is_your_turn || old_active !== view.active)
 			start_blinker("YOUR TURN");
 		is_your_turn = true;
 	} else {
 		document.querySelector("header").classList.remove("your_turn");
 		is_your_turn = false;
 	}
-	old_active = game.active;
+	old_active = view.active;
 }
+
+/* LOG */
 
 let create_log_entry = function (text) {
-	let p = document.createElement("div");
-	p.textContent = text;
-	return p;
+	let div = document.createElement("div");
+	div.textContent = text;
+	return div;
 }
 
-let log_scroller = document.getElementById("log");
-
 function on_update_log() {
-	let parent = document.getElementById("log");
-	let to_delete = parent.children.length - game.log_start;
+	let div = document.getElementById("log");
+	let to_delete = div.children.length - view.log_start;
 	while (to_delete-- > 0)
-		parent.removeChild(parent.lastChild);
-	for (let entry of game.log)
-		parent.appendChild(create_log_entry(entry));
-	log_scroller.scrollTop = log_scroller.scrollHeight;
+		div.removeChild(div.lastChild);
+	for (let entry of view.log)
+		div.appendChild(create_log_entry(entry));
+	scroll_log_to_end();
+}
+
+function scroll_log_to_end() {
+	let div = document.getElementById("log");
+	div.scrollTop = div.scrollHeight;
 }
 
 try {
-	new ResizeObserver(entries => {
-		log_scroller.scrollTop = log_scroller.scrollHeight;
-	}).observe(log_scroller);
+	new ResizeObserver(scroll_log_to_end).observe(document.getElementById("log"));
 } catch (err) {
-	window.addEventListener("resize", evt => {
-		log_scroller.scrollTop = log_scroller.scrollHeight;
-	});
+	window.addEventListener("resize", scroll_log_to_end);
 }
+
+/* MAP ZOOM */
 
 function toggle_fullscreen() {
 	if (document.fullscreen)
@@ -360,78 +392,60 @@ function toggle_fullscreen() {
 		document.documentElement.requestFullscreen();
 }
 
-function show_chat() {
-	if (!chat_is_visible) {
-		document.getElementById("chat_button").classList.remove("new");
-		document.getElementById("chat_window").classList.add("show");
-		document.getElementById("chat_input").focus();
-		chat_is_visible = true;
-		save_chat();
-	}
-}
-
-function hide_chat() {
-	if (chat_is_visible) {
-		document.getElementById("chat_window").classList.remove("show");
-		document.getElementById("chat_input").blur();
-		chat_is_visible = false;
-	}
-}
-
-function toggle_chat() {
-	if (chat_is_visible)
-		hide_chat();
-	else
-		show_chat();
-}
-
-function zoom_map() {
-	let grid = document.querySelector("main");
-	let mapwrap = document.getElementById("mapwrap");
-	let map = document.getElementById("map");
-	map.style.transform = null;
-	mapwrap.style.width = null;
-	mapwrap.style.height = null;
-	if (mapwrap.classList.contains("fit")) {
-		let { width: gw, height: gh } = grid.getBoundingClientRect();
-		let { width: ww, height: wh } = mapwrap.getBoundingClientRect();
-		let { width: cw, height: ch } = map.getBoundingClientRect();
-		let scale = Math.min(ww / cw, gh / ch);
-		if (scale < 1) {
-			map.style.transform = "scale(" + scale + ")";
-			mapwrap.style.width = (cw * scale) + "px";
-			mapwrap.style.height = (ch * scale) + "px";
-		}
-	}
-}
-
-function toggle_zoom() {
-	document.getElementById("mapwrap").classList.toggle('fit');
-	zoom_map();
-}
-
-function init_map_zoom() {
-	window.addEventListener('resize', zoom_map);
-	zoom_map();
-}
-
-function init_shift_zoom() {
-	window.addEventListener("keydown", (evt) => {
-		if (evt.key === "Shift")
-			document.querySelector("body").classList.add("shift");
-	});
-	window.addEventListener("keyup", (evt) => {
-		if (evt.key === "Shift")
-			document.querySelector("body").classList.remove("shift");
-	});
-}
-
 function toggle_log() {
 	document.querySelector("aside").classList.toggle("hide");
 	zoom_map();
 }
 
+function toggle_zoom() {
+	let mapwrap = document.getElementById("mapwrap");
+	if (mapwrap) {
+		mapwrap.classList.toggle("fit");
+		zoom_map();
+	}
+}
+
+function zoom_map() {
+	let mapwrap = document.getElementById("mapwrap");
+	if (mapwrap) {
+		let main = document.querySelector("main");
+		let map = document.getElementById("map");
+		map.style.transform = null;
+		mapwrap.style.width = null;
+		mapwrap.style.height = null;
+		if (mapwrap.classList.contains("fit")) {
+			let { width: gw, height: gh } = main.getBoundingClientRect();
+			let { width: ww, height: wh } = mapwrap.getBoundingClientRect();
+			let { width: cw, height: ch } = map.getBoundingClientRect();
+			let scale = Math.min(ww / cw, gh / ch);
+			if (scale < 1) {
+				map.style.transform = "scale(" + scale + ")";
+				mapwrap.style.width = (cw * scale) + "px";
+				mapwrap.style.height = (ch * scale) + "px";
+			}
+		}
+	}
+}
+
+zoom_map();
+
+window.addEventListener("resize", zoom_map);
+
+window.addEventListener("keydown", (evt) => {
+	if (evt.key === "Shift")
+		document.querySelector("body").classList.add("shift");
+});
+
+window.addEventListener("keyup", (evt) => {
+	if (evt.key === "Shift")
+		document.querySelector("body").classList.remove("shift");
+});
+
+/* ACTIONS */
+
 function action_button(action, label) {
+	if (params.mode === "replay")
+		return;
 	let id = action + "_button";
 	let button = document.getElementById(id);
 	if (!button) {
@@ -441,11 +455,11 @@ function action_button(action, label) {
 		button.addEventListener("click", evt => send_action(action));
 		document.getElementById("actions").appendChild(button);
 	}
-	if (game.actions && action in game.actions) {
+	if (view.actions && action in view.actions) {
 		button.classList.remove("hide");
-		if (game.actions[action]) {
+		if (view.actions[action]) {
 			if (label === undefined)
-				button.textContent = game.actions[action];
+				button.textContent = view.actions[action];
 			button.disabled = false;
 		} else {
 			button.disabled = true;
@@ -455,66 +469,282 @@ function action_button(action, label) {
 	}
 }
 
-function confirm_resign() {
-	if (window.confirm("Are you sure that you want to resign?"))
-		socket.emit('resign');
-}
-
 function send_action(verb, noun) {
+	if (params.mode === "replay")
+		return;
 	// Reset action list here so we don't send more than one action per server prompt!
 	if (noun !== undefined) {
-		if (game.actions && game.actions[verb] && game.actions[verb].includes(noun)) {
-			game.actions = null;
+		if (view.actions && view.actions[verb] && view.actions[verb].includes(noun)) {
+			view.actions = null;
 			console.log("ACTION", verb, JSON.stringify(noun));
-			socket.emit('action', verb, noun);
+			socket.emit("action", verb, noun);
 			return true;
 		}
 	} else {
-		if (game.actions && game.actions[verb]) {
-			game.actions = null;
+		if (view.actions && view.actions[verb]) {
+			view.actions = null;
 			console.log("ACTION", verb);
-			socket.emit('action', verb);
+			socket.emit("action", verb);
 			return true;
 		}
 	}
 	return false;
 }
 
+function confirm_resign() {
+	if (window.confirm("Are you sure that you want to resign?"))
+		socket.emit("resign");
+}
+
+/* DEBUGGING */
+
 function send_save() {
-	socket.emit('save');
+	socket.emit("save");
 }
 
 function send_restore() {
-	socket.emit('restore', window.localStorage[param_title_id + '/save']);
+	socket.emit("restore", window.localStorage[params.title_id + "/save"]);
 }
 
 function send_restart(scenario) {
-	socket.emit('restart', scenario);
+	socket.emit("restart", scenario);
 }
 
-function on_game_over() {
-	if (player) {
-		let exit_button = document.getElementById("exit_button");
-		if (exit_button) {
-			if (game_over || player === "Observer")
-				exit_button.classList.remove("hide");
-			else
-				exit_button.classList.add("hide");
+/* REPLAY */
+
+function adler32(data) {
+	let a = 1, b = 0;
+	for (let i = 0, n = data.length; i < n; ++i) {
+		a = (a + data.charCodeAt(i)) % 65521;
+		b = (b + a) % 65521;
+	}
+	return (b << 16) | a;
+}
+
+async function require(path) {
+	let cache = {};
+
+	if (!path.endsWith(".js"))
+		path = path + ".js";
+	if (path.startsWith("./"))
+		path = path.substring(2);
+
+	console.log("REQUIRE", path);
+
+	let response = await fetch(path);
+	let source = await response.text();
+
+	for (let [_, subpath] of source.matchAll(/require\(['"]([^)]*)['"]\)/g))
+		if (cache[subpath] === undefined)
+			cache[subpath] = await require(subpath);
+
+	let module = { exports: {} };
+	Function("module", "exports", "require", source)
+		(module, module.exports, path => cache[path]);
+	return module.exports;
+}
+
+let replay = null;
+
+async function init_replay_client() {
+	document.getElementById("prompt").textContent = "Loading replay...";
+	document.querySelector("body").classList.add("replay");
+
+	console.log("LOADING RULES");
+	let rules = await require("rules.js");
+
+	console.log("LOADING REPLAY");
+	let response = await fetch("/replay/" + params.game_id);
+	let body = await response.json();
+	replay = body.replay;
+
+	init_player_names(body.players);
+
+	let viewpoint = "Observer";
+	let log_length = 0;
+	let p = 0;
+	let s = {};
+
+	function eval_action(item) {
+		switch (item.action) {
+		case "setup":
+			s = rules.setup(item.arguments[0], item.arguments[1], item.arguments[2]);
+			break;
+		case "resign":
+			s = rules.resign(s, item.role);
+			break;
+		default:
+			s = rules.action(s, item.role, item.action, item.arguments);
+			break;
 		}
-		let rematch_button = document.getElementById("rematch_button");
-		if (rematch_button) {
-			if (game_over && player !== "Observer")
-				rematch_button.classList.remove("hide");
-			else
-				rematch_button.classList.add("hide");
+	}
+
+	let ss;
+	for (p = 0; p < replay.length; ++p) {
+		replay[p].arguments = JSON.parse(replay[p].arguments);
+
+		if (rules.is_checkpoint) {
+			replay[p].is_checkpoint = (p > 0 && rules.is_checkpoint(ss, s));
+			ss = Object.assign({}, s);
 		}
+
+		eval_action(replay[p]);
+
+		replay[p].digest = adler32(JSON.stringify(s));
+		for (let k = p-1; k > 0; --k) {
+			if (replay[k].digest === replay[p].digest && !replay[k].is_undone) {
+				for (let a = k+1; a <= p; ++a)
+					if (!replay[a].is_undone)
+						replay[a].is_undone = true;
+				break;
+			}
+		}
+	}
+
+	replay = replay.filter(x => !x.is_undone);
+
+	function set_hash(n) {
+		history.replaceState(null, "", window.location.pathname + "#" + n);
+	}
+
+	let timer = 0;
+	function play_pause_replay(evt) {
+		if (timer === 0) {
+			evt.target.textContent = "Stop";
+			timer = setInterval(() => {
+				if (p < replay.length)
+					goto_replay(p+1);
+				else
+					play_pause_replay(evt);
+			}, 1000);
+		} else {
+			evt.target.textContent = "Run";
+			clearInterval(timer);
+			timer = 0;
+		}
+	}
+
+	function prev() {
+		for (let i = p - 1; i > 1; --i)
+			if (replay[i].is_checkpoint)
+				return i;
+		return 1;
+	}
+
+	function next() {
+		for (let i = p + 1; i < replay.length; ++i)
+			if (replay[i].is_checkpoint)
+				return i;
+		return replay.length;
+	}
+
+	function on_hash_change() {
+		goto_replay(parseInt(window.location.hash.slice(1)) || 1);
+	}
+
+	function goto_replay(np) {
+		if (np < 1)
+			np = 1;
+		if (np > replay.length)
+			np = replay.length;
+		set_hash(np);
+		if (p > np)
+			p = 0, s = {};
+		while (p < np)
+			eval_action(replay[p++]);
+		update_replay_view();
+	}
+
+	function update_replay_view() {
+		player = viewpoint;
+
+		if (viewpoint === "Active") {
+			player = s.active;
+			if (player === "All" || player === "Both" || !player)
+				player = "Observer";
+		}
+
+		let body = document.querySelector("body");
+		body.classList.remove("Observer");
+		for (let i = 0; i < roles.length; ++i)
+			body.classList.remove(roles[i].role.replace(/ /g, "_"));
+		body.classList.add(player.replace(/ /g, "_"));
+
+		view = rules.view(s, player);
+		view.actions = null;
+
+		if (viewpoint === "Observer")
+			view.game_over = 1;
+		if (s.state === "game_over")
+			view.game_over = 1;
+
+		if (replay.length > 0) {
+			if (document.querySelector("body").classList.contains("shift"))
+				view.prompt = `[${p}/${replay.length}] ${s.active} / ${s.state} / ${replay[p].action} ${replay[p].arguments}`;
+			else
+				view.prompt = "[" + p + "/" + replay.length + "] " + view.prompt;
+		}
+		if (log_length < view.log.length)
+			view.log_start = log_length;
+		else
+			view.log_start = view.log.length;
+		log_length = view.log.length;
+		view.log = view.log.slice(view.log_start);
+
+		on_update_header();
+		on_update();
+		on_update_log();
+	}
+
+	function replay_button(div, label, fn) {
+		let button = document.createElement("button");
+		button.addEventListener("click", fn);
+		button.className = "replay_button";
+		button.textContent = label;
+		div.appendChild(button);
+		return button;
+	}
+
+	function set_viewpoint(vp) {
+		viewpoint = vp;
+		update_replay_view();
+	}
+
+	if (replay.length > 0) {
+		console.log("REPLAY READY");
+
+		let div = document.createElement("div");
+		div.className = "replay";
+		replay_button(div, "Active", () => set_viewpoint("Active"));
+		for (let r of roles)
+			replay_button(div, r.role, () => set_viewpoint(r.role));
+		replay_button(div, "Observer", () => set_viewpoint("Observer"));
+		document.querySelector("header").appendChild(div);
+
+		div = document.createElement("div");
+		div.className = "replay";
+		replay_button(div, "<<<", () => goto_replay(1));
+		replay_button(div, "<<", () => goto_replay(prev()));
+		replay_button(div, "<\xa0", () => goto_replay(p-1));
+		replay_button(div, "\xa0>", () => goto_replay(p+1));
+		replay_button(div, ">>", () => goto_replay(next()));
+		replay_button(div, "Run", play_pause_replay).style.width = "65px";
+		document.querySelector("header").appendChild(div);
+
+		if (window.location.hash === "")
+			set_hash(replay.length);
+
+		on_hash_change();
+
+		window.addEventListener("hashchange", on_hash_change);
+	} else {
+		console.log("REPLAY NOT AVAILABLE");
+		s = JSON.parse(body.state);
+		update_replay_view();
 	}
 }
 
-function send_rematch() {
-	window.location = '/rematch/' + param_game_id + '/' + param_role;
-}
-
-function send_exit() {
-	window.location = '/info/' + param_title_id;
-}
+if (params.mode === "play")
+	init_play_client();
+if (params.mode === "replay")
+	init_replay_client();

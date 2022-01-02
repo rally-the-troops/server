@@ -15,7 +15,7 @@ mixin social(title,description,game)
 	meta(property="og:description" content=description)
 
 mixin gamecover(title_id)
-	a(href="/info/"+title_id)
+	a(href="/"+title_id)
 		img(src=`/${title_id}/cover.1x.jpg` srcset=`/${title_id}/cover.2x.jpg 2x`)
 
 mixin forumpost(row,show_buttons)
@@ -57,7 +57,7 @@ mixin gametable(status,table,hide_title=0)
 			tr
 				td= row.game_id
 				unless hide_title
-					td.w: a(href="/info/"+row.title_id)= row.title_name
+					td.w: a(href="/"+row.title_id)= row.title_name
 				td.w= row.scenario
 				td!= row.player_names
 				td= row.description
@@ -76,15 +76,16 @@ mixin gametable(status,table,hide_title=0)
 				td.command
 					if status === 0
 						a(href="/join/"+row.game_id) Join
-					else
-						- let cmd = status === 1 ? "Play" : "View"
+					else if status === 1
 						if row.is_yours
 							if row.is_shared
-								a(href="/join/"+row.game_id)= cmd
+								a(href="/join/"+row.game_id)= "Play"
 							else
-								a(href=`/${row.title_id}/play:${row.game_id}:${row.your_role}`)= cmd
+								a(href=`/${row.title_id}/play:${row.game_id}:${row.your_role}`)= "Play"
 						else
 							a(href=`/${row.title_id}/play:${row.game_id}`) View
+					else if status >= 2
+						a(href=`/${row.title_id}/replay:${row.game_id}`) View
 		else
 			tr
 				case status

@@ -94,7 +94,7 @@ app.set('x-powered-by', false);
 app.set('etag', false);
 app.set('view engine', 'pug');
 app.use(compression());
-app.use(express.static('public', { etag: false, cacheControl: false, setHeaders: set_static_headers }));
+app.use(express.static('public', { redirect: false, etag: false, cacheControl: false, setHeaders: set_static_headers }));
 app.use(express.urlencoded({extended:false}));
 app.locals.SITE_NAME = SITE_NAME;
 
@@ -910,12 +910,15 @@ const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,st
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?");
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?");
 const SQL_INSERT_REPLAY = SQL("INSERT INTO game_replay (game_id,role,action,arguments) VALUES (?,?,?,?)");
+const SQL_SELECT_REPLAY = SQL("SELECT role,action,arguments FROM game_replay WHERE game_id=?");
 
 const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?");
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?");
 const SQL_SELECT_GAME_FULL_VIEW = SQL("SELECT * FROM game_full_view WHERE game_id=?");
 const SQL_SELECT_GAME_TITLE = SQL("SELECT title_id FROM games WHERE game_id=?").pluck();
 const SQL_SELECT_GAME_RANDOM = SQL("SELECT is_random FROM games WHERE game_id=?").pluck();
+
+const SQL_SELECT_GAME_HAS_TITLE_AND_STATUS = SQL("SELECT 1 FROM games WHERE game_id=? AND title_id=? AND status=?");
 
 const SQL_SELECT_PLAYERS = SQL("SELECT * FROM players NATURAL JOIN user_view WHERE game_id=?");
 const SQL_SELECT_PLAYERS_JOIN = SQL("SELECT role, user_id, name FROM players NATURAL JOIN users WHERE game_id=?");
@@ -1062,8 +1065,11 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 });
 
 app.get('/info/:title_id', function (req, res) {
-	LOG(req, "GET /info/" + req.params.title_id);
-	let title_id = req.params.title_id;
+	return res.redirect('/' + req.params.title_id);
+});
+
+function get_title_page(req, res, title_id) {
+	LOG(req, "GET /" + title_id);
 	let title = TITLES[title_id];
 	if (!title)
 		return res.status(404).send("Invalid title.");
@@ -1081,7 +1087,10 @@ app.get('/info/:title_id', function (req, res) {
 		active_games: active_games,
 		finished_games: finished_games,
 	});
-});
+}
+
+for (let title_id in TITLES)
+	app.get('/' + title_id, (req, res) => get_title_page(req, res, title_id));
 
 app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /create/" + req.params.title_id);
@@ -1137,7 +1146,7 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 		return res.send("Not authorized to delete that game ID.");
 	if (info.changes === 1)
 		update_join_clients_deleted(game_id);
-	res.redirect('/info/'+title_id);
+	res.redirect('/'+title_id);
 });
 
 function join_rematch(req, res, game_id, role) {
@@ -1344,7 +1353,7 @@ app.get('/play/:game_id/:role', function (req, res) {
 	let role = req.params.role;
 	let title = SQL_SELECT_GAME_TITLE.get(game_id);
 	if (!title)
-		return res.redirect('/join/'+game_id);
+		return res.status(404).send("Invalid game ID.");
 	res.redirect('/'+title+'/play:'+game_id+':'+role);
 });
 
@@ -1354,7 +1363,7 @@ app.get('/play/:game_id', function (req, res) {
 	let user_id = req.user ? req.user.user_id : 0;
 	let title = SQL_SELECT_GAME_TITLE.get(game_id);
 	if (!title)
-		return res.redirect('/join/'+game_id);
+		return res.status(404).send("Invalid game ID.");
 	let role = SQL_SELECT_PLAYER_ROLE.get(game_id, user_id);
 	if (role)
 		res.redirect('/'+title+'/play:'+game_id+':'+role);
@@ -1363,6 +1372,7 @@ app.get('/play/:game_id', function (req, res) {
 });
 
 app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, res) {
+	LOG(req, "GET /" + req.params.title_id + "/play:" + req.params.game_id + ":" + req.params.role);
 	let user_id = req.user ? req.user.user_id : 0;
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id;
@@ -1373,12 +1383,40 @@ app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, re
 });
 
 app.get('/:title_id/play\::game_id', function (req, res) {
+	LOG(req, "GET /" + req.params.title_id + "/play:" + req.params.game_id);
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id;
 	let a_title = SQL_SELECT_GAME_TITLE.get(game_id);
 	if (a_title !== title_id)
-		return res.send("Invalid game ID.");
+		return res.status(404).send("Invalid game ID.");
 	return res.sendFile(__dirname + '/public/' + title_id + '/play.html');
+});
+
+app.get('/:title_id/replay\::game_id', function (req, res) {
+	LOG(req, "GET /" + req.params.title_id + "/replay:" + req.params.game_id);
+	let title_id = req.params.title_id
+	let game_id = req.params.game_id;
+	let game = SQL_SELECT_GAME.get(game_id);
+	if (!game)
+		return res.status(404).send("Invalid game ID.");
+	if (game.title_id !== title_id)
+		return res.status(404).send("Invalid game ID.");
+	if (game.status < 2)
+		return res.status(404).send("Invalid game ID.");
+	return res.sendFile(__dirname + '/public/' + title_id + '/play.html');
+});
+
+app.get('/replay/:game_id', function (req, res) {
+	let game_id = req.params.game_id;
+	let game = SQL_SELECT_GAME.get(game_id);
+	if (game.status < 2)
+		return res.status(404).send("Invalid game ID.");
+	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
+	let replay = SQL_SELECT_REPLAY.all(game_id);
+	if (replay.length > 0)
+		return res.json({players, replay});
+	let state = SQL_SELECT_GAME_STATE.get(game_id);
+	return res.json({players, state, replay});
 });
 
 /*
@@ -1451,7 +1489,6 @@ function mail_your_turn_notification(user, game_id, interval) {
 			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 		}
 	}
-}
 }
 
 function reset_your_turn_notification(user, game_id) {
@@ -1544,7 +1581,9 @@ function send_state(socket, state) {
 			view.log_start = view.log.length;
 		socket.log_length = view.log.length;
 		view.log = view.log.slice(view.log_start);
-		socket.emit('state', view, state.state === 'game_over');
+		if (state.state === 'game_over')
+			view.game_over = 1;
+		socket.emit('state', view);
 	} catch (err) {
 		console.log(err);
 		return socket.emit('error', err.toString());
@@ -1580,7 +1619,7 @@ function on_action(socket, action, arg) {
 	try {
 		let state = get_game_state(socket.game_id);
 		let old_active = state.active;
-		socket.rules.action(state, socket.role, action, arg);
+		state = socket.rules.action(state, socket.role, action, arg);
 		put_game_state(socket.game_id, state, old_active);
 		put_replay(socket.game_id, socket.role, action, arg);
 	} catch (err) {
@@ -1594,7 +1633,7 @@ function on_resign(socket) {
 	try {
 		let state = get_game_state(socket.game_id);
 		let old_active = state.active;
-		socket.rules.resign(state, socket.role);
+		state = socket.rules.resign(state, socket.role);
 		put_game_state(socket.game_id, state, old_active);
 		put_replay(socket.game_id, socket.role, 'resign', null);
 	} catch (err) {
