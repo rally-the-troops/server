@@ -1413,44 +1413,45 @@ function mail_describe(game) {
 }
 
 function mail_password_reset_token(user, token) {
-	let subject = "Password reset request";
-	let body =
-		"Your password reset token is: " + token + "\n\n" +
-		SITE_URL + "/reset-password/" + user.mail + "/" + token + "\n\n" +
-		"If you did not request a password reset you can ignore this mail.\n";
 	if (mailer) {
+		let subject = "Password reset request";
+		let body =
+			"Your password reset token is: " + token + "\n\n" +
+			SITE_URL + "/reset-password/" + user.mail + "/" + token + "\n\n" +
+			"If you did not request a password reset you can ignore this mail.\n";
 		console.log("SENT MAIL:", mail_addr(user), subject);
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
-	} else {
-		console.log("DID NOT SEND MAIL:", mail_addr(user), subject);
 	}
 }
 
 function mail_new_message(user, msg_id, msg_from, msg_subject, msg_body) {
-	let subject = "You have a new message from " + msg_from + ".";
-	let body = "Subject: " + msg_subject + "\n\n" +
-		msg_body + "\n\n--\n" +
-		"You can reply to this message at:\n" +
-		SITE_URL + "/message/read/" + msg_id + "\n\n";
-	console.log("SENT MAIL:", mail_addr(user), subject);
-	if (mailer)
+	if (mailer) {
+		let subject = "You have a new message from " + msg_from + ".";
+		let body = "Subject: " + msg_subject + "\n\n" +
+			msg_body + "\n\n--\n" +
+			"You can reply to this message at:\n" +
+			SITE_URL + "/message/read/" + msg_id + "\n\n";
+		console.log("SENT MAIL:", mail_addr(user), subject);
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
+	}
 }
 
 function mail_your_turn_notification(user, game_id, interval) {
-	let too_soon = SQL_SELECT_NOTIFIED.get(interval, game_id, user.user_id);
-	if (!too_soon) {
-		SQL_INSERT_NOTIFIED.run(game_id, user.user_id);
-		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id);
-		let subject = game.title_name + " - " + game_id + " - Your turn!";
-		let body = mail_describe(game) +
-			"It's your turn.\n\n" +
-			SITE_URL + "/play/" + game_id + "\n\n--\n" +
-			MAIL_FOOTER;
-		console.log("SENT MAIL:", mail_addr(user), subject);
-		if (mailer)
+	if (mailer) {
+		let too_soon = SQL_SELECT_NOTIFIED.get(interval, game_id, user.user_id);
+		if (!too_soon) {
+			SQL_INSERT_NOTIFIED.run(game_id, user.user_id);
+			let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id);
+			let subject = game.title_name + " - " + game_id + " - Your turn!";
+			let body = mail_describe(game) +
+				"It's your turn.\n\n" +
+				SITE_URL + "/play/" + game_id + "\n\n--\n" +
+				MAIL_FOOTER;
+			console.log("SENT MAIL:", mail_addr(user), subject);
 			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
+		}
 	}
+}
 }
 
 function reset_your_turn_notification(user, game_id) {
@@ -1458,18 +1459,19 @@ function reset_your_turn_notification(user, game_id) {
 }
 
 function mail_ready_to_start_notification(user, game_id, interval) {
-	let too_soon = SQL_SELECT_NOTIFIED.get(interval, game_id, user.user_id);
-	if (!too_soon) {
-		SQL_INSERT_NOTIFIED.run(game_id, user.user_id);
-		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id);
-		let subject = game.title_name + " - " + game_id + " - Ready to start!";
-		let body = mail_describe(game) +
-			"Your game is ready to start.\n\n" +
-			SITE_URL + "/join/" + game_id + "\n\n--\n" +
-			MAIL_FOOTER;
-		console.log("SENT MAIL:", mail_addr(user), subject);
-		if (mailer)
+	if (mailer) {
+		let too_soon = SQL_SELECT_NOTIFIED.get(interval, game_id, user.user_id);
+		if (!too_soon) {
+			SQL_INSERT_NOTIFIED.run(game_id, user.user_id);
+			let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id);
+			let subject = game.title_name + " - " + game_id + " - Ready to start!";
+			let body = mail_describe(game) +
+				"Your game is ready to start.\n\n" +
+				SITE_URL + "/join/" + game_id + "\n\n--\n" +
+				MAIL_FOOTER;
+			console.log("SENT MAIL:", mail_addr(user), subject);
 			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
+		}
 	}
 }
 
