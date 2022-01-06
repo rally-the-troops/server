@@ -1,4 +1,4 @@
-/* ABC BATTLE DISPLAY FOR COLUMBIA BLOCK GAMES */
+/* BATTLE DIALOG FOR COLUMBIA BLOCK GAMES */
 
 #battle {
 	position: absolute;
@@ -11,18 +11,22 @@
 	box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.5);
 	visibility: hidden;
 }
+
 #battle.show {
 	visibility: visible;
 }
+
 #battle th {
 	padding: 0;
 	border: 1px solid black;
 }
+
 #battle td {
 	padding: 0;
 	border: 1px solid black;
 	vertical-align: top;
 }
+
 #battle_header {
 	font-weight: bold;
 	height: 2em;
@@ -31,12 +35,14 @@
 	user-select: none;
 	cursor: move;
 }
+
 #battle_message {
 	font-weight: normal;
 	height: 2em;
 	line-height: 2em;
 	padding: 0 8px;
 }
+
 #FA, #FB, #FC, #FD, #FF, #FR, #EA, #EB, #EC, #ED, #EF, #ER {
 	display: flex;
 	flex-wrap: wrap;
@@ -64,11 +70,6 @@
 	display: none;
 }
 
-.battle_menu .action:hover { background-color: red; }
-.battle_menu .action.retreat:hover { background-color: #eee; }
-.battle_menu .action.withdraw:hover { background-color: #eee; }
-.battle_menu .action.pass:hover { background-color: gray; }
-
 .battle_menu_list {
 	margin-top: 5px;
 	min-height: 26px;
@@ -81,6 +82,11 @@
 .battle_reserves .battle_menu_list {
 	display: none;
 }
+
+.battle_menu .action:hover { background-color: red; }
+.battle_menu .action.retreat:hover { background-color: #eee; }
+.battle_menu .action.withdraw:hover { background-color: #eee; }
+.battle_menu .action.pass:hover { background-color: gray; }
 
 .battle_menu.fire .action.fire { display: inline; }
 .battle_menu.retreat .action.retreat { display: inline; }

@@ -117,12 +117,9 @@ window.addEventListener("focus", stop_blinker);
 function init_chat() {
 	// only fetch new messages when we reconnect!
 	if (chat !== null) {
-		console.log("RECONNECT CHAT");
-		socket.emit("getchat", chat.log);
+		send_message("getchat", chat.log);
 		return;
 	}
-
-	console.log("CONNECT CHAT");
 
 	let chat_window = document.createElement("div");
 	chat_window.id = "chat_window";
@@ -156,7 +153,7 @@ function init_chat() {
 		let input = document.getElementById("chat_input");
 		e.preventDefault();
 		if (input.value) {
-			socket.emit("chat", input.value);
+			send_message("chat", input.value);
 			input.value = "";
 		} else {
 			hide_chat();
@@ -179,7 +176,7 @@ function init_chat() {
 		}
 	});
 
-	socket.emit("getchat", 0);
+	send_message("getchat", 0);
 }
 
 function save_chat() {
@@ -251,6 +248,38 @@ function toggle_chat() {
 		show_chat();
 }
 
+/* REMATCH BUTTON */
+
+function remove_resign_menu() {
+	document.querySelectorAll(".resign").forEach(x => x.remove());
+}
+
+function goto_rematch() {
+	window.location = "/rematch/" + params.game_id + "/" + params.role;
+}
+
+function goto_replay() {
+	window.location = "/" + params.title_id + "/replay:" + params.game_id;
+}
+
+function on_game_over() {
+	function icon_button(id, img, title, fn) {
+		if (!document.getElementById(id)) {
+			let button = document.createElement("div");
+			button.id = id;
+			button.title = title;
+			button.className = "icon_button";
+			button.innerHTML = '<img src="/images/' + img + '.svg">';
+			button.addEventListener("click", fn);
+			document.querySelector("header").appendChild(button);
+		}
+	}
+	icon_button("replay_button", "sherlock-holmes-mirror", "Watch replay", goto_replay);
+	if (player !== "Observer")
+		icon_button("rematch_button", "cycle", "Propose a rematch!", goto_rematch);
+	remove_resign_menu();
+}
+
 /* CONNECT TO GAME SERVER */
 
 function init_player_names(players) {
@@ -261,76 +290,102 @@ function init_player_names(players) {
 	}
 }
 
-function init_play_client() {
-	const ROLE_SEL = [
-		".role.one",
-		".role.two",
-		".role.three",
-		".role.four",
-		".role.five",
-		".role.six",
-		".role.seven",
-	];
+function send_message(cmd, arg) {
+	let data = JSON.stringify([cmd, arg]);
+	console.log("SEND %s %s", cmd, arg);
+	socket.send(data);
+}
 
-	console.log("JOINING", params.title_id + "/" + params.game_id + "/" + params.role);
+let reconnect_count = 0;
+let reconnect_max = 10;
 
-	socket = io({
-		transports: ["websocket"],
-		query: { title: params.title_id, game: params.game_id, role: params.role },
+function connect_play() {
+	if (reconnect_count >= reconnect_max) {
+		document.title = "DISCONNECTED";
+		document.getElementById("prompt").textContent = "Disconnected.";
+		return;
+	}
+
+	let protocol = (window.location.protocol === "http:") ? "ws" : "wss";
+	let seen = document.getElementById("log").children.length;
+	let url = `${protocol}://${window.location.host}/play-socket?title=${params.title_id}&game=${params.game_id}&role=${params.role}&seen=${seen}`;
+
+	console.log("CONNECTING", url);
+	document.getElementById("prompt").textContent = "Connecting... ";
+
+	socket = new WebSocket(url);
+
+	window.addEventListener('beforeunload', function () {
+		socket.close(1000);
 	});
 
-	socket.on("connect", () => {
-		console.log("CONNECTED");
+	socket.onopen = function (evt) {
+		console.log("OPEN");
 		document.querySelector("header").classList.remove("disconnected");
-	});
+		reconnect_count = 0;
+	}
 
-	socket.on("disconnect", () => {
-		console.log("DISCONNECTED");
-		document.getElementById("prompt").textContent = "Disconnected from server!";
-		document.querySelector("header").classList.add("disconnected");
-	});
-
-	socket.on("roles", (me, players) => {
-		console.log("PLAYERS", me, JSON.stringify(players));
-		player = me;
-		document.querySelector("body").classList.add(player.replace(/ /g, "_"));
-		if (player !== "Observer")
-			init_chat();
-		init_player_names(players);
-	});
-
-	socket.on("presence", (presence) => {
-		console.log("PRESENCE", JSON.stringify(presence));
-		for (let i = 0; i < roles.length; ++i) {
-			let elt = document.getElementById(roles[i].id);
-			if (roles[i].role in presence)
-				elt.classList.add("present");
-			else
-				elt.classList.remove("present");
+	socket.onclose = function (evt) {
+		console.log("CLOSE %d", evt.code);
+		if (evt.code === 1000 && evt.reason !== "") {
+			document.getElementById("prompt").textContent = "Disconnected: " + evt.reason;
+			document.title = "DISCONNECTED";
 		}
-	});
+		if (evt.code !== 1000) {
+			document.querySelector("header").classList.add("disconnected");
+			document.getElementById("prompt").textContent = `Reconnecting soon... (${reconnect_count+1}/${reconnect_max})`;
+			let wait = 1000 * (Math.random() + 0.5) * Math.pow(2, reconnect_count++);
+			console.log("WAITING %.1f TO RECONNECT", wait/1000);
+			setTimeout(connect_play, wait);
+		}
+	}
 
-	socket.on("state", (new_view) => {
-		console.log("STATE");
-		view = new_view;
-		on_update_header();
-		on_update();
-		on_update_log();
-	});
+	socket.onmessage = function (evt) {
+		let [ cmd, arg ] = JSON.parse(evt.data);
+		console.log("MESSAGE %s", cmd);
+		switch (cmd) {
+		case 'error':
+			document.getElementById("prompt").textContent = arg;
+			break;
 
-	socket.on("save", (msg) => {
-		console.log("SAVE");
-		window.localStorage[params.title_id + "/save"] = msg;
-	});
+		case 'chat':
+			update_chat(arg[0], arg[1], arg[2], arg[3]);
+			break;
 
-	socket.on("error", (msg) => {
-		console.log("ERROR", msg);
-		document.getElementById("prompt").textContent = msg;
-	});
+		case 'players':
+			player = arg[0];
+			document.querySelector("body").classList.add(player.replace(/ /g, "_"));
+			if (player !== "Observer")
+				init_chat();
+			else
+				remove_resign_menu();
+			init_player_names(arg[1]);
+			break;
 
-	socket.on("chat", function (item) {
-		update_chat(item[0], item[1], item[2], item[3]);
-	});
+		case 'presence':
+			for (let i = 0; i < roles.length; ++i) {
+				let elt = document.getElementById(roles[i].id);
+				if (roles[i].role in arg)
+					elt.classList.add("present");
+				else
+					elt.classList.remove("present");
+			}
+			break;
+
+		case 'state':
+			view = arg;
+			on_update_header();
+			on_update();
+			on_update_log();
+			if (view.game_over)
+				on_game_over();
+			break;
+
+		case 'save':
+			window.localStorage[params.title_id + "/save"] = msg;
+			break;
+		}
+	}
 }
 
 /* HEADER */
@@ -474,17 +529,16 @@ function send_action(verb, noun) {
 		return;
 	// Reset action list here so we don't send more than one action per server prompt!
 	if (noun !== undefined) {
-		if (view.actions && view.actions[verb] && view.actions[verb].includes(noun)) {
+		let realnoun = Array.isArray(noun) ? noun[0] : noun;
+		if (view.actions && view.actions[verb] && view.actions[verb].includes(realnoun)) {
 			view.actions = null;
-			console.log("ACTION", verb, JSON.stringify(noun));
-			socket.emit("action", verb, noun);
+			send_message("action", [verb, noun]);
 			return true;
 		}
 	} else {
 		if (view.actions && view.actions[verb]) {
 			view.actions = null;
-			console.log("ACTION", verb);
-			socket.emit("action", verb);
+			send_message("action", [verb]);
 			return true;
 		}
 	}
@@ -493,21 +547,21 @@ function send_action(verb, noun) {
 
 function confirm_resign() {
 	if (window.confirm("Are you sure that you want to resign?"))
-		socket.emit("resign");
+		send_message("resign");
 }
 
 /* DEBUGGING */
 
 function send_save() {
-	socket.emit("save");
+	send_message("save");
 }
 
 function send_restore() {
-	socket.emit("restore", window.localStorage[params.title_id + "/save"]);
+	send_message("restore", window.localStorage[params.title_id + "/save"]);
 }
 
 function send_restart(scenario) {
-	socket.emit("restart", scenario);
+	send_message("restart", scenario);
 }
 
 /* REPLAY */
@@ -546,9 +600,10 @@ async function require(path) {
 
 let replay = null;
 
-async function init_replay_client() {
+async function init_replay() {
+	remove_resign_menu();
+
 	document.getElementById("prompt").textContent = "Loading replay...";
-	document.querySelector("body").classList.add("replay");
 
 	console.log("LOADING RULES");
 	let rules = await require("rules.js");
@@ -660,7 +715,7 @@ async function init_replay_client() {
 
 		if (viewpoint === "Active") {
 			player = s.active;
-			if (player === "All" || player === "Both" || !player)
+			if (player === "All" || player === "Both" || player === "None" || !player)
 				player = "Observer";
 		}
 
@@ -679,10 +734,13 @@ async function init_replay_client() {
 			view.game_over = 1;
 
 		if (replay.length > 0) {
-			if (document.querySelector("body").classList.contains("shift"))
-				view.prompt = `[${p}/${replay.length}] ${s.active} / ${s.state} / ${replay[p].action} ${replay[p].arguments}`;
-			else
+			if (document.querySelector("body").classList.contains("shift")) {
+				view.prompt = `[${p}/${replay.length}] ${s.active} / ${s.state}`;
+				if (p < replay.length)
+					view.prompt += ` / ${replay[p].action} ${replay[p].arguments}`;
+			} else {
 				view.prompt = "[" + p + "/" + replay.length + "] " + view.prompt;
+			}
 		}
 		if (log_length < view.log.length)
 			view.log_start = log_length;
@@ -696,11 +754,10 @@ async function init_replay_client() {
 		on_update_log();
 	}
 
-	function replay_button(div, label, fn) {
+	function text_button(div, txt, fn) {
 		let button = document.createElement("button");
 		button.addEventListener("click", fn);
-		button.className = "replay_button";
-		button.textContent = label;
+		button.textContent = txt;
 		div.appendChild(button);
 		return button;
 	}
@@ -715,20 +772,20 @@ async function init_replay_client() {
 
 		let div = document.createElement("div");
 		div.className = "replay";
-		replay_button(div, "Active", () => set_viewpoint("Active"));
+		text_button(div, "Active", () => set_viewpoint("Active"));
 		for (let r of roles)
-			replay_button(div, r.role, () => set_viewpoint(r.role));
-		replay_button(div, "Observer", () => set_viewpoint("Observer"));
+			text_button(div, r.role, () => set_viewpoint(r.role));
+		text_button(div, "Observer", () => set_viewpoint("Observer"));
 		document.querySelector("header").appendChild(div);
 
 		div = document.createElement("div");
 		div.className = "replay";
-		replay_button(div, "<<<", () => goto_replay(1));
-		replay_button(div, "<<", () => goto_replay(prev()));
-		replay_button(div, "<\xa0", () => goto_replay(p-1));
-		replay_button(div, "\xa0>", () => goto_replay(p+1));
-		replay_button(div, ">>", () => goto_replay(next()));
-		replay_button(div, "Run", play_pause_replay).style.width = "65px";
+		text_button(div, "<<<", () => goto_replay(1));
+		text_button(div, "<<", () => goto_replay(prev()));
+		text_button(div, "<\xa0", () => goto_replay(p-1));
+		text_button(div, "\xa0>", () => goto_replay(p+1));
+		text_button(div, ">>", () => goto_replay(next()));
+		text_button(div, "Run", play_pause_replay).style.width = "65px";
 		document.querySelector("header").appendChild(div);
 
 		if (window.location.hash === "")
@@ -744,7 +801,7 @@ async function init_replay_client() {
 	}
 }
 
-if (params.mode === "play")
-	init_play_client();
 if (params.mode === "replay")
-	init_replay_client();
+	init_replay();
+if (params.mode === "play")
+	connect_play();

@@ -4,8 +4,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
-const socket_io = require('socket.io');
+const { WebSocketServer } = require('ws');
 const express = require('express');
+const url = require('url');
 const compression = require('compression');
 const sqlite3 = require('better-sqlite3');
 
@@ -100,10 +101,10 @@ app.locals.SITE_NAME = SITE_NAME;
 
 let http_port = process.env.HTTP_PORT || 8080;
 let http_server = http.createServer(app);
-let http_io = socket_io(http_server);
+let http_wss = new WebSocketServer({server: http_server});
 http_server.keepAliveTimeout = 0;
 http_server.listen(http_port, '0.0.0.0', () => console.log('listening HTTP on *:' + http_port));
-let io = http_io;
+let wss = http_wss;
 
 let https_port = process.env.HTTPS_PORT;
 if (https_port) {
@@ -111,13 +112,10 @@ if (https_port) {
 		key: fs.readFileSync(process.env.SSL_KEY || "key.pem"),
 		cert: fs.readFileSync(process.env.SSL_CERT || "cert.pem")
 	}, app);
-	let https_io = socket_io(https_server);
+	let https_wss = new WebSocketServer({server: https_server});
 	https_server.listen(https_port, '0.0.0.0', () => console.log('listening HTTPS on *:' + https_port));
-	http_server.keepAliveTimeout=0;
-	io = {
-		use: function (fn) { http_io.use(fn); https_io.use(fn); },
-		on: function (ev,fn) { http_io.on(ev,fn); https_io.on(ev,fn); },
-	};
+	https_server.keepAliveTimeout = 0;
+	wss = { on: function (ev,fn) { http_wss.on(ev,fn); https_wss.on(ev,fn); } };
 }
 
 /*
@@ -129,19 +127,16 @@ function random_seed() {
 }
 
 function LOG(req, ...msg) {
-	let name;
-	if (req.user)
-		name = `"${req.user.name}" <${req.user.mail}>`;
-	else
-		name = "guest";
 	let time = new Date().toISOString().substring(0,19).replace("T", " ");
+	let name = req.user ? `"${req.user.name}" <${req.user.mail}>` : "guest";
 	console.log(time, req.connection.remoteAddress, name, ...msg);
 }
 
 function SLOG(socket, ...msg) {
 	let time = new Date().toISOString().substring(0,19).replace("T", " ");
-	console.log(time, socket.request.connection.remoteAddress, socket.user_name,
-		socket.title_id + "/" + socket.game_id  + "/" + socket.role, ...msg);
+	let name = socket.user ? `"${socket.user.name}" <${socket.user.mail}>` : "guest";
+	console.log(time, socket.ip, name,
+		"WS /" + socket.title_id + "/" + socket.game_id  + "/" + socket.role, ...msg);
 }
 
 function human_date(time) {
@@ -284,19 +279,6 @@ app.use(function (req, res, next) {
 			SQL_UPDATE_USER_LAST_SEEN.run(user_id, req.connection.remoteAddress);
 		}
 	}
-	return next();
-});
-
-io.use(function (socket, next) {
-	let sid = login_cookie(socket.request);
-	if (sid)
-		socket.user_id = login_sql_select.get(sid);
-	else
-		socket.user_id = 0;
-	if (socket.user_id)
-		socket.user_name = SQL_SELECT_USER_NAME.get(socket.user_id);
-	else
-		socket.user_name = "guest";
 	return next();
 });
 
@@ -1378,7 +1360,7 @@ app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, re
 	let game_id = req.params.game_id;
 	let role = req.params.role;
 	if (!SQL_AUTHORIZE_GAME_ROLE.get(title_id, game_id, role, user_id))
-		return res.send("You are not assigned that role.");
+		return res.status(404).send("Invalid game ID.");
 	return res.sendFile(__dirname + '/public/' + title_id + '/play.html');
 });
 
@@ -1515,7 +1497,7 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 function mail_your_turn_notification_to_offline_users(game_id, old_active, active) {
 	function is_online(game_id, user_id) {
 		for (let other of clients[game_id])
-			if (other.user_id === user_id)
+			if (other.user && other.user.user_id === user_id)
 				return true;
 		return false;
 	}
@@ -1572,21 +1554,25 @@ setInterval(notify_ready_to_start_reminder, 5 * 60 * 1000);
 
 let clients = {};
 
+function send_message(socket, cmd, arg) {
+	socket.send(JSON.stringify([cmd, arg]));
+}
+
 function send_state(socket, state) {
 	try {
 		let view = socket.rules.view(state, socket.role);
-		if (socket.log_length < view.log.length)
-			view.log_start = socket.log_length;
+		if (socket.seen < view.log.length)
+			view.log_start = socket.seen;
 		else
 			view.log_start = view.log.length;
-		socket.log_length = view.log.length;
+		socket.seen = view.log.length;
 		view.log = view.log.slice(view.log_start);
 		if (state.state === 'game_over')
 			view.game_over = 1;
-		socket.emit('state', view);
+		send_message(socket, 'state', view);
 	} catch (err) {
 		console.log(err);
-		return socket.emit('error', err.toString());
+		return send_message(socket, 'error', err.toString());
 	}
 }
 
@@ -1624,7 +1610,7 @@ function on_action(socket, action, arg) {
 		put_replay(socket.game_id, socket.role, action, arg);
 	} catch (err) {
 		console.log(err);
-		return socket.emit('error', err.toString());
+		return send_message(socket, 'error', err.toString());
 	}
 }
 
@@ -1638,7 +1624,7 @@ function on_resign(socket) {
 		put_replay(socket.game_id, socket.role, 'resign', null);
 	} catch (err) {
 		console.log(err);
-		return socket.emit('error', err.toString());
+		return send_message(socket, 'error', err.toString());
 	}
 }
 
@@ -1648,25 +1634,25 @@ function on_getchat(socket, seen) {
 		if (chat.length > 0)
 			SLOG(socket, "GETCHAT", seen, chat.length);
 		for (let i = 0; i < chat.length; ++i)
-			socket.emit('chat', chat[i]);
+			send_message(socket, 'chat', chat[i]);
 	} catch (err) {
 		console.log(err);
-		return socket.emit('error', err.toString());
+		return send_message(socket, 'error', err.toString());
 	}
 }
 
 function on_chat(socket, message) {
 	message = message.substring(0,4000);
 	try {
-		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.user_id, message);
-		chat[2] = socket.user_name;
+		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.user.user_id, message);
+		chat[2] = socket.user.name;
 		SLOG(socket, "CHAT");
 		for (let other of clients[socket.game_id])
 			if (other.role !== "Observer")
-				other.emit('chat', chat);
+				send_message(other, 'chat', chat);
 	} catch (err) {
 		console.log(err);
-		return socket.emit('error', err.toString());
+		return send_message(socket, 'error', err.toString());
 	}
 }
 
@@ -1675,11 +1661,11 @@ function on_debug(socket) {
 	try {
 		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id);
 		if (!game_state)
-			return socket.emit('error', "No game with that ID.");
-		socket.emit('debug', game_state);
+			return send_message(socket, 'error', "No game with that ID.");
+		send_message(socket, 'debug', game_state);
 	} catch (err) {
 		console.log(err);
-		return socket.emit('error', err.toString());
+		return send_message(socket, 'error', err.toString());
 	}
 }
 
@@ -1688,16 +1674,16 @@ function on_save(socket) {
 	try {
 		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id);
 		if (!game_state)
-			return socket.emit('error', "No game with that ID.");
-		socket.emit('save', game_state);
+			return send_message(socket, 'error', "No game with that ID.");
+		send_message(socket, 'save', game_state);
 	} catch (err) {
 		console.log(err);
-		return socket.emit('error', err.toString());
+		return send_message(socket, 'error', err.toString());
 	}
 }
 
 function on_restore(socket, state_text) {
-	SLOG(socket, 'RESTORE');
+	SLOG(socket, "RESTORE");
 	try {
 		let state = JSON.parse(state_text);
 		state.seed = random_seed(); // reseed!
@@ -1709,7 +1695,7 @@ function on_restore(socket, state_text) {
 			send_state(other, state);
 	} catch (err) {
 		console.log(err);
-		return socket.emit('error', err.toString());
+		return send_message(socket, 'error', err.toString());
 	}
 }
 
@@ -1718,89 +1704,112 @@ function broadcast_presence(game_id) {
 	for (let socket of clients[game_id])
 		presence[socket.role] = true;
 	for (let socket of clients[game_id])
-		socket.emit('presence', presence);
+		send_message(socket, 'presence', presence);
 }
 
-io.on('connection', (socket) => {
-	socket.title_id = socket.handshake.query.title || "unknown";
-	socket.game_id = socket.handshake.query.game | 0;
-	socket.role = socket.handshake.query.role;
-	socket.log_length = 0;
+function on_restart(socket, scenario) {
+	try {
+		let seed = random_seed();
+		let state = socket.rules.setup(seed, scenario, {}, socket.players);
+		put_replay(socket.game_id, null, 'setup', [seed, scenario, null, socket.players]);
+		for (let other of clients[socket.game_id]) {
+			other.seen = 0;
+			send_state(other, state);
+		}
+		let state_text = JSON.stringify(state);
+		SQL_UPDATE_GAME_RESULT.run(1, null, socket.game_id);
+		SQL_UPDATE_GAME_STATE.run(socket.game_id, state_text, state.active);
+	} catch (err) {
+		console.log(err);
+		return send_message(socket, 'error', err.toString());
+	}
+}
+
+function handle_message(socket, cmd, arg) {
+	switch (cmd) {
+	case 'action': on_action(socket, arg[0], arg[1]); break;
+	case 'resign': on_resign(socket); break;
+	case 'getchat': on_getchat(socket, arg); break;
+	case 'chat': on_chat(socket, arg); break;
+	case 'debug': on_debug(socket); break;
+	case 'save': on_save(socket); break;
+	case 'restore': on_restore(socket, arg); break;
+	case 'restart': on_restart(socket, arg); break;
+	}
+}
+
+wss.on('connection', (socket, req, client) => {
+	let u = url.parse(req.url, true);
+	if (u.pathname !== '/play-socket')
+		return setTimeout(() => socket.close(1000, "Invalid request."), 30000);
+	req.query = u.query;
+
+	let user_id = 0;
+	let sid = login_cookie(req);
+	if (sid)
+		user_id = login_sql_select.get(sid);
+	if (user_id)
+		socket.user = SQL_SELECT_USER_INFO.get(user_id);
+
+	socket.ip = req.connection.remoteAddress;
+	socket.title_id = req.query.title || "unknown";
+	socket.game_id = req.query.game | 0;
+	socket.role = req.query.role;
+	socket.seen = req.query.seen | 0;
 	socket.rules = RULES[socket.title_id];
 
-	SLOG(socket, "CONNECT");
+	SLOG(socket, "OPEN " + socket.seen);
 
 	try {
 		let title_id = SQL_SELECT_GAME_TITLE.get(socket.game_id);
 		if (title_id !== socket.title_id)
-			return socket.emit('error', "Invalid game ID.");
+			return socket.close(1000, "Invalid game ID.");
 
-		let players = SQL_SELECT_PLAYERS_JOIN.all(socket.game_id);
+		let players = socket.players = SQL_SELECT_PLAYERS_JOIN.all(socket.game_id);
 
 		if (socket.role !== "Observer") {
-			if (!socket.user_id)
-				return socket.emit('error', "You are not logged in!");
+			if (!socket.user)
+				return socket.close(1000, "You are not logged in!");
 			if (socket.role && socket.role !== 'undefined' && socket.role !== 'null') {
-				let me = players.find(p => p.user_id === socket.user_id && p.role === socket.role);
-				if (!me) {
-					socket.role = "Observer";
-					return socket.emit('error', "You aren't assigned that role!");
-				}
+				let me = players.find(p => p.user_id === socket.user.user_id && p.role === socket.role);
+				if (!me)
+					return socket.close(1000, "You aren't assigned that role!");
 			} else {
-				let me = players.find(p => p.user_id === socket.user_id);
+				let me = players.find(p => p.user_id === socket.user.user_id);
 				socket.role = me ? me.role : "Observer";
 			}
 		}
 
-		socket.emit('roles', socket.role, players);
+		if (socket.seen === 0)
+			send_message(socket, 'players', [socket.role, players]);
 
 		if (clients[socket.game_id])
 			clients[socket.game_id].push(socket);
 		else
 			clients[socket.game_id] = [ socket ];
 
-		socket.on('disconnect', () => {
-			SLOG(socket, "DISCONNECT");
+		socket.on('close', (code, reason) => {
+			SLOG(socket, "CLOSE " + code);
 			clients[socket.game_id].splice(clients[socket.game_id].indexOf(socket), 1);
-			if (socket.role !== "Observer")
-				broadcast_presence(socket.game_id);
+			broadcast_presence(socket.game_id);
 		});
 
 		if (socket.role !== "Observer") {
-			socket.on('action', (action, arg) => on_action(socket, action, arg));
-			socket.on('resign', () => on_resign(socket));
-			socket.on('getchat', (seen) => on_getchat(socket, seen));
-			socket.on('chat', (message) => on_chat(socket, message));
-
-			socket.on('debug', () => on_debug(socket));
-			socket.on('save', () => on_save(socket));
-			socket.on('restore', (state) => on_restore(socket, state));
-			socket.on('restart', (scenario) => {
+			socket.on('message', (data) => {
 				try {
-					let seed = random_seed();
-					let state = socket.rules.setup(seed, scenario, {}, players);
-					put_replay(socket.game_id, null, 'setup', [seed, scenario, null, players]);
-					for (let other of clients[socket.game_id]) {
-						other.log_length = 0;
-						send_state(other, state);
-					}
-					let state_text = JSON.stringify(state);
-					SQL_UPDATE_GAME_RESULT.run(1, null, socket.game_id);
-					SQL_UPDATE_GAME_STATE.run(socket.game_id, state_text, state.active);
+					let [ cmd, arg ] = JSON.parse(data);
+					handle_message(socket, cmd, arg);
 				} catch (err) {
-					console.log(err);
-					return socket.emit('error', err.toString());
+					send_message(socket, 'error', err);
 				}
 			});
 		}
 
 		broadcast_presence(socket.game_id);
-
 		send_state(socket, get_game_state(socket.game_id));
-
 	} catch (err) {
 		console.log(err);
-		socket.emit('error', err.message);
+		socket.close(1000, err.message);
 	}
 });
 
