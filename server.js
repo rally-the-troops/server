@@ -376,7 +376,7 @@ app.post('/forgot-password', function (req, res) {
 	if (user) {
 		let token = SQL_FIND_TOKEN.get(user.user_id);
 		if (!token) {
-			token = SQL_CREATE_TOKEN.run(user.user_id);
+			token = SQL_CREATE_TOKEN.get(user.user_id);
 			mail_password_reset_token(user, token);
 		}
 		return res.redirect('/reset-password/' + mail);
