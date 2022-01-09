@@ -382,7 +382,7 @@ function connect_play() {
 			break;
 
 		case 'save':
-			window.localStorage[params.title_id + "/save"] = msg;
+			window.localStorage[params.title_id + "/save"] = arg;
 			break;
 		}
 	}
@@ -643,7 +643,13 @@ async function init_replay() {
 			ss = Object.assign({}, s);
 		}
 
-		eval_action(replay[p]);
+		try {
+			eval_action(replay[p]);
+		} catch (err) {
+			console.log("ERROR IN REPLAY", p, replay[p], s.state, s.automatic_disruption);
+			replay.length = p;
+			break;
+		}
 
 		replay[p].digest = adler32(JSON.stringify(s));
 		for (let k = p-1; k > 0; --k) {

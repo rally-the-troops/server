@@ -973,14 +973,14 @@ function is_solo(players) {
 
 function format_options(options) {
 	function to_english(k) {
-		if (k === true) return 'yes';
+		if (k === true || k === 1) return 'yes';
 		if (k === false) return 'no';
 		return k.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase());
 	}
 	if (!options || options === '{}')
 		return "None";
 	options = JSON.parse(options);
-	return Object.entries(options||{}).map(([k,v]) => v === true ? to_english(k) : `${to_english(k)}=${to_english(v)}`).join(", ");
+	return Object.entries(options||{}).map(([k,v]) => (v === true || v === 1) ? to_english(k) : `${to_english(k)}=${to_english(v)}`).join(", ");
 }
 
 function annotate_game(game, user_id) {
