@@ -1132,22 +1132,25 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 });
 
 function join_rematch(req, res, game_id, role) {
-	let is_random = SQL_SELECT_GAME_RANDOM.get(game_id);
-	if (is_random) {
-		for (let i = 1; i <= 6; ++i) {
-			let info = SQL_INSERT_PLAYER_ROLE.run(game_id, 'Random ' + i, req.user.user_id);
-			if (info.changes === 1) {
-				update_join_clients_players(game_id);
-				break;
+	try {
+		let is_random = SQL_SELECT_GAME_RANDOM.get(game_id);
+		if (is_random) {
+			for (let i = 1; i <= 6; ++i) {
+				let info = SQL_INSERT_PLAYER_ROLE.run(game_id, 'Random ' + i, req.user.user_id);
+				if (info.changes === 1) {
+					update_join_clients_players(game_id);
+					break;
+				}
 			}
+		} else {
+			let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, req.user.user_id);
+			if (info.changes === 1)
+				update_join_clients_players(game_id);
 		}
-		return res.redirect('/join/'+game_id);
-	} else {
-		let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, req.user.user_id);
-		if (info.changes === 1)
-			update_join_clients_players(game_id);
-		return res.redirect('/join/'+game_id);
+	} catch (err) {
+		console.log(err);
 	}
+	return res.redirect('/join/'+game_id);
 }
 
 app.get('/rematch/:old_game_id/:role', must_be_logged_in, function (req, res) {
