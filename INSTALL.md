@@ -38,6 +38,7 @@ Configure the server using the .env file:
 NODE_ENV=production
 
 SITE_NAME=YOUR_SITE_NAME
+SITE_HOST=YOUR_DOMAIN
 SITE_URL=https://YOUR_DOMAIN
 
 HTTP_PORT=8080

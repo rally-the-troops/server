@@ -14,6 +14,7 @@ require('dotenv').config();
 
 const SITE_URL = process.env.SITE_URL || "http://localhost:8080";
 const SITE_NAME = process.env.SITE_NAME || "Untitled";
+const SITE_HOST = process.env.SITE_HOST;
 
 /*
  * Main database.
@@ -34,7 +35,7 @@ function SQL(s) {
 
 let mailer = null;
 if (process.env.MAIL_HOST && process.env.MAIL_PORT && process.env.MAIL_FROM) {
-	mailer = require('nodemailer').createTransport({
+	mailer = require("nodemailer").createTransport({
 		host: process.env.MAIL_HOST,
 		port: process.env.MAIL_PORT,
 		ignoreTLS: true
@@ -54,10 +55,16 @@ const login_sql_insert = SQL("insert into logins values (abs(random()) % (1<<48)
 const login_sql_delete = SQL("delete from logins where sid = ?");
 const login_sql_touch = SQL("update logins set expires = julianday() + 28 where sid = ? and expires < julianday() + 27");
 
+function make_cookie(sid, age) {
+	if (SITE_HOST)
+		return `login=${sid}; Path=/; Domain=${SITE_HOST}; Max-Age=${age}; HttpOnly`;
+	return `login=${sid}; Path=/; Max-Age=${age}; HttpOnly`;
+}
+
 function login_cookie(req) {
 	let c = req.headers.cookie;
 	if (c) {
-		let i = c.indexOf('login=');
+		let i = c.indexOf("login=");
 		if (i >= 0)
 			return parseInt(c.substring(i+6));
 	}
@@ -66,17 +73,17 @@ function login_cookie(req) {
 
 function login_insert(res, user_id) {
 	let sid = login_sql_insert.get(user_id);
-	res.setHeader('Set-Cookie', 'login=' + sid + '; Path=/; Max-Age=2419200');
+	res.setHeader("Set-Cookie", make_cookie(sid, 2419200));
 }
 
 function login_touch(res, sid) {
 	if (login_sql_touch.run(sid).changes === 1)
-		res.setHeader('Set-Cookie', 'login=' + sid + '; Path=/; Max-Age=2419200');
+		res.setHeader("Set-Cookie", make_cookie(sid, 2419200));
 }
 
 function login_delete(res, sid) {
 	login_sql_delete.run(sid);
-	res.setHeader('Set-Cookie', 'login=; Max-Age=0');
+	res.setHeader("Set-Cookie", make_cookie("", 0));
 }
 
 /*
@@ -85,9 +92,9 @@ function login_delete(res, sid) {
 
 function set_static_headers(res, path) {
 	if (path.match(/\.(jpg|png|svg|webp|ico|woff2)/))
-		res.setHeader('Cache-Control', 'max-age=86400');
+		res.setHeader("Cache-Control", "Max-Age=86400");
 	else
-		res.setHeader('Cache-Control', 'max-age=0');
+		res.setHeader("Cache-Control", "Max-Age=0");
 }
 
 let app = express();
