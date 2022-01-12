@@ -1405,10 +1405,8 @@ app.get('/replay/:game_id', function (req, res) {
 	if (game.status < 2)
 		return res.status(404).send("Invalid game ID.");
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
-	let replay = SQL_SELECT_REPLAY.all(game_id);
-	if (replay.length > 0)
-		return res.json({players, replay});
 	let state = SQL_SELECT_GAME_STATE.get(game_id);
+	let replay = SQL_SELECT_REPLAY.all(game_id);
 	return res.json({players, state, replay});
 });
 

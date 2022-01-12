@@ -646,8 +646,9 @@ async function init_replay() {
 		try {
 			eval_action(replay[p]);
 		} catch (err) {
-			console.log("ERROR IN REPLAY", p, replay[p], s.state, s.automatic_disruption);
-			replay.length = p;
+			console.log("ERROR IN REPLAY %d %s %s/%s/%s", p, s.state, replay[p].role, replay[p].action, replay[p].arguments);
+			console.log(err);
+			replay.length = 0;
 			break;
 		}
 
@@ -773,16 +774,17 @@ async function init_replay() {
 		update_replay_view();
 	}
 
+	let div = document.createElement("div");
+	div.className = "replay";
+	if (replay.length > 0)
+		text_button(div, "Active", () => set_viewpoint("Active"));
+	for (let r of roles)
+		text_button(div, r.role, () => set_viewpoint(r.role));
+	text_button(div, "Observer", () => set_viewpoint("Observer"));
+	document.querySelector("header").appendChild(div);
+
 	if (replay.length > 0) {
 		console.log("REPLAY READY");
-
-		let div = document.createElement("div");
-		div.className = "replay";
-		text_button(div, "Active", () => set_viewpoint("Active"));
-		for (let r of roles)
-			text_button(div, r.role, () => set_viewpoint(r.role));
-		text_button(div, "Observer", () => set_viewpoint("Observer"));
-		document.querySelector("header").appendChild(div);
 
 		div = document.createElement("div");
 		div.className = "replay";
