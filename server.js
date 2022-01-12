@@ -98,6 +98,7 @@ app.use(compression());
 app.use(express.static('public', { redirect: false, etag: false, cacheControl: false, setHeaders: set_static_headers }));
 app.use(express.urlencoded({extended:false}));
 app.locals.SITE_NAME = SITE_NAME;
+app.locals.SITE_URL = SITE_URL;
 
 let http_port = process.env.HTTP_PORT || 8080;
 let http_server = http.createServer(app);
