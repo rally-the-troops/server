@@ -75,7 +75,10 @@ mixin gametable(status,table,hide_title=0)
 						td= row.result
 				td.command
 					if status === 0
-						a(href="/join/"+row.game_id) Join
+						if row.is_ready
+							a(href="/join/"+row.game_id) Enter
+						else
+							a(href="/join/"+row.game_id) Join
 					else if status === 1
 						if row.is_yours
 							if row.is_shared

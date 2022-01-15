@@ -1015,8 +1015,16 @@ function annotate_game(game, user_id) {
 }
 
 function annotate_games(games, user_id) {
-	for (let i = 0; i < games.length; ++i)
-		annotate_game(games[i], user_id);
+	for (let i = 0; i < games.length; ++i) {
+		let game = games[i];
+		if (game.status === 0) {
+			let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id);
+			game.is_ready = RULES[game.title_id].ready(game.scenario, JSON.parse(game.options), players);
+		} else {
+			game.is_ready = false;
+		}
+		annotate_game(game, user_id);
+	}
 }
 
 app.get('/games', function (req, res) {
@@ -1032,7 +1040,8 @@ app.get('/games', function (req, res) {
 	}
 	res.render('games.pug', {
 		user: req.user,
-		open_games: open_games,
+		open_games: open_games.filter(g => !g.is_ready),
+		ready_games: open_games.filter(g => g.is_ready),
 		active_games: active_games,
 	});
 });
@@ -1048,7 +1057,8 @@ app.get('/profile', must_be_logged_in, function (req, res) {
 	res.render('profile.pug', {
 		user: req.user,
 		avatar: avatar,
-		open_games: open_games,
+		open_games: open_games.filter(g => !g.is_ready),
+		ready_games: open_games.filter(g => g.is_ready),
 		active_games: active_games,
 		finished_games: finished_games,
 	});
@@ -1073,7 +1083,8 @@ function get_title_page(req, res, title_id) {
 		user: req.user,
 		title: title,
 		about_html: HTML_ABOUT[title_id],
-		open_games: open_games,
+		open_games: open_games.filter(g => !g.is_ready),
+		ready_games: open_games.filter(g => g.is_ready),
 		active_games: active_games,
 		finished_games: finished_games,
 	});

@@ -25,6 +25,10 @@ html
 			p
 				a(href="/create/"+title.title_id) Create a new game
 
+			if ready_games.length > 0
+				h2 Ready to start
+				+gametable(0,ready_games)
+
 			if active_games.length > 0
 				h2 Active games
 				+gametable(1,active_games,1)

@@ -33,6 +33,10 @@ html
 			br
 			| &#xbb; <a href="/logout">Logout</a>
 
+			if ready_games.length > 0
+				h2 Ready to start
+				+gametable(0,ready_games)
+
 			if open_games.length > 0
 				h2 Open games
 				+gametable(0,open_games)
@@ -45,5 +49,5 @@ html
 				h2 Finished games
 				+gametable(2,finished_games)
 
-			if open_games.length === 0 && active_games.length === 0 && finished_games.length === 0
+			if open_games.length === 0 && ready_games.length === 0 && active_games.length === 0 && finished_games.length === 0
 				p You don't have any current or finished games.

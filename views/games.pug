@@ -3,16 +3,20 @@ doctype html
 html
 	head
 		include head
-		title Public Games
+		title= SITE_NAME
 		if user
 			meta(http-equiv="refresh" content=300)
 	body
 		include header
 		article
-			h1 Public Games
+			h1= SITE_NAME
 
 			h2 Open
 			+gametable(0, open_games)
+
+			if ready_games.length > 0
+				h2 Ready to start
+				+gametable(0, ready_games)
 
 			h2 Active
 			+gametable(1, active_games)
