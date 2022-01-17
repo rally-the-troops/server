@@ -238,6 +238,7 @@ const SQL_SELECT_USER_INFO = SQL(`
 
 const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND datetime('now') > datetime(atime,?)");
 
+const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify FROM users WHERE user_id=?").pluck();
 const SQL_UPDATE_USER_NOTIFY = SQL("UPDATE users SET notify=? WHERE user_id=?");
 const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?");
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?");
@@ -1048,6 +1049,7 @@ app.get('/games', function (req, res) {
 
 app.get('/profile', must_be_logged_in, function (req, res) {
 	LOG(req, "GET /profile");
+	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id);
 	let avatar = get_avatar(req.user.mail);
 	let games = QUERY_LIST_GAMES_OF_USER.all({user_id: req.user.user_id});
 	annotate_games(games, req.user.user_id);
