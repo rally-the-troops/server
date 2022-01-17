@@ -13,20 +13,32 @@ let db = new sqlite3("./db");
 let game_id = process.argv[2];
 let title_id = db.prepare("select title_id from games where game_id=?").pluck().get(game_id);
 let rules = require("../public/" + title_id + "/rules.js");
-let log = db.prepare("select * from game_replay where game_id=?").all(game_id);
+let log = db.prepare("select rowid,* from game_replay where game_id=?").all(game_id);
 
 let save = db.prepare("select state from game_state where game_id=?").pluck().get(game_id);
 fs.writeFileSync("backup-" + game_id + ".txt", save);
 
 let game = { state: null, active: null }
-log.forEach(item => {
-       let args = JSON.parse(item.arguments);
-       if (item.action === 'setup')
-               game = rules.setup(args[0], args[1], args[2]);
-       else if (item.action === 'resign')
-               game = rules.resign(game, item.role);
-       else
-               game = rules.action(game, item.role, item.action, args);
-});
+let i = 0;
+try {
+	log.forEach(item => {
+		let args = JSON.parse(item.arguments);
+		if (item.action === 'setup')
+			game = rules.setup(args[0], args[1], args[2]);
+		else if (item.action === 'resign')
+			game = rules.resign(game, item.role);
+		else
+			game = rules.action(game, item.role, item.action, args);
+		++i;
+	});
+} catch (err) {
+	console.log("FAILED %d/%d", i+1, log.length);
+	console.log(err);
+}
 
 db.prepare("update game_state set active=?, state=? where game_id=?").run(game.active, JSON.stringify(game), game_id);
+
+if (i < log.length) {
+	console.log("BROKEN ENTRIES: %d", log.length-i);
+	console.log(`sqlite3 db "delete from game_replay where game_id=${game_id} and rowid>=${log[i].rowid}"`);
+}
