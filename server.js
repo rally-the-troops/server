@@ -134,17 +134,28 @@ function random_seed() {
 	return crypto.randomInt(1, 0x7ffffffe);
 }
 
+function pad(s, fmt) {
+	return s + fmt.slice(s.length);
+}
+
 function LOG(req, ...msg) {
-	let time = new Date().toISOString().substring(0,19).replace("T", " ");
-	let name = req.user ? `"${req.user.name}" <${req.user.mail}>` : "guest";
-	console.log(time, req.connection.remoteAddress, name, ...msg);
+	let time = new Date().toISOString().substring(11,19);
+	let name = pad(req.user ? req.user.name : "guest", "                    ");
+	let ip = pad(req.connection.remoteAddress, "               ");
+	let ua = pad(req.user_agent, "          ");
+	console.log(time, ip, ua, name, ...msg);
 }
 
 function SLOG(socket, ...msg) {
-	let time = new Date().toISOString().substring(0,19).replace("T", " ");
-	let name = socket.user ? `"${socket.user.name}" <${socket.user.mail}>` : "guest";
-	console.log(time, socket.ip, name,
-		"WS /" + socket.title_id + "/" + socket.game_id  + "/" + socket.role, ...msg);
+	let time = new Date().toISOString().substring(11,19);
+	let name = pad(socket.user ? socket.user.name : "guest", "                    ");
+	let ip = pad(socket.ip, "               ");
+	let ws = "----------";
+	console.log(time, ip, ws, name, "WS",
+		socket.title_id,
+		socket.game_id,
+		socket.role,
+		...msg);
 }
 
 function human_date(time) {
@@ -275,7 +286,36 @@ function is_blacklisted(mail) {
 	return false;
 }
 
+function parse_user_agent(req) {
+	let user_agent = req.headers["user-agent"];
+	if (!user_agent)
+		return "Browser";
+	let agent = user_agent;
+	if (user_agent.indexOf("Firefox/") >= 0)
+		agent = "Firefox";
+	else if (user_agent.indexOf("Chrome/") >= 0)
+		agent = "Chrome";
+	else if (user_agent.indexOf("Safari/") >= 0)
+		agent = "Safari";
+	else if (user_agent.indexOf("Edg/") >= 0)
+		agent = "Edge";
+	else if (user_agent.indexOf("OPR/") >= 0)
+		agent = "Opera";
+	else if (user_agent.indexOf("Googlebot") >= 0)
+		agent = "Googlebot";
+	else if (user_agent.indexOf("Bingbot") >= 0)
+		agent = "Bingbot";
+	else if (user_agent.indexOf("; MSIE") >= 0)
+		agent = "MSIE";
+	else if (user_agent.indexOf("Trident/") >= 0)
+		agent = "MSIE";
+	if (user_agent.indexOf("Mobile") >= 0)
+		return agent + "/M";
+	return agent;
+}
+
 app.use(function (req, res, next) {
+	req.user_agent = parse_user_agent(req);
 	res.setHeader('Cache-Control', 'no-store');
 	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
 		return res.status(403).send('Sorry, but this IP has been banned.');
@@ -538,7 +578,7 @@ app.get('/user/:who_name', function (req, res) {
 });
 
 app.get('/user-stats/:who_name', function (req, res) {
-	LOG(req, "GET /user/" + req.params.who_name + "/stats");
+	LOG(req, "GET /user-stats/" + req.params.who_name);
 	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name);
 	if (who) {
 		let stats = SQL_USER_STATS.all(who.user_id);
@@ -1623,7 +1663,10 @@ function put_replay(game_id, role, action, args) {
 }
 
 function on_action(socket, action, arg) {
-	SLOG(socket, "ACTION", action, arg);
+	if (arg !== undefined)
+		SLOG(socket, "ACTION", action, JSON.stringify(arg));
+	else
+		SLOG(socket, "ACTION", action);
 	try {
 		let state = get_game_state(socket.game_id);
 		let old_active = state.active;
