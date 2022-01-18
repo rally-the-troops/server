@@ -331,6 +331,8 @@ function parse_user_agent(req) {
 
 app.use(function (req, res, next) {
 	req.user_agent = parse_user_agent(req);
+	if (req.user_agent === "MSIE")
+		return res.redirect("/msie.html");
 	res.setHeader('Cache-Control', 'no-store');
 	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
 		return res.status(403).send('Sorry, but this IP has been banned.');
