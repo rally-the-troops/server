@@ -265,6 +265,7 @@ const SQL_USER_STATS = SQL(`
 	select
 		title_name,
 		scenario,
+		role,
 		sum(role=result) as won,
 		count(*) as total
 	from
@@ -277,7 +278,8 @@ const SQL_USER_STATS = SQL(`
 		and game_id in (select game_id from opposed_games)
 	group by
 		title_name,
-		scenario
+		scenario,
+		role
 	`);
 
 function is_blacklisted(mail) {
