@@ -59,7 +59,10 @@ mixin gametable(status,table,hide_title=0)
 				unless hide_title
 					td.w: a(href="/"+row.title_id)= row.title_name
 				td.w= row.scenario
-				td!= row.player_names
+				if row.player_names
+					td!= row.player_names
+				else
+					td.error Nobody
 				td= row.description
 				case status
 					when 0

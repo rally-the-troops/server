@@ -96,8 +96,8 @@ button:disabled {
 	outline: 1px solid gray;
 }
 
-p.error { color: brown; font-style: italic; white-space: pre-wrap; }
-p.warning { color: brown; }
+.error { color: brown; font-style: italic; white-space: pre-wrap; }
+.warning { color: brown; }
 p.warning::before { content: "\26a0"; }
 
 div.post {
