@@ -12,9 +12,18 @@ const sqlite3 = require('better-sqlite3');
 
 require('dotenv').config();
 
-const SITE_URL = process.env.SITE_URL || "http://localhost:8080";
-const SITE_NAME = process.env.SITE_NAME || "Untitled";
-const SITE_HOST = process.env.SITE_HOST;
+let HTTP_PORT = process.env.HTTP_PORT || 8080;
+let HTTPS_PORT = process.env.HTTPS_PORT;
+
+let SITE_HOST = process.env.SITE_HOST || "localhost";
+let SITE_NAME = process.env.SITE_NAME || "Untitled";
+let SITE_URL = process.env.SITE_URL;
+if (!SITE_URL) {
+	if (HTTPS_PORT)
+		SITE_URL = "https://" + SITE_HOST + ":" + HTTPS_PORT;
+	else
+		SITE_URL = "http://" + SITE_HOST + ":" + HTTP_PORT;
+}
 
 /*
  * Main database.
@@ -56,7 +65,7 @@ const login_sql_delete = SQL("delete from logins where sid = ?");
 const login_sql_touch = SQL("update logins set expires = julianday() + 28 where sid = ? and expires < julianday() + 27");
 
 function make_cookie(sid, age) {
-	if (SITE_HOST)
+	if (SITE_HOST !== "localhost")
 		return `login=${sid}; Path=/; Domain=${SITE_HOST}; Max-Age=${age}; HttpOnly`;
 	return `login=${sid}; Path=/; Max-Age=${age}; HttpOnly`;
 }
@@ -107,23 +116,27 @@ app.use(express.urlencoded({extended:false}));
 app.locals.SITE_NAME = SITE_NAME;
 app.locals.SITE_URL = SITE_URL;
 
-let http_port = process.env.HTTP_PORT || 8080;
-let http_server = http.createServer(app);
-let http_wss = new WebSocketServer({server: http_server});
-http_server.keepAliveTimeout = 0;
-http_server.listen(http_port, '0.0.0.0', () => console.log('listening HTTP on *:' + http_port));
-let wss = http_wss;
+let wss;
 
-let https_port = process.env.HTTPS_PORT;
-if (https_port) {
+if (HTTPS_PORT) {
 	let https_server = https.createServer({
 		key: fs.readFileSync(process.env.SSL_KEY || "key.pem"),
 		cert: fs.readFileSync(process.env.SSL_CERT || "cert.pem")
 	}, app);
-	let https_wss = new WebSocketServer({server: https_server});
-	https_server.listen(https_port, '0.0.0.0', () => console.log('listening HTTPS on *:' + https_port));
+	wss = new WebSocketServer({server: https_server});
+	https_server.listen(HTTPS_PORT, "0.0.0.0", () => console.log("Listening to HTTPS on *:" + HTTPS_PORT));
 	https_server.keepAliveTimeout = 0;
-	wss = { on: function (ev,fn) { http_wss.on(ev,fn); https_wss.on(ev,fn); } };
+
+	// Force HTTPS by redirecting HTTP.
+	let redirect_app = express();
+	redirect_app.all("*", (req, res) => res.redirect(308, SITE_URL + req.url));
+	let redirect_server = http.createServer(redirect_app);
+	redirect_server.listen(HTTP_PORT, "0.0.0.0", () => console.log("Redirecting from HTTP on *:" + HTTP_PORT));
+} else {
+	let http_server = http.createServer(app);
+	wss = new WebSocketServer({server: http_server});
+	http_server.keepAliveTimeout = 0;
+	http_server.listen(HTTP_PORT, "0.0.0.0", () => console.log("Listening to HTTP on *:" + HTTP_PORT));
 }
 
 /*
