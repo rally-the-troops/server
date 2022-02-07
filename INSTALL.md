@@ -4,7 +4,7 @@ All data is stored in an SQLite3 database.
 
 The server and game rules are implemented in Javascript.
 The game state is stored in the database as a JSON blob.
-The server runs on Node with the Express.js and Socket.io frameworks.
+The server runs on Node with the Express.js framework.
 
 Check out the game submodules:
 
