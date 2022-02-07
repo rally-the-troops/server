@@ -101,9 +101,9 @@ function login_delete(res, sid) {
 
 function set_static_headers(res, path) {
 	if (path.match(/\.(jpg|png|svg|webp|ico|woff2)/))
-		res.setHeader("Cache-Control", "Max-Age=86400");
+		res.setHeader("Cache-Control", "max-age=86400");
 	else
-		res.setHeader("Cache-Control", "Max-Age=0");
+		res.setHeader("Cache-Control", "no-cache");
 }
 
 let app = express();
