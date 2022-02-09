@@ -184,7 +184,7 @@ function human_date(time) {
 	}
 	if (days === 1) return "Yesterday";
 	if (days < 14) return days + " days ago";
-	if (days < 31) return Math.ceil(days / 7) + " weeks ago";
+	if (days < 31) return Math.floor(days / 7) + " weeks ago";
 	return date.toISOString().substring(0,10);
 }
 
