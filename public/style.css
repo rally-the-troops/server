@@ -50,18 +50,19 @@ div.logo img {
 table {
 	min-width: min(50rem,100%);
 	border-collapse: collapse;
+	border: 1px solid black;
+}
+thead, tfoot {
+	background-color: gainsboro;
+	border: 1px solid black;
 }
 th, td {
-	border: 1px solid black;
-	padding: 3px 1ex;
-}
-th {
+	vertical-align: top;
 	text-align: left;
-	background-color: gainsboro;
+	padding: 5px 10px;
 }
-td.body {
-	white-space: pre-wrap;
-	padding: 10px 10px;
+tbody tr:nth-child(2n) {
+	background-color: whitesmoke;
 }
 table a:not(:hover) { text-decoration: none; color: black; }
 td.command a { text-decoration: underline; color: blue; }

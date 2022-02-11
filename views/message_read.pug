@@ -4,7 +4,8 @@ html
 	head
 		include head
 		title= message.subject
-		style th { font-weight: normal; width: 4em; }
+		style.
+			.head {white-space:pre-wrap}
 		script.
 			function delete_message(id) {
 				let warning = "Are you sure you want to DELETE this message?";
@@ -19,18 +20,13 @@ html
 		article
 			h1= message.subject
 
-			table
-				tr
-					th From:
-					td: a(href="/user/"+message.from_name)= message.from_name
-				tr
-					th To:
-					td: a(href="/user/"+message.to_name)= message.to_name
-				tr
-					th Date:
-					td= message.time
-				tr
-					td.body(colspan=2)!= message.body
+			div.post
+				div.head
+					div.
+						From: #[a(href="/user/"+message.from_name)= message.from_name]
+						To: #[a(href="/user/"+message.to_name)= message.to_name]
+					div= message.time
+				div.body!= message.body
 
 			p
 				if message.from_id !== user.user_id

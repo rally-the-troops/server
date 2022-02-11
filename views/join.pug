@@ -9,7 +9,7 @@ html
 		title= game.title_name
 		style.
 			table { min-width: auto; }
-			th,td { min-width: 10em; }
+			th,td { min-width: 10em; border: 1px solid black; }
 			table td a.red { text-decoration: none; color: brown; font-size: 14px; }
 			td a { text-decoration: underline; color: blue; }
 			.hide { display: none; }
@@ -45,14 +45,16 @@ html
 
 			p
 			table
-				tr
-					each role in roles
-						th.command(id="role_"+role.replace(/ /g, "_")+"_name")= role
-				tr
-					each role in roles
-						td.command(id="role_"+role.replace(/ /g, "_")) -
-				tr
-					td.command#message(colspan=roles.length) -
+				thead
+					tr
+						each role in roles
+							th.command(id="role_"+role.replace(/ /g, "_")+"_name")= role
+				tbody
+					tr
+						each role in roles
+							td.command(id="role_"+role.replace(/ /g, "_")) -
+					tr
+						td.command#message(colspan=roles.length) -
 
 			p
 				button.hide#delete_button(onclick="confirm_delete()") Delete

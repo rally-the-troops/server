@@ -4,7 +4,9 @@ html
 	head
 		include head
 		title Inbox
-		style .unread { background-color: lightyellow }
+		style.
+			.unread { background-color: lightyellow }
+			td a { display: block }
 	body
 		include header
 		article
@@ -14,18 +16,20 @@ html
 				a(href="/message/send") Send message
 
 			table
-				tr
-					th From
-					th Subject
-					th Date
-				each row in messages
-					tr(class=row.is_read?"read":"unread")
-						td: a(href="/user/"+row.from_name)= row.from_name
-						td: a(href="/message/read/"+row.message_id)= row.subject
-						td= row.time
-				else
+				thead
 					tr
-						td(colspan=3) No messages.
+						th From
+						th Subject
+						th Date
+				tbody
+					each row in messages
+						tr(class=row.is_read?"read":"unread")
+							td: a(href="/user/"+row.from_name)= row.from_name
+							td: a(href="/message/read/"+row.message_id)= row.subject
+							td= row.time
+					else
+						tr
+							td(colspan=3) No messages.
 
 			p
 				a(href="/outbox") Outbox

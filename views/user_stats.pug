@@ -13,30 +13,27 @@ html
 			h1 Stats for #{who.name}
 
 			table(style="min-width:auto")
-				tr
-					th Title
-					th Scenario
-					th Role
-					th Played
-					th Won
-				each row in stats
+				thead
 					tr
-						- all_won += row.won
-						- all_total += row.total
-						td= row.title_name
-						td= row.scenario
-						td= row.role
-						td= row.total
-						td= Math.round(row.won*100/row.total) + "%"
-				tr
-					th
-					th
-					th
-					th
-					th
-				tr
-					td
-					td
-					td
-					td= all_total
-					td= Math.round(all_won*100/all_total) + "%"
+						th Title
+						th Scenario
+						th Role
+						th Played
+						th Won
+				tbody
+					each row in stats
+						tr
+							- all_won += row.won
+							- all_total += row.total
+							td= row.title_name
+							td= row.scenario
+							td= row.role
+							td= row.total
+							td= Math.round(row.won*100/row.total) + "%"
+				tfoot
+					tr
+						td
+						td
+						td
+						td= all_total
+						td= Math.round(all_won*100/all_total) + "%"

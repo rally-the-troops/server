@@ -5,29 +5,32 @@ html
 		include head
 		title Game Statistics
 		style.
-			table { table-layout: fixed; min-width: auto; }
-			td:not(:nth-child(1)) { text-align: right; }
-			td:nth-child(1) { width: 240px; }
+			table { table-layout: fixed; min-width: auto; margin-bottom: 30px; }
+			td:not(:first-child) { text-align: right; }
+			th:not(:first-child) { text-align: right; }
 			td { width: 100px; }
-			tr+tr.blank { height: 2rem; border: none; }
+			td:first-child { width: 240px; }
 	body
 		include header
 		article
 			h1 Game Statistics
-			table
-				- function p(t,r) { return r > 0 ? Math.round(r*100/t) + "%" : "" }
-				- function drawn(x) { return x.total-(x.r1+x.r2+x.r3+x.r4+x.r5+x.r6+x.r7) }
-				each row in stats
-					unless row.scenario
-						tr.blank
+			- function p(t,r) { return r > 0 ? Math.round(r*100/t) + "%" : "" }
+			- function drawn(x) { return x.total-(x.r1+x.r2+x.r3+x.r4+x.r5+x.r6+x.r7) }
+			each title in titles
+				table
+					thead
 						tr
-							th= row.title_name
-							th= row.r1
-							th= row.r2
-							th Draw
-					else
-						tr
-							td #{row.scenario} (#{row.total})
-							td= p(row.total, row.r1)
-							td= p(row.total, row.r2)
-							td= p(row.total, drawn(row))
+							th: a(href="/"+title.title_id)= title.title_name
+							each row in stats
+								unless row.scenario || row.title_name !== title.title_name
+									th= row.r1
+									th= row.r2
+									th Draw
+					tbody
+						each row in stats
+							if row.scenario && row.title_name === title.title_name
+								tr
+									td #{row.scenario} (#{row.total})
+									td= p(row.total, row.r1)
+									td= p(row.total, row.r2)
+									td= p(row.total, drawn(row))

@@ -1911,5 +1911,6 @@ app.get('/stats', function (req, res) {
 	res.render('stats.pug', {
 		user: req.user,
 		stats: stats,
+		titles: TITLES,
 	});
 });
