@@ -176,7 +176,7 @@ function human_date(time) {
 	var seconds = (Date.now() - date.getTime()) / 1000;
 	var days = Math.floor(seconds / 86400);
 	if (days === 0) {
-		if (seconds < 60) return "now";
+		if (seconds < 60) return "Now";
 		if (seconds < 120) return "1 minute ago";
 		if (seconds < 3600) return Math.floor(seconds / 60) + " minutes ago";
 		if (seconds < 7200) return "1 hour ago";
