@@ -100,21 +100,22 @@ function login_delete(res, sid) {
  */
 
 function set_static_headers(res, path) {
-	if (path.match(/\.(jpg|png|svg|webp|ico|woff2)/))
+	if (path.match(/\.(jpg|png|svg|webp|ico|woff2)$/))
 		res.setHeader("Cache-Control", "max-age=86400");
 	else
-		res.setHeader("Cache-Control", "no-cache");
+		res.setHeader("Cache-Control", "max-age=60");
 }
 
 let app = express();
+app.locals.SITE_NAME = SITE_NAME;
+app.locals.SITE_URL = SITE_URL;
 app.set('x-powered-by', false);
 app.set('etag', false);
 app.set('view engine', 'pug');
+
 app.use(compression());
 app.use(express.static('public', { redirect: false, etag: false, cacheControl: false, setHeaders: set_static_headers }));
 app.use(express.urlencoded({extended:false}));
-app.locals.SITE_NAME = SITE_NAME;
-app.locals.SITE_URL = SITE_URL;
 
 let wss;
 
@@ -149,14 +150,6 @@ function random_seed() {
 
 function pad(s, fmt) {
 	return s + fmt.slice(s.length);
-}
-
-function LOG(req, ...msg) {
-	let time = new Date().toISOString().substring(11,19);
-	let name = pad(req.user ? req.user.name : "guest", "                    ");
-	let ip = pad(req.connection.remoteAddress, "               ");
-	let ua = pad(req.user_agent, "          ");
-	console.log(time, ip, ua, name, ...msg);
 }
 
 function SLOG(socket, ...msg) {
@@ -274,27 +267,6 @@ const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND datetim
 const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime('now')) RETURNING token").pluck();
 const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id=? AND datetime('now') < datetime(time, '+20 minutes') AND token=? )").pluck();
 
-const SQL_USER_STATS = SQL(`
-	select
-		title_name,
-		scenario,
-		role,
-		sum(role=result) as won,
-		count(*) as total
-	from
-		players
-		natural join games
-		natural join titles
-	where
-		user_id = ?
-		and status = 2
-		and game_id in (select game_id from opposed_games)
-	group by
-		title_name,
-		scenario,
-		role
-	`);
-
 function is_blacklisted(mail) {
 	if (SQL_BLACKLIST_MAIL.get(mail) === 1)
 		return true;
@@ -318,7 +290,7 @@ function parse_user_agent(req) {
 		agent = "Opera";
 	else if (user_agent.indexOf("Googlebot") >= 0)
 		agent = "Googlebot";
-	else if (user_agent.indexOf("Bingbot") >= 0)
+	else if (user_agent.indexOf("bingbot") >= 0)
 		agent = "Bingbot";
 	else if (user_agent.indexOf("; MSIE") >= 0)
 		agent = "MSIE";
@@ -345,6 +317,14 @@ app.use(function (req, res, next) {
 			SQL_UPDATE_USER_LAST_SEEN.run(user_id, req.connection.remoteAddress);
 		}
 	}
+
+	// Log non-static accesses.
+	let time = new Date().toISOString().substring(11,19);
+	let name = pad(req.user ? req.user.name : "guest", "                    ");
+	let ip = pad(req.connection.remoteAddress, "               ");
+	let ua = pad(req.user_agent, "          ");
+	console.log(time, ip, ua, name, req.method, req.url);
+
 	return next();
 });
 
@@ -363,7 +343,6 @@ app.get('/about', function (req, res) {
 });
 
 app.get('/logout', function (req, res) {
-	LOG(req, "GET /logout");
 	let sid = login_cookie(req);
 	if (sid)
 		login_delete(res, sid);
@@ -373,7 +352,6 @@ app.get('/logout', function (req, res) {
 app.get('/login', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
-	LOG(req, "GET /login redirect=" + req.query.redirect);
 	res.render('login.pug', { redirect: req.query.redirect || '/profile' });
 });
 
@@ -381,7 +359,6 @@ app.post('/login', function (req, res) {
 	let name_or_mail = req.body.username;
 	let password = req.body.password;
 	let redirect = req.body.redirect;
-	LOG(req, "POST /login", name_or_mail);
 	if (!is_email(name_or_mail))
 		name_or_mail = clean_user_name(name_or_mail);
 	let user = SQL_SELECT_LOGIN_BY_NAME.get(name_or_mail);
@@ -396,7 +373,6 @@ app.post('/login', function (req, res) {
 app.get('/signup', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
-	LOG(req, "GET /signup");
 	res.render('signup.pug');
 });
 
@@ -408,7 +384,6 @@ app.post('/signup', function (req, res) {
 	let mail = req.body.mail;
 	let password = req.body.password;
 	name = clean_user_name(name);
-	LOG(req, "POST /signup", name, mail);
 	if (!is_valid_user_name(name))
 		return err("Invalid user name!");
 	if (SQL_EXISTS_USER_NAME.get(name))
@@ -431,12 +406,10 @@ app.post('/signup', function (req, res) {
 app.get('/forgot-password', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
-	LOG(req, "GET /forgot-password");
 	res.render('forgot_password.pug');
 });
 
 app.post('/forgot-password', function (req, res) {
-	LOG(req, "POST /forgot-password");
 	let mail = req.body.mail;
 	let user = SQL_SELECT_LOGIN_BY_MAIL.get(mail);
 	if (user) {
@@ -453,7 +426,6 @@ app.post('/forgot-password', function (req, res) {
 app.get('/reset-password', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
-	LOG(req, "GET /reset-password");
 	res.render('reset_password.pug', { mail: "", token: "" });
 });
 
@@ -461,7 +433,6 @@ app.get('/reset-password/:mail', function (req, res) {
 	if (req.user)
 		return res.redirect('/');
 	let mail = req.params.mail;
-	LOG(req, "GET /reset-password", mail);
 	res.render('reset_password.pug', { mail: mail, token: "" });
 });
 
@@ -470,7 +441,6 @@ app.get('/reset-password/:mail/:token', function (req, res) {
 		return res.redirect('/');
 	let mail = req.params.mail;
 	let token = req.params.token;
-	LOG(req, "GET /reset-password", mail, token);
 	res.render('reset_password.pug', { mail: mail, token: token });
 });
 
@@ -481,7 +451,6 @@ app.post('/reset-password', function (req, res) {
 	function err(msg) {
 		res.render('reset_password.pug', { mail: mail, token: token });
 	}
-	LOG(req, "POST /reset-password", mail, token);
 	let user = SQL_SELECT_LOGIN_BY_MAIL.get(mail);
 	if (!user)
 		return err("User not found.");
@@ -499,14 +468,12 @@ app.post('/reset-password', function (req, res) {
 });
 
 app.get('/change-password', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /change-password");
 	res.render('change_password.pug', { user: req.user });
 });
 
 app.post('/change-password', must_be_logged_in, function (req, res) {
 	let oldpass = req.body.password;
 	let newpass = req.body.newpass;
-	LOG(req, "POST /change-password", req.user.name);
 	// Get full user record including password and salt
 	let user = SQL_SELECT_LOGIN_BY_MAIL.get(req.user.mail);
 	if (newpass.length < 4)
@@ -526,25 +493,21 @@ app.post('/change-password', must_be_logged_in, function (req, res) {
  */
 
 app.get('/subscribe', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /subscribe");
 	SQL_UPDATE_USER_NOTIFY.run(1, req.user.user_id);
 	res.redirect('/profile');
 });
 
 app.get('/unsubscribe', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /unsubscribe");
 	SQL_UPDATE_USER_NOTIFY.run(0, req.user.user_id);
 	res.redirect('/profile');
 });
 
 app.get('/change-name', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /change-name");
 	res.render('change_name.pug', { user: req.user });
 });
 
 app.post('/change-name', must_be_logged_in, function (req, res) {
 	let newname = clean_user_name(req.body.newname);
-	LOG(req, "POST /change-name", req.user, req.body, newname);
 	if (!is_valid_user_name(newname))
 		return res.render('change_name.pug', { user: req.user, flash: "Invalid user name!" });
 	if (SQL_EXISTS_USER_NAME.get(newname))
@@ -554,13 +517,11 @@ app.post('/change-name', must_be_logged_in, function (req, res) {
 });
 
 app.get('/change-mail', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /change-mail");
 	res.render('change_mail.pug', { user: req.user });
 });
 
 app.post('/change-mail', must_be_logged_in, function (req, res) {
 	let newmail = req.body.newmail;
-	LOG(req, "POST /change-mail", req.user, req.body);
 	if (!is_email(newmail))
 		res.render('change_mail.pug', { user: req.user, flash: "Invalid mail address!" });
 	if (SQL_EXISTS_USER_MAIL.get(newmail))
@@ -570,19 +531,16 @@ app.post('/change-mail', must_be_logged_in, function (req, res) {
 });
 
 app.get('/change-about', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /change-about");
 	let about = SQL_SELECT_USER_PROFILE.get(req.user.name).about;
 	res.render('change_about.pug', { user: req.user, about: about || "" });
 });
 
 app.post('/change-about', must_be_logged_in, function (req, res) {
-	LOG(req, "POST /change-about", req.user.name);
 	SQL_UPDATE_USER_ABOUT.run(req.body.about, req.user.user_id);
 	return res.redirect('/profile');
 });
 
 app.get('/user/:who_name', function (req, res) {
-	LOG(req, "GET /user/" + req.params.who_name);
 	let who = SQL_SELECT_USER_PROFILE.get(req.params.who_name);
 	if (who) {
 		who.avatar = get_avatar(who.mail);
@@ -594,19 +552,7 @@ app.get('/user/:who_name', function (req, res) {
 	}
 });
 
-app.get('/user-stats/:who_name', function (req, res) {
-	LOG(req, "GET /user-stats/" + req.params.who_name);
-	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name);
-	if (who) {
-		let stats = SQL_USER_STATS.all(who.user_id);
-		res.render('user_stats.pug', { user: req.user, who: who, stats: stats });
-	} else {
-		return res.status(404).send("Invalid user name.");
-	}
-});
-
 app.get('/users', function (req, res) {
-	LOG(req, "GET /users");
 	let rows = SQL("SELECT * FROM user_profile_view ORDER BY atime DESC").all();
 	rows.forEach(row => {
 		row.avatar = get_avatar(row.mail);
@@ -617,13 +563,11 @@ app.get('/users', function (req, res) {
 });
 
 app.get('/chat', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /chat");
 	let chat = SQL_SELECT_USER_CHAT_N.all(req.user.user_id, 12*20);
 	res.render('chat.pug', { user: req.user, chat: chat, page_size: 12 });
 });
 
 app.get('/chat/all', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /chat/all");
 	let chat = SQL_SELECT_USER_CHAT.all(req.user.user_id);
 	res.render('chat.pug', { user: req.user, chat: chat, page_size: 0 });
 });
@@ -652,7 +596,6 @@ const MESSAGE_DELETE_OUTBOX = SQL("UPDATE messages SET is_deleted_from_outbox=1 
 const MESSAGE_DELETE_ALL_OUTBOX = SQL("UPDATE messages SET is_deleted_from_outbox=1 WHERE from_id=?");
 
 app.get('/inbox', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /inbox");
 	let messages = MESSAGE_LIST_INBOX.all(req.user.user_id);
 	for (let i = 0; i < messages.length; ++i)
 		messages[i].time = human_date(messages[i].time);
@@ -663,7 +606,6 @@ app.get('/inbox', must_be_logged_in, function (req, res) {
 });
 
 app.get('/outbox', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /outbox");
 	let messages = MESSAGE_LIST_OUTBOX.all(req.user.user_id);
 	for (let i = 0; i < messages.length; ++i)
 		messages[i].time = human_date(messages[i].time);
@@ -674,7 +616,6 @@ app.get('/outbox', must_be_logged_in, function (req, res) {
 });
 
 app.get('/message/read/:message_id', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /message/" + req.params.message_id);
 	let message_id = req.params.message_id | 0;
 	let message = MESSAGE_FETCH.get(message_id, req.user.user_id, req.user.user_id);
 	if (!message)
@@ -701,7 +642,6 @@ app.get('/message/send', must_be_logged_in, function (req, res) {
 });
 
 app.get('/message/send/:to_name', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /message/send/" + req.params.to_name);
 	let to_name = req.params.to_name;
 	res.render('message_send.pug', {
 		user: req.user,
@@ -712,7 +652,6 @@ app.get('/message/send/:to_name', must_be_logged_in, function (req, res) {
 });
 
 app.post('/message/send', must_be_logged_in, function (req, res) {
-	LOG(req, "POST /message/send/");
 	let to_name = req.body.to.trim();
 	let subject = req.body.subject.trim();
 	let body = req.body.body.trim();
@@ -741,7 +680,6 @@ function quote_body(message) {
 }
 
 app.get('/message/reply/:message_id', must_be_logged_in, function (req, res) {
-	LOG(req, "POST /message/reply/" + req.params.message_id);
 	let message_id = req.params.message_id | 0;
 	let message = MESSAGE_FETCH.get(message_id, req.user.user_id, req.user.user_id);
 	if (!message)
@@ -756,7 +694,6 @@ app.get('/message/reply/:message_id', must_be_logged_in, function (req, res) {
 });
 
 app.get('/message/delete/:message_id', must_be_logged_in, function (req, res) {
-	LOG(req, "POST /message/delete/" + req.params.message_id);
 	let message_id = req.params.message_id | 0;
 	MESSAGE_DELETE_INBOX.run(message_id, req.user.user_id);
 	MESSAGE_DELETE_OUTBOX.run(message_id, req.user.user_id);
@@ -764,7 +701,6 @@ app.get('/message/delete/:message_id', must_be_logged_in, function (req, res) {
 });
 
 app.get('/outbox/delete', must_be_logged_in, function (req, res) {
-	LOG(req, "POST /outbox/delete");
 	MESSAGE_DELETE_ALL_OUTBOX.run(req.user.user_id);
 	res.redirect('/outbox');
 });
@@ -811,17 +747,14 @@ function linkify_post(text) {
 }
 
 app.get('/forum', function (req, res) {
-	LOG(req, "GET /forum");
 	show_forum_page(req, res, 1);
 });
 
 app.get('/forum/page/:page', function (req, res) {
-	LOG(req, "GET /forum/page/" + req.params.page);
 	show_forum_page(req, res, req.params.page | 0);
 });
 
 app.get('/forum/thread/:thread_id', function (req, res) {
-	LOG(req, "GET /forum/thread/" + req.params.thread_id);
 	let thread_id = req.params.thread_id | 0;
 	let thread = FORUM_GET_THREAD.get(thread_id);
 	let posts = FORUM_LIST_POSTS.all(thread_id);
@@ -841,14 +774,12 @@ app.get('/forum/thread/:thread_id', function (req, res) {
 });
 
 app.get('/forum/post', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /forum/post");
 	res.render('forum_post.pug', {
 		user: req.user,
 	});
 });
 
 app.post('/forum/post', must_be_logged_in, function (req, res) {
-	LOG(req, "POST /forum/post");
 	let user_id = req.user.user_id;
 	let subject = req.body.subject.trim();
 	let body = req.body.body;
@@ -861,7 +792,6 @@ app.post('/forum/post', must_be_logged_in, function (req, res) {
 
 app.get('/forum/edit/:post_id', must_be_logged_in, function (req, res) {
 	// TODO: edit subject if editing first post
-	LOG(req, "GET /forum/edit/" + req.params.post_id);
 	let post_id = req.params.post_id | 0;
 	let post = FORUM_GET_POST.get(post_id);
 	if (!post || post.author_id != req.user.user_id)
@@ -875,7 +805,6 @@ app.get('/forum/edit/:post_id', must_be_logged_in, function (req, res) {
 });
 
 app.post('/forum/edit/:post_id', must_be_logged_in, function (req, res) {
-	LOG(req, "POST /forum/edit/" + req.params.post_id);
 	let user_id = req.user.user_id;
 	let post_id = req.params.post_id | 0;
 	let body = req.body.body;
@@ -884,7 +813,6 @@ app.post('/forum/edit/:post_id', must_be_logged_in, function (req, res) {
 });
 
 app.get('/forum/reply/:post_id', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /forum/reply/" + req.params.post_id);
 	let post_id = req.params.post_id | 0;
 	let post = FORUM_GET_POST.get(post_id);
 	if (!post)
@@ -902,7 +830,6 @@ app.get('/forum/reply/:post_id', must_be_logged_in, function (req, res) {
 });
 
 app.post('/forum/reply/:thread_id', must_be_logged_in, function (req, res) {
-	LOG(req, "POST /forum/reply/" + req.params.thread_id);
 	let thread_id = req.params.thread_id | 0;
 	let user_id = req.user.user_id;
 	let body = req.body.body;
@@ -1086,7 +1013,6 @@ function annotate_games(games, user_id) {
 }
 
 app.get('/games', function (req, res) {
-	LOG(req, "GET /games");
 	let open_games = QUERY_LIST_GAMES.all(0);
 	let active_games = QUERY_LIST_GAMES.all(1);
 	if (req.user) {
@@ -1105,7 +1031,6 @@ app.get('/games', function (req, res) {
 });
 
 app.get('/profile', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /profile");
 	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id);
 	let avatar = get_avatar(req.user.mail);
 	let games = QUERY_LIST_GAMES_OF_USER.all({user_id: req.user.user_id});
@@ -1128,7 +1053,6 @@ app.get('/info/:title_id', function (req, res) {
 });
 
 function get_title_page(req, res, title_id) {
-	LOG(req, "GET /" + title_id);
 	let title = TITLES[title_id];
 	if (!title)
 		return res.status(404).send("Invalid title.");
@@ -1153,7 +1077,6 @@ for (let title_id in TITLES)
 	app.get('/' + title_id, (req, res) => get_title_page(req, res, title_id));
 
 app.get('/create/:title_id', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /create/" + req.params.title_id);
 	let title_id = req.params.title_id;
 	let title = TITLES[title_id];
 	if (!title)
@@ -1185,7 +1108,6 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 	let user_id = req.user.user_id;
 	let scenario = req.body.scenario;
 	let options = JSON.stringify(req.body, options_json_replacer);
-	LOG(req, "POST /create/" + req.params.title_id, scenario, options, priv, JSON.stringify(descr));
 	let count = SQL_COUNT_OPEN_GAMES.get(user_id);
 	if (count >= 5)
 		return res.send("You have too many open games!");
@@ -1199,7 +1121,6 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 
 app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id;
-	LOG(req, "GET /delete/" + game_id);
 	let title_id = SQL_SELECT_GAME_TITLE.get(game_id);
 	let info = SQL_DELETE_GAME.run(game_id, req.user.user_id);
 	if (info.changes === 0)
@@ -1232,7 +1153,6 @@ function join_rematch(req, res, game_id, role) {
 }
 
 app.get('/rematch/:old_game_id/:role', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /rematch/" + req.params.old_game_id);
 	let old_game_id = req.params.old_game_id | 0;
 	let role = req.params.role;
 	let magic = "\u{1F503} " + old_game_id;
@@ -1291,7 +1211,6 @@ function update_join_clients_players(game_id) {
 }
 
 app.get('/join/:game_id', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /join/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
 	let game = SQL_SELECT_GAME_VIEW.get(game_id);
 	if (!game)
@@ -1310,7 +1229,6 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 });
 
 app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /join-events/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
 	let game = SQL_SELECT_GAME_VIEW.get(game_id);
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
@@ -1345,7 +1263,6 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 });
 
 app.get('/join/:game_id/:role', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /join/" + req.params.game_id + "/" + req.params.role);
 	let game_id = req.params.game_id | 0;
 	let role = req.params.role;
 	let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, req.user.user_id);
@@ -1358,7 +1275,6 @@ app.get('/join/:game_id/:role', must_be_logged_in, function (req, res) {
 });
 
 app.get('/part/:game_id/:role', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /part/" + req.params.game_id + "/" + req.params.role);
 	let game_id = req.params.game_id | 0;
 	let role = req.params.role;
 	SQL_DELETE_PLAYER_ROLE.run(game_id, role);
@@ -1383,7 +1299,6 @@ function assign_random_roles(game, players) {
 }
 
 app.get('/start/:game_id', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /start/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
 	let game = SQL_SELECT_GAME.get(game_id);
 	if (game.owner_id !== req.user.user_id)
@@ -1411,7 +1326,6 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 });
 
 app.get('/play/:game_id/:role', function (req, res) {
-	LOG(req, "GET /play/" + req.params.game_id + "/" + req.params.role);
 	let game_id = req.params.game_id | 0;
 	let role = req.params.role;
 	let title = SQL_SELECT_GAME_TITLE.get(game_id);
@@ -1421,7 +1335,6 @@ app.get('/play/:game_id/:role', function (req, res) {
 });
 
 app.get('/play/:game_id', function (req, res) {
-	LOG(req, "GET /play/" + req.params.game_id);
 	let game_id = req.params.game_id | 0;
 	let user_id = req.user ? req.user.user_id : 0;
 	let title = SQL_SELECT_GAME_TITLE.get(game_id);
@@ -1435,7 +1348,6 @@ app.get('/play/:game_id', function (req, res) {
 });
 
 app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, res) {
-	LOG(req, "GET /" + req.params.title_id + "/play:" + req.params.game_id + ":" + req.params.role);
 	let user_id = req.user ? req.user.user_id : 0;
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id;
@@ -1446,7 +1358,6 @@ app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, re
 });
 
 app.get('/:title_id/play\::game_id', function (req, res) {
-	LOG(req, "GET /" + req.params.title_id + "/play:" + req.params.game_id);
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id;
 	let a_title = SQL_SELECT_GAME_TITLE.get(game_id);
@@ -1456,7 +1367,6 @@ app.get('/:title_id/play\::game_id', function (req, res) {
 });
 
 app.get('/:title_id/replay\::game_id', function (req, res) {
-	LOG(req, "GET /" + req.params.title_id + "/replay:" + req.params.game_id);
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id;
 	let game = SQL_SELECT_GAME.get(game_id);
@@ -1906,11 +1816,41 @@ wss.on('connection', (socket, req, client) => {
 const SQL_GAME_STATS = SQL("SELECT * FROM game_stat_view");
 
 app.get('/stats', function (req, res) {
-	LOG(req, "GET /stats");
 	let stats = SQL_GAME_STATS.all();
 	res.render('stats.pug', {
 		user: req.user,
 		stats: stats,
 		titles: TITLES,
 	});
+});
+
+const SQL_USER_STATS = SQL(`
+	select
+		title_name,
+		scenario,
+		role,
+		sum(role=result) as won,
+		count(*) as total
+	from
+		players
+		natural join games
+		natural join titles
+	where
+		user_id = ?
+		and status = 2
+		and game_id in (select game_id from opposed_games)
+	group by
+		title_name,
+		scenario,
+		role
+	`);
+
+app.get('/user-stats/:who_name', function (req, res) {
+	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name);
+	if (who) {
+		let stats = SQL_USER_STATS.all(who.user_id);
+		res.render('user_stats.pug', { user: req.user, who: who, stats: stats });
+	} else {
+		return res.status(404).send("Invalid user name.");
+	}
 });
