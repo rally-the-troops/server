@@ -1648,7 +1648,11 @@ function send_state(socket, state) {
 		view.log = view.log.slice(view.log_start);
 		if (state.state === 'game_over')
 			view.game_over = 1;
-		send_message(socket, 'state', view);
+		view = JSON.stringify(['state', view]);
+		if (socket.last_view !== view) {
+			socket.send(view);
+			socket.last_view = view;
+		}
 	} catch (err) {
 		console.log(err);
 		return send_message(socket, 'error', err.toString());
