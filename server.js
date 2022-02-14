@@ -843,13 +843,11 @@ app.post('/forum/reply/:thread_id', must_be_logged_in, function (req, res) {
 
 let TITLES = {};
 let RULES = {};
-let ROLES = {};
 let HTML_ABOUT = {};
 let HTML_CREATE = {};
 
 function load_rules() {
 	const SQL_SELECT_TITLES = SQL("SELECT * FROM titles");
-	const SQL_SELECT_TITLE_ROLES = SQL("SELECT role FROM roles WHERE title_id=?").pluck();
 	for (let title of SQL_SELECT_TITLES.all()) {
 		let title_id = title.title_id;
 		if (fs.existsSync(__dirname + "/public/" + title_id + "/rules.js")) {
@@ -857,7 +855,6 @@ function load_rules() {
 			try {
 				TITLES[title_id] = title;
 				RULES[title_id] = require("./public/" + title_id + "/rules.js");
-				ROLES[title_id] = SQL_SELECT_TITLE_ROLES.all(title_id);
 				HTML_ABOUT[title_id] = fs.readFileSync("./public/" + title_id + "/about.html");
 				HTML_CREATE[title_id] = fs.readFileSync("./public/" + title_id + "/create.html");
 			} catch (err) {
@@ -867,6 +864,13 @@ function load_rules() {
 			console.log("Cannot find rules for " + title_id);
 		}
 	}
+}
+
+function get_game_roles(title_id, scenario, options) {
+	let roles = RULES[title_id].roles;
+	if (typeof roles === 'function')
+		return roles(scenario, options);
+	return roles;
 }
 
 load_rules();
@@ -1216,7 +1220,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	if (!game)
 		return res.status(404).send("Invalid game ID.");
 	annotate_game(game, req.user.user_id);
-	let roles = ROLES[game.title_id];
+	let roles = get_game_roles(game.title_id, game.scenario, game.options);
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
 	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, game.options, players);
 	res.render('join.pug', {
@@ -1289,7 +1293,7 @@ function assign_random_roles(game, players) {
 		list.splice(k, 1);
 		return r;
 	}
-	let roles = ROLES[game.title_id].slice();
+	let roles = get_game_roles(game.title_id, game.scenario, game.options).slice();
 	for (let p of players) {
 		let old_role = p.role;
 		p.role = pick_random_item(roles);
@@ -1813,14 +1817,46 @@ wss.on('connection', (socket, req, client) => {
  * HIDDEN EXTRAS
  */
 
-const SQL_GAME_STATS = SQL("SELECT * FROM game_stat_view");
+const SQL_GAME_STATS = SQL(`
+	select
+		title_id, scenario, options,
+		group_concat(result) as result_role,
+		group_concat(n) as result_count,
+		sum(n) as total
+	from
+		(
+			select
+				title_id, scenario, options,
+				result,
+				count(1) as n
+			from
+				opposed_games
+				natural join game_state
+			where
+				status=2
+			group by
+				title_id,
+				scenario,
+				options,
+				result
+		)
+	group by
+		title_id, scenario, options
+	having
+		total > 12
+	`);
 
 app.get('/stats', function (req, res) {
 	let stats = SQL_GAME_STATS.all();
+	stats.forEach(row => {
+		row.title_name = TITLES[row.title_id].title_name;
+		row.options = format_options(row.options);
+		row.result_role = row.result_role.split(",");
+		row.result_count = row.result_count.split(",").map(Number);
+	});
 	res.render('stats.pug', {
 		user: req.user,
 		stats: stats,
-		titles: TITLES,
 	});
 });
 

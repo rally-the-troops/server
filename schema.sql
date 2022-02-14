@@ -3,7 +3,7 @@
 create table if not exists blacklist_ip ( ip text primary key ) without rowid;
 create table if not exists blacklist_mail ( mail text primary key ) without rowid;
 
--- Titles and roles --
+-- Titles --
 
 create table if not exists titles (
 	title_id text
@@ -13,13 +13,6 @@ create table if not exists titles (
 	is_hidden boolean
 		default 0
 ) without rowid;
-
-create table if not exists roles (
-	title_id text
-		references titles,
-	role text,
-	unique (title_id, role)
-);
 
 -- Users --
 
@@ -293,6 +286,8 @@ create table if not exists game_replay (
 	arguments text
 );
 
+create index if not exists game_replay_idx on game_replay(game_id);
+
 create table if not exists players (
 	game_id integer
 		references games
@@ -416,38 +411,6 @@ begin
 	;
 end;
 
-drop trigger if exists must_be_valid_role;
-create trigger must_be_valid_role before insert on players
-begin
-	select
-		raise(abort, 'Invalid role.')
-	where
-		not exists (
-			select
-				1
-			from
-				roles
-			where
-				roles.title_id = (
-					select
-						title_id
-					from
-						games
-					where
-						games.game_id = new.game_id
-				)
-				and roles.role = new.role
-		)
-		and new.role != 'Random 1'
-		and new.role != 'Random 2'
-		and new.role != 'Random 3'
-		and new.role != 'Random 4'
-		and new.role != 'Random 5'
-		and new.role != 'Random 6'
-		and new.role != 'Random 7'
-	;
-end;
-
 -- Manual key management if pragma foreign_keys = off
 drop trigger if exists trigger_delete_on_games;
 create trigger trigger_delete_on_games after delete on games
@@ -458,59 +421,3 @@ begin
 	delete from last_notified where game_id = old.game_id;
 	delete from players where game_id = old.game_id;
 end;
-
--- Game stats
-
-drop view if exists role_index_view;
-create view role_index_view (t, i, r) as
-	select
-		title_id,
-		row_number() over (partition by title_id),
-		role
-	from
-		roles
-	;
-
-drop view if exists game_stat_view;
-create view game_stat_view as
-	select
-		title_name,
-		null as scenario,
-		null as total,
-		(select r from role_index_view where t=title_id and i=1) as r1,
-		(select r from role_index_view where t=title_id and i=2) as r2,
-		(select r from role_index_view where t=title_id and i=3) as r3,
-		(select r from role_index_view where t=title_id and i=4) as r4,
-		(select r from role_index_view where t=title_id and i=5) as r5,
-		(select r from role_index_view where t=title_id and i=6) as r6,
-		(select r from role_index_view where t=title_id and i=7) as r7
-	from
-		titles
-	where
-		is_hidden = 0
-	union
-	select
-		title_name,
-		scenario,
-		count(*) as total,
-		sum((select i from role_index_view where t=title_id and r=result) = 1) as r1,
-		sum((select i from role_index_view where t=title_id and r=result) = 2) as r2,
-		sum((select i from role_index_view where t=title_id and r=result) = 3) as r3,
-		sum((select i from role_index_view where t=title_id and r=result) = 4) as r4,
-		sum((select i from role_index_view where t=title_id and r=result) = 5) as r5,
-		sum((select i from role_index_view where t=title_id and r=result) = 6) as r6,
-		sum((select i from role_index_view where t=title_id and r=result) = 7) as r7
-	from
-		games
-		natural join titles
-	where
-		is_hidden = 0
-		and status = 2
-		and game_id in (select game_id from opposed_games)
-	group by
-		title_id,
-		scenario
-	order by
-		title_name,
-		total desc nulls first
-	;

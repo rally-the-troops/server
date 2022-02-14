@@ -5,32 +5,31 @@ html
 		include head
 		title Game Statistics
 		style.
-			table { table-layout: fixed; min-width: auto; margin-bottom: 30px; }
+			table { min-width: auto; margin-bottom: 30px; }
 			td:not(:first-child) { text-align: right; }
 			th:not(:first-child) { text-align: right; }
-			td { width: 100px; }
-			td:first-child { width: 240px; }
+			td:not(:first-child) { width: 50px; }
+			td:first-child { width: 400px; }
 	body
 		include header
 		article
 			h1 Game Statistics
 			- function p(t,r) { return r > 0 ? Math.round(r*100/t) + "%" : "" }
-			- function drawn(x) { return x.total-(x.r1+x.r2+x.r3+x.r4+x.r5+x.r6+x.r7) }
-			each title in titles
+			each row in stats
 				table
 					thead
 						tr
-							th: a(href="/"+title.title_id)= title.title_name
-							each row in stats
-								unless row.scenario || row.title_name !== title.title_name
-									th= row.r1
-									th= row.r2
-									th Draw
+							th
+								a(href="/"+row.title_id)= row.title_name
+								unless row.scenario === "Standard"
+									| , #{row.scenario}
+								unless row.options === "None"
+									| , #{row.options}
+							th= row.total
 					tbody
-						each row in stats
-							if row.scenario && row.title_name === title.title_name
-								tr
-									td #{row.scenario} (#{row.total})
-									td= p(row.total, row.r1)
-									td= p(row.total, row.r2)
-									td= p(row.total, drawn(row))
+						- for (let i=0; i<row.result_role.length; ++i)
+							- let role = row.result_role[i]
+							- let count = row.result_count[i]
+							tr
+								td= role
+								td= p(row.total,count)
