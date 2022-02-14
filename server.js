@@ -1269,6 +1269,16 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 app.get('/join/:game_id/:role', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0;
 	let role = req.params.role;
+	let game = SQL_SELECT_GAME.get(game_id);
+	let roles = get_game_roles(game.title_id, game.scenario, game.options);
+	if (game.is_random) {
+		let m = role.match(/^Random (\d+)$/);
+		if (!m || Number(m[1]) < 1 || Number(m[1]) > roles.length)
+			return res.status(404).send("Invalid role.");
+	} else {
+		if (!roles.includes(role))
+			return res.status(404).send("Invalid role.");
+	}
 	let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, req.user.user_id);
 	if (info.changes === 1) {
 		update_join_clients_players(game_id);
