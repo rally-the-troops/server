@@ -320,10 +320,24 @@ header .replay button {
 }
 
 #chat_header {
+	user-select: none;
 	cursor: move;
 	background-color: gainsboro;
 	border-bottom: 1px solid black;
 	padding: 5px 10px;
+}
+
+#chat_x {
+	user-select: none;
+	cursor: pointer;
+	float: right;
+	padding: 0px 2px;
+	margin: 5px 5px;
+}
+
+#chat_x:hover {
+	background-color: black;
+	color: white;
 }
 
 #chat_text {

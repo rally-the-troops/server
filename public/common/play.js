@@ -124,6 +124,7 @@ function init_chat() {
 	let chat_window = document.createElement("div");
 	chat_window.id = "chat_window";
 	chat_window.innerHTML = `
+		<div id="chat_x" onclick="toggle_chat()">\u274c</div>
 		<div id="chat_header">Chat</div>
 		<div id="chat_text"></div>
 		<form id="chat_form" action=""><input id="chat_input" autocomplete="off"></form>
