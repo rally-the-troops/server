@@ -60,7 +60,7 @@ mixin gametable(status,table,hide_title=0)
 					td: a(href="/join/"+row.game_id)= row.game_id
 					unless hide_title
 						td.w: a(href="/"+row.title_id)= row.title_name
-					td.w= row.options !== "None" ? row.scenario + ", " + row.options : row.scenario
+					td= row.options !== "None" ? row.scenario + ", " + row.options : row.scenario
 					if row.player_names
 						td!= row.player_names
 					else
