@@ -21,3 +21,8 @@
 @font-face{font-family:'Gentium Basic';font-style:italic;src:url('GentiumBasic-Italic.woff2')format('woff2')}
 @font-face{font-family:'Gentium Basic';font-weight:bold;src:url('GentiumBasic-Bold.woff2')format('woff2')}
 @font-face{font-family:'Gentium Basic';font-weight:bold;font-style:italic;src:url('GentiumBasic-BoldItalic.woff2')format('woff2')}
+
+@font-face{font-family:'Times New Roman';font-weight:bold;src:url('NimbusRoman-Bold.woff2')format('woff2')}
+@font-face{font-family:'Times New Roman';font-weight:bold;font-style:italic;src:url('NimbusRoman-BoldItalic.woff2')format('woff2')}
+@font-face{font-family:'Times New Roman';font-style:italic;src:url('NimbusRoman-Italic.woff2')format('woff2')}
+@font-face{font-family:'Times New Roman';src:url('NimbusRoman-Regular.woff2')format('woff2')}
