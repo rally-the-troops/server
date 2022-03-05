@@ -1720,8 +1720,9 @@ function broadcast_presence(game_id) {
 function on_restart(socket, scenario) {
 	try {
 		let seed = random_seed();
-		let state = socket.rules.setup(seed, scenario, {}, socket.players);
-		put_replay(socket.game_id, null, 'setup', [seed, scenario, null, socket.players]);
+		let options = JSON.parse(SQL_SELECT_GAME.get(socket.game_id).options);
+		let state = socket.rules.setup(seed, scenario, options, socket.players);
+		put_replay(socket.game_id, null, 'setup', [seed, scenario, options, socket.players]);
 		for (let other of clients[socket.game_id]) {
 			other.seen = 0;
 			send_state(other, state);
