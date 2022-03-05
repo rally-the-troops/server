@@ -1624,11 +1624,34 @@ function on_action(socket, action, arg) {
 	}
 }
 
+function on_query(socket, q) {
+	let params = undefined;
+	if (Array.isArray(q)) {
+		params = q[1];
+		q = q[0];
+	}
+	if (params !== undefined)
+		SLOG(socket, "QUERY", q, JSON.stringify(params));
+	else
+		SLOG(socket, "QUERY", q);
+	try {
+		if (socket.rules.query) {
+			let state = get_game_state(socket.game_id);
+			let reply = socket.rules.query(state, socket.role, q, params);
+			send_message(socket, 'reply', [q, reply]);
+		}
+	} catch (err) {
+		console.log(err);
+		return send_message(socket, 'error', err.toString());
+	}
+}
+
 function on_resign(socket) {
 	SLOG(socket, "RESIGN");
 	try {
 		let state = get_game_state(socket.game_id);
 		let old_active = state.active;
+		// TODO: shared "resign" function
 		state = socket.rules.resign(state, socket.role);
 		put_game_state(socket.game_id, state, old_active);
 		put_replay(socket.game_id, socket.role, 'resign', null);
@@ -1739,6 +1762,7 @@ function on_restart(socket, scenario) {
 function handle_message(socket, cmd, arg) {
 	switch (cmd) {
 	case 'action': on_action(socket, arg[0], arg[1]); break;
+	case 'query': on_query(socket, arg); break;
 	case 'resign': on_resign(socket); break;
 	case 'getchat': on_getchat(socket, arg); break;
 	case 'chat': on_chat(socket, arg); break;

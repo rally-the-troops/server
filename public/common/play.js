@@ -376,10 +376,16 @@ function connect_play() {
 		case 'state':
 			view = arg;
 			on_update_header();
-			on_update();
+			if (typeof on_update === 'function')
+				on_update();
 			on_update_log();
 			if (view.game_over)
 				on_game_over();
+			break;
+
+		case 'reply':
+			if (typeof on_reply === 'function')
+				on_reply(arg[0], arg[1]);
 			break;
 
 		case 'save':
@@ -545,6 +551,13 @@ function send_action(verb, noun) {
 		}
 	}
 	return false;
+}
+
+function send_query(q, param) {
+	if (param !== undefined)
+		send_message("query", [q, param]);
+	else
+		send_message("query", q);
 }
 
 function confirm_resign() {
