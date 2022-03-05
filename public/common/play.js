@@ -412,19 +412,20 @@ function on_update_header() {
 
 /* LOG */
 
-let create_log_entry = function (text) {
-	let div = document.createElement("div");
-	div.textContent = text;
-	return div;
-}
-
 function on_update_log() {
 	let div = document.getElementById("log");
 	let to_delete = div.children.length - view.log_start;
 	while (to_delete-- > 0)
 		div.removeChild(div.lastChild);
-	for (let entry of view.log)
-		div.appendChild(create_log_entry(entry));
+	for (let text of view.log) {
+		if (typeof on_log === 'function') {
+			div.appendChild(on_log(text));
+		} else {
+			let entry = document.createElement("div");
+			entry.textContent = text;
+			div.appendChild(entry);
+		}
+	}
 	scroll_log_to_end();
 }
 
