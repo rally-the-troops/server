@@ -553,11 +553,19 @@ function send_action(verb, noun) {
 	return false;
 }
 
+let replay_query = null;
+
 function send_query(q, param) {
 	if (param !== undefined)
-		send_message("query", [q, param]);
+		if (replay_query)
+			replay_query(q, param);
+		else
+			send_message("query", [q, param]);
 	else
-		send_message("query", q);
+		if (replay_query)
+			replay_query(q, undefined);
+		else
+			send_message("query", q);
 }
 
 function confirm_resign() {
@@ -647,6 +655,11 @@ async function init_replay() {
 			s = rules.action(s, item.role, item.action, item.arguments);
 			break;
 		}
+	}
+
+	replay_query = function (query, params) {
+		let reply = rules.query(s, player, query, params);
+		on_reply(query, reply);
 	}
 
 	let ss;

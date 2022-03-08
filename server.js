@@ -1759,7 +1759,7 @@ function on_restart(socket, scenario) {
 	}
 }
 
-function handle_message(socket, cmd, arg) {
+function handle_player_message(socket, cmd, arg) {
 	switch (cmd) {
 	case 'action': on_action(socket, arg[0], arg[1]); break;
 	case 'query': on_query(socket, arg); break;
@@ -1770,6 +1770,12 @@ function handle_message(socket, cmd, arg) {
 	case 'save': on_save(socket); break;
 	case 'restore': on_restore(socket, arg); break;
 	case 'restart': on_restart(socket, arg); break;
+	}
+}
+
+function handle_observer_message(socket, cmd, arg) {
+	switch (cmd) {
+	case 'query': on_query(socket, arg); break;
 	}
 }
 
@@ -1829,16 +1835,17 @@ wss.on('connection', (socket, req, client) => {
 			broadcast_presence(socket.game_id);
 		});
 
-		if (socket.role !== "Observer") {
-			socket.on('message', (data) => {
-				try {
-					let [ cmd, arg ] = JSON.parse(data);
-					handle_message(socket, cmd, arg);
-				} catch (err) {
-					send_message(socket, 'error', err);
-				}
-			});
-		}
+		socket.on('message', (data) => {
+			try {
+				let [ cmd, arg ] = JSON.parse(data);
+				if (socket.role !== "Observer")
+					handle_player_message(socket, cmd, arg);
+				else
+					handle_observer_message(socket, cmd, arg);
+			} catch (err) {
+				send_message(socket, 'error', err);
+			}
+		});
 
 		broadcast_presence(socket.game_id);
 		send_state(socket, get_game_state(socket.game_id));
