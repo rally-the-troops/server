@@ -288,6 +288,8 @@ function parse_user_agent(req) {
 		agent = "Edge";
 	else if (user_agent.indexOf("OPR/") >= 0)
 		agent = "Opera";
+	else if (user_agent.indexOf("Opera") >= 0)
+		agent = "Opera";
 	else if (user_agent.indexOf("Googlebot") >= 0)
 		agent = "Googlebot";
 	else if (user_agent.indexOf("bingbot") >= 0)
@@ -305,8 +307,9 @@ app.use(function (req, res, next) {
 	req.user_agent = parse_user_agent(req);
 	if (req.user_agent === "MSIE")
 		return res.redirect("/msie.html");
+	let ip = req.ip || req.connection.remoteAddress || "0.0.0.0";
 	res.setHeader('Cache-Control', 'no-store');
-	if (SQL_BLACKLIST_IP.get(req.connection.remoteAddress) === 1)
+	if (SQL_BLACKLIST_IP.get(ip) === 1)
 		return res.status(403).send('Sorry, but this IP has been banned.');
 	let sid = login_cookie(req);
 	if (sid) {
@@ -314,15 +317,15 @@ app.use(function (req, res, next) {
 		if (user_id) {
 			login_touch(res, sid);
 			req.user = SQL_SELECT_USER_INFO.get(user_id);
-			SQL_UPDATE_USER_LAST_SEEN.run(user_id, req.connection.remoteAddress);
+			SQL_UPDATE_USER_LAST_SEEN.run(user_id, ip);
 		}
 	}
 
 	// Log non-static accesses.
 	let time = new Date().toISOString().substring(11,19);
 	let name = pad(req.user ? req.user.name : "guest", "                    ");
-	let ip = pad(req.connection.remoteAddress, "               ");
 	let ua = pad(req.user_agent, "          ");
+	ip = pad(ip, "               ");
 	console.log(time, ip, ua, name, req.method, req.url);
 
 	return next();
@@ -1792,7 +1795,7 @@ wss.on('connection', (socket, req, client) => {
 	if (user_id)
 		socket.user = SQL_SELECT_USER_INFO.get(user_id);
 
-	socket.ip = req.connection.remoteAddress;
+	socket.ip = req.ip || req.connection.remoteAddress || "0.0.0.0";
 	socket.title_id = req.query.title || "unknown";
 	socket.game_id = req.query.game | 0;
 	socket.role = req.query.role;
