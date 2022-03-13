@@ -84,17 +84,18 @@ button, select {
 	padding: 1px 10px;
 	background-color: gainsboro;
 	vertical-align: top;
-	border: 2px outset white;
+	border: 2px solid;
+	border-color: white darkgray darkgray white;
 	outline: 1px solid black;
 }
 button:enabled:active:hover, select:active {
-	border: 2px inset white;
+	border-color: darkgray white white darkgray;
 	padding: 2px 9px 0px 11px;
 }
 button:disabled {
 	color: gray;
-	border: 2px solid gainsboro;
-	outline: 1px solid gray;
+	border-color: gainsboro;
+	outline-color: gray;
 }
 
 .error { color: brown; font-style: italic; white-space: pre-wrap; }
