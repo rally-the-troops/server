@@ -1141,11 +1141,14 @@ function join_rematch(req, res, game_id, role) {
 	try {
 		let is_random = SQL_SELECT_GAME_RANDOM.get(game_id);
 		if (is_random) {
-			for (let i = 1; i <= 6; ++i) {
-				let info = SQL_INSERT_PLAYER_ROLE.run(game_id, 'Random ' + i, req.user.user_id);
-				if (info.changes === 1) {
-					update_join_clients_players(game_id);
-					break;
+			let role = SQL_SELECT_PLAYER_ROLE.get(game_id, req.user.user_id);
+			if (!role) {
+				for (let i = 1; i <= 6; ++i) {
+					let info = SQL_INSERT_PLAYER_ROLE.run(game_id, 'Random ' + i, req.user.user_id);
+					if (info.changes === 1) {
+						update_join_clients_players(game_id);
+						break;
+					}
 				}
 			}
 		} else {
