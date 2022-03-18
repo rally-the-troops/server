@@ -99,8 +99,10 @@ function login_delete(res, sid) {
  * Web server setup.
  */
 
+express.static.mime.define({ "image/avif": ["avif"] });
+
 function set_static_headers(res, path) {
-	if (path.match(/\.(jpg|png|svg|webp|ico|woff2)$/))
+	if (path.match(/\.(jpg|png|svg|avif|webp|ico|woff2)$/))
 		res.setHeader("Cache-Control", "max-age=86400");
 	else
 		res.setHeader("Cache-Control", "max-age=60");
