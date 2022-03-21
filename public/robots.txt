@@ -1,4 +1,5 @@
 User-agent: *
 Disallow: /join
+Disallow: /login
 Disallow: /user
 Disallow: /*play*
