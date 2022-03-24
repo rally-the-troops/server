@@ -651,6 +651,9 @@ async function init_replay() {
 		case "resign":
 			s = rules.resign(s, item.role);
 			break;
+		case "restore":
+			s = JSON.parse(item.arguments);
+			break;
 		default:
 			s = rules.action(s, item.role, item.action, item.arguments);
 			break;
