@@ -12,6 +12,8 @@ const sqlite3 = require('better-sqlite3');
 
 require('dotenv').config();
 
+let DEBUG = process.env.DEBUG || 0;
+
 let HTTP_PORT = process.env.HTTP_PORT || 8080;
 let HTTPS_PORT = process.env.HTTPS_PORT;
 
@@ -1698,6 +1700,8 @@ function on_chat(socket, message) {
 }
 
 function on_debug(socket) {
+	if (!DEBUG)
+		send_message(socket, 'error', "Debugging is not enabled on this server.");
 	SLOG(socket, "DEBUG");
 	try {
 		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id);
@@ -1711,6 +1715,8 @@ function on_debug(socket) {
 }
 
 function on_save(socket) {
+	if (!DEBUG)
+		send_message(socket, 'error', "Debugging is not enabled on this server.");
 	SLOG(socket, "SAVE");
 	try {
 		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id);
@@ -1724,6 +1730,8 @@ function on_save(socket) {
 }
 
 function on_restore(socket, state_text) {
+	if (!DEBUG)
+		send_message(socket, 'error', "Debugging is not enabled on this server.");
 	SLOG(socket, "RESTORE");
 	try {
 		let state = JSON.parse(state_text);
@@ -1749,6 +1757,8 @@ function broadcast_presence(game_id) {
 }
 
 function on_restart(socket, scenario) {
+	if (!DEBUG)
+		send_message(socket, 'error', "Debugging is not enabled on this server.");
 	try {
 		let seed = random_seed();
 		let options = JSON.parse(SQL_SELECT_GAME.get(socket.game_id).options);
