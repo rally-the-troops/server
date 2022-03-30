@@ -845,7 +845,9 @@ async function init_replay() {
 	}
 }
 
-if (params.mode === "replay")
-	init_replay();
-if (params.mode === "play")
-	connect_play();
+window.addEventListener("load", function () {
+	if (params.mode === "replay")
+		init_replay();
+	if (params.mode === "play")
+		connect_play();
+});
