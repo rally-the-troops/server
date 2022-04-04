@@ -1,6 +1,5 @@
 -- Blacklists --
 
-create table if not exists blacklist_ip ( ip text primary key ) without rowid;
 create table if not exists blacklist_mail ( mail text primary key ) without rowid;
 
 -- Titles --

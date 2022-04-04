@@ -224,7 +224,6 @@ function get_avatar(mail) {
  * USER AUTHENTICATION
  */
 
-const SQL_BLACKLIST_IP = SQL("SELECT EXISTS ( SELECT 1 FROM blacklist_ip WHERE ip=? )").pluck();
 const SQL_BLACKLIST_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM blacklist_mail WHERE ? LIKE mail )").pluck();
 
 const SQL_EXISTS_USER_NAME = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE name=? )").pluck();
@@ -313,8 +312,6 @@ app.use(function (req, res, next) {
 		return res.redirect("/msie.html");
 	let ip = req.ip || req.connection.remoteAddress || "0.0.0.0";
 	res.setHeader('Cache-Control', 'no-store');
-	if (SQL_BLACKLIST_IP.get(ip) === 1)
-		return res.status(403).send('Sorry, but this IP has been banned.');
 	let sid = login_cookie(req);
 	if (sid) {
 		let user_id = login_sql_select.get(sid);
