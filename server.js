@@ -742,7 +742,7 @@ function show_forum_page(req, res, page) {
 
 function linkify_post(text) {
 	text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-	text = text.replace(/https?:\/\/\S+/, (match) => {
+	text = text.replace(/https?:\/\/\S+/g, (match) => {
 		if (match.endsWith(".jpg") || match.endsWith(".png") || match.endsWith(".svg"))
 			return `<a href="${match}"><img src="${match}"></a>`;
 		return `<a href="${match}">${match}</a>`;
