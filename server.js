@@ -1475,7 +1475,7 @@ function mail_your_turn_notification(user, game_id, interval) {
 			let subject = game.title_name + " - " + game_id + " - Your turn!";
 			let body = mail_describe(game) +
 				"It's your turn.\n\n" +
-				SITE_URL + "/play/" + game_id + "\n\n--\n" +
+				SITE_URL + "/play/" + game_id + "/" + encodeURI(user.role) + "\n\n--\n" +
 				MAIL_FOOTER;
 			console.log("SENT MAIL:", mail_addr(user), subject);
 			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
