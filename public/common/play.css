@@ -124,6 +124,10 @@ footer {
 .menu {
 	user-select: none;
 }
+.menu_item img {
+	vertical-align: top;
+	height: 20px;
+}
 .menu_title img {
 	display: block;
 	height: 35px;
@@ -157,6 +161,9 @@ footer {
 .menu_item:hover {
 	background-color: black;
 	color: white;
+}
+.menu_item:hover img {
+	filter: invert(100%);
 }
 
 /* TOOL BAR */
