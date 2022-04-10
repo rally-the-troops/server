@@ -14,19 +14,16 @@ html
 			p Your mail address is #{user.mail}
 			br(clear="left")
 
-			p
 			if user.notify
-				| &#xbb; <a href="/unsubscribe">Disable mail notifications</a>
+				p <a href="/unsubscribe">Disable mail notifications</a>
 			else
-				| &#xbb; <a href="/subscribe">Enable mail notifications</a>
-			br
-			| &#xbb;
-			| Change
-			| <a href="/change-password">password</a>,
-			| <a href="/change-mail">mail address</a>,
-			| <a href="/change-name">name</a>,
-			| or <a href="/change-about">profile text</a>.
-			br
-			| &#xbb; <a href="/chat">Chat log</a>
-			br
-			| &#xbb; <a href="/logout">Logout</a>
+				p <a href="/subscribe">Enable mail notifications</a>
+
+			p <a href="/change-password">Change password</a>
+			p <a href="/change-mail">Change mail address</a>
+			p <a href="/change-name">Change user name</a>
+			p <a href="/change-about">Change profile text</a>
+
+			p <a href="/chat">Chat log</a>
+
+			p <a href="/logout">Logout</a>

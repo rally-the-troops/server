@@ -5,6 +5,7 @@ header
 		a(href="/about") About
 		a(href="/forum") Forum
 		if user
+			a(href="/games/public") Public
 			if user.active > 0
 				a(href="/games/active") Games (#{user.active})
 			else

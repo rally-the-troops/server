@@ -3,11 +3,11 @@ doctype html
 html
 	head
 		include head
-		title= title
+		title= SITE_NAME
 	body
 		include header
 		article
-			h1= title
+			h1 Your finished games
 
 			if finished_games.length > 0
 				+gametable(2,finished_games)

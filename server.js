@@ -1065,7 +1065,6 @@ app.get('/games/active', must_be_logged_in, function (req, res) {
 	let active_games = games.filter(game => game.status === 1);
 	let finished_games = games.filter(game => game.status === 2);
 	res.render('games_active.pug', {
-		title: "Your Active Games",
 		user: req.user,
 		open_games: open_games.filter(g => !g.is_ready),
 		ready_games: open_games.filter(g => g.is_ready),
@@ -1079,7 +1078,6 @@ app.get('/games/finished', must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({user_id: req.user.user_id});
 	annotate_games(games, req.user.user_id);
 	res.render('games_finished.pug', {
-		title: "Your Finished Games",
 		user: req.user,
 		finished_games: games,
 	});
