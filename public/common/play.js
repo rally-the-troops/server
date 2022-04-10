@@ -456,13 +456,6 @@ try {
 
 /* MAP ZOOM */
 
-function toggle_fullscreen() {
-	if (document.fullscreen)
-		document.exitFullscreen();
-	else
-		document.documentElement.requestFullscreen();
-}
-
 function toggle_log() {
 	document.querySelector("aside").classList.toggle("hide");
 	zoom_map();
@@ -851,3 +844,17 @@ window.addEventListener("load", function () {
 	if (params.mode === "play")
 		connect_play();
 });
+
+function init_home_menu(link, text) {
+	let popup = document.querySelector(".menu_popup");
+	let sep = document.createElement("div");
+	sep.className = "menu_separator";
+	popup.insertBefore(sep, popup.firstChild);
+	let item = document.createElement("div");
+	item.className = "menu_item";
+	item.onclick = () => window.open(link, "_self");
+	item.textContent = text;
+	popup.insertBefore(item, popup.firstChild);
+}
+
+init_home_menu("/games/active", "Go Home");
