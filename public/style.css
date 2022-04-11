@@ -25,7 +25,12 @@ header img {
 	display: block;
 	margin: 4px 0 -2px 2px;
 }
-header nav a { margin: 0 1em; color: black; }
+header nav {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: end;
+}
+header nav a { display: block; margin: 0 16px; color: black; }
 header nav a:hover { color: blue; }
 article { margin: 2em; }
 article p, article dl, article ul { max-width: 50rem; }
