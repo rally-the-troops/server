@@ -49,8 +49,7 @@ create table if not exists user_last_seen (
 		primary key
 		references users
 			on delete cascade,
-	atime timestamp,
-	aip text
+	atime timestamp
 );
 
 create table if not exists tokens (

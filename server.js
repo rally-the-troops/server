@@ -276,7 +276,7 @@ const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?");
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?");
 const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?");
 const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?");
-const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime,aip) VALUES (?,datetime('now'),?)");
+const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,datetime('now'))");
 
 const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND datetime('now') < datetime(time, '+5 minutes')").pluck();
 const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime('now')) RETURNING token").pluck();
@@ -330,7 +330,7 @@ app.use(function (req, res, next) {
 		if (user_id) {
 			login_touch(res, sid);
 			req.user = SQL_SELECT_USER_INFO.get(user_id);
-			SQL_UPDATE_USER_LAST_SEEN.run(user_id, ip);
+			SQL_UPDATE_USER_LAST_SEEN.run(user_id);
 		}
 	}
 
