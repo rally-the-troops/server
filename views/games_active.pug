@@ -1,0 +1,33 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= title
+		if active_games.length > 0
+			meta(http-equiv="refresh" content=300)
+	body
+		include header
+		article
+			h1= title
+
+			if ready_games.length > 0
+				h2 Ready to start
+				+gametable(0,ready_games)
+
+			if open_games.length > 0
+				h2 Open
+				+gametable(0,open_games)
+
+			if active_games.length > 0
+				h2 Active
+				+gametable(1,active_games)
+
+			if finished_games.length > 0
+				h2 Recently finished
+				+gametable(2,finished_games)
+
+			p <a href="/games/finished">All finished games</a>
+
+			if open_games.length === 0 && ready_games.length === 0 && active_games.length === 0 && finished_games.length === 0
+				p Nothing here.

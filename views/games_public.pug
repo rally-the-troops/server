@@ -5,11 +5,11 @@ html
 		include head
 		title= SITE_NAME
 		if user
-			meta(http-equiv="refresh" content=300)
+			meta(http-equiv="refresh" content=600)
 	body
 		include header
 		article
-			h1= SITE_NAME
+			h1 All Public Games
 
 			h2 Open
 			+gametable(0, open_games)

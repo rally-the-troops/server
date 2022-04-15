@@ -250,7 +250,19 @@ const SQL_SELECT_USER_INFO = SQL(`
 				to_id = user_id
 				and is_read = 0
 				and is_deleted_from_inbox = 0
-		) as unread
+		) as unread,
+		(
+			select
+				count(*)
+			from
+				players
+				join games using(game_id)
+				join game_state using(game_id)
+			where
+				status = 1
+				and players.user_id = users.user_id
+				and active in ( players.role, 'Both', 'All' )
+		) as active
 	from
 		users
 	where user_id = ?
@@ -942,10 +954,22 @@ const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	LIMIT ?
 	`);
 
-const QUERY_LIST_GAMES_OF_USER = SQL(`
-	SELECT * FROM game_view
-	WHERE owner_id=$user_id OR game_id IN ( SELECT game_id FROM players WHERE players.user_id=$user_id )
-	ORDER BY status ASC, mtime DESC
+const QUERY_LIST_ACTIVE_GAMES_OF_USER = SQL(`
+	select * from game_view
+	where
+		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
+		and
+		( status < 2 or mtime > datetime('now', '-7 days') )
+	order by status asc, mtime desc
+	`);
+
+const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
+	select * from game_view
+	where
+		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
+		and
+		status = 2
+	order by status asc, mtime desc
 	`);
 
 function is_active(game, players, user_id) {
@@ -1020,7 +1044,48 @@ function annotate_games(games, user_id) {
 	}
 }
 
+app.get('/profile', must_be_logged_in, function (req, res) {
+	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id);
+	let avatar = get_avatar(req.user.mail);
+	res.render('profile.pug', {
+		user: req.user,
+		avatar: avatar,
+	});
+});
+
 app.get('/games', function (req, res) {
+	res.redirect('/games/public');
+});
+
+app.get('/games/active', must_be_logged_in, function (req, res) {
+	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id);
+	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({user_id: req.user.user_id});
+	annotate_games(games, req.user.user_id);
+	let open_games = games.filter(game => game.status === 0);
+	let active_games = games.filter(game => game.status === 1);
+	let finished_games = games.filter(game => game.status === 2);
+	res.render('games_active.pug', {
+		title: "Your Active Games",
+		user: req.user,
+		open_games: open_games.filter(g => !g.is_ready),
+		ready_games: open_games.filter(g => g.is_ready),
+		active_games: active_games,
+		finished_games: finished_games,
+	});
+});
+
+app.get('/games/finished', must_be_logged_in, function (req, res) {
+	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id);
+	let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({user_id: req.user.user_id});
+	annotate_games(games, req.user.user_id);
+	res.render('games_finished.pug', {
+		title: "Your Finished Games",
+		user: req.user,
+		finished_games: games,
+	});
+});
+
+app.get('/games/public', function (req, res) {
 	let open_games = QUERY_LIST_GAMES.all(0);
 	let active_games = QUERY_LIST_GAMES.all(1);
 	if (req.user) {
@@ -1030,29 +1095,11 @@ app.get('/games', function (req, res) {
 		annotate_games(open_games, 0);
 		annotate_games(active_games, 0);
 	}
-	res.render('games.pug', {
+	res.render('games_public.pug', {
 		user: req.user,
 		open_games: open_games.filter(g => !g.is_ready),
 		ready_games: open_games.filter(g => g.is_ready),
 		active_games: active_games,
-	});
-});
-
-app.get('/profile', must_be_logged_in, function (req, res) {
-	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id);
-	let avatar = get_avatar(req.user.mail);
-	let games = QUERY_LIST_GAMES_OF_USER.all({user_id: req.user.user_id});
-	annotate_games(games, req.user.user_id);
-	let open_games = games.filter(game => game.status === 0);
-	let active_games = games.filter(game => game.status === 1);
-	let finished_games = games.filter(game => game.status === 2);
-	res.render('profile.pug', {
-		user: req.user,
-		avatar: avatar,
-		open_games: open_games.filter(g => !g.is_ready),
-		ready_games: open_games.filter(g => g.is_ready),
-		active_games: active_games,
-		finished_games: finished_games,
 	});
 });
 

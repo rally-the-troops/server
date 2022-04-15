@@ -4,8 +4,6 @@ html
 	head
 		include head
 		title= SITE_NAME
-		if active_games.length > 0
-			meta(http-equiv="refresh" content=300)
 	body
 		include header
 		article
@@ -32,22 +30,3 @@ html
 			| &#xbb; <a href="/chat">Chat log</a>
 			br
 			| &#xbb; <a href="/logout">Logout</a>
-
-			if ready_games.length > 0
-				h2 Ready to start
-				+gametable(0,ready_games)
-
-			if open_games.length > 0
-				h2 Open games
-				+gametable(0,open_games)
-
-			if active_games.length > 0
-				h2 Active games
-				+gametable(1,active_games)
-
-			if finished_games.length > 0
-				h2 Finished games
-				+gametable(2,finished_games)
-
-			if open_games.length === 0 && ready_games.length === 0 && active_games.length === 0 && finished_games.length === 0
-				p You don't have any current or finished games.
