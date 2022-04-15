@@ -152,14 +152,10 @@ function random_seed() {
 	return crypto.randomInt(1, 0x7ffffffe);
 }
 
-function pad(s, fmt) {
-	return s + fmt.slice(s.length);
-}
-
 function SLOG(socket, ...msg) {
 	let time = new Date().toISOString().substring(11,19);
-	let name = pad(socket.user ? socket.user.name : "guest", "                    ");
-	let ip = pad(socket.ip, "               ");
+	let name = (socket.user ? socket.user.name : "guest").padEnd(20);
+	let ip = String(socket.ip).padEnd(15);
 	let ws = "----------";
 	console.log(time, ip, ws, name, "WS",
 		socket.title_id,
@@ -336,9 +332,9 @@ app.use(function (req, res, next) {
 
 	// Log non-static accesses.
 	let time = new Date().toISOString().substring(11,19);
-	let name = pad(req.user ? req.user.name : "guest", "                    ");
-	let ua = pad(req.user_agent, "          ");
-	ip = pad(ip, "               ");
+	let name = (req.user ? req.user.name : "guest").padEnd(20);
+	let ua = req.user_agent.padEnd(10);
+	ip = String(ip).padEnd(15);
 	console.log(time, ip, ua, name, req.method, req.url);
 
 	return next();
