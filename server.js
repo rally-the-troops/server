@@ -680,7 +680,7 @@ app.post('/message/send', must_be_logged_in, function (req, res) {
 	}
 	let info = MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body);
 	if (to_user.notify)
-		mail_new_message(to_user, info.lastInsertRowid, req.user.name, subject, body)
+		mail_new_message(to_user, info.lastInsertRowid, req.user.name)
 	res.redirect('/inbox');
 });
 
@@ -1495,12 +1495,10 @@ function mail_password_reset_token(user, token) {
 	}
 }
 
-function mail_new_message(user, msg_id, msg_from, msg_subject, msg_body) {
+function mail_new_message(user, msg_id, msg_from) {
 	if (mailer) {
 		let subject = "You have a new message from " + msg_from + ".";
-		let body = "Subject: " + msg_subject + "\n\n" +
-			msg_body + "\n\n--\n" +
-			"You can reply to this message at:\n" +
+		let body = "Read the message here:\n" +
 			SITE_URL + "/message/read/" + msg_id + "\n\n";
 		console.log("SENT MAIL:", mail_addr(user), subject);
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
