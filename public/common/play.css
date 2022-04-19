@@ -108,7 +108,6 @@ aside {
 	grid-column: 1;
 	grid-row: 2;
 	overflow-y: scroll;
-	scrollbar-width: thin;
 }
 
 footer {
