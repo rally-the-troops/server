@@ -491,8 +491,6 @@ function zoom_map() {
 	}
 }
 
-zoom_map();
-
 window.addEventListener("resize", zoom_map);
 
 window.addEventListener("keydown", (evt) => {
@@ -839,6 +837,7 @@ async function init_replay() {
 }
 
 window.addEventListener("load", function () {
+	zoom_map();
 	if (params.mode === "replay")
 		init_replay();
 	if (params.mode === "play")
