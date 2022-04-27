@@ -60,6 +60,8 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT && process.env.MAIL_FROM) {
  * Login session management.
  */
 
+const COOKIE = (process.env.COOKIE || "login") + "=";
+
 db.exec("delete from logins where expires < julianday()");
 const login_sql_select = SQL("select user_id from logins where sid = ? and expires > julianday()").pluck();
 const login_sql_insert = SQL("insert into logins values (abs(random()) % (1<<48), ?, julianday() + 28) returning sid").pluck();
@@ -68,16 +70,16 @@ const login_sql_touch = SQL("update logins set expires = julianday() + 28 where 
 
 function make_cookie(sid, age) {
 	if (SITE_HOST !== "localhost")
-		return `login=${sid}; Path=/; Domain=${SITE_HOST}; Max-Age=${age}; HttpOnly`;
-	return `login=${sid}; Path=/; Max-Age=${age}; HttpOnly`;
+		return `${COOKIE}${sid}; Path=/; Domain=${SITE_HOST}; Max-Age=${age}; HttpOnly`;
+	return `${COOKIE}${sid}; Path=/; Max-Age=${age}; HttpOnly`;
 }
 
 function login_cookie(req) {
 	let c = req.headers.cookie;
 	if (c) {
-		let i = c.indexOf("login=");
+		let i = c.indexOf(COOKIE);
 		if (i >= 0)
-			return parseInt(c.substring(i+6));
+			return parseInt(c.substring(i+COOKIE.length));
 	}
 	return 0;
 }
