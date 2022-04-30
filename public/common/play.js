@@ -505,7 +505,7 @@ window.addEventListener("keyup", (evt) => {
 
 /* ACTIONS */
 
-function action_button(action, label) {
+function action_button_imp(action, label, callback) {
 	if (params.mode === "replay")
 		return;
 	let id = action + "_button";
@@ -514,7 +514,7 @@ function action_button(action, label) {
 		button = document.createElement("button");
 		button.id = id;
 		button.textContent = label;
-		button.addEventListener("click", evt => send_action(action));
+		button.addEventListener("click", callback);
 		document.getElementById("actions").appendChild(button);
 	}
 	if (view.actions && action in view.actions) {
@@ -529,6 +529,14 @@ function action_button(action, label) {
 	} else {
 		button.classList.add("hide");
 	}
+}
+
+function action_button(action, label) {
+	action_button_imp(action, label, evt => send_action(action));
+}
+
+function confirm_action_button(action, label, message) {
+	action_button_imp(action, label, evt => confirm_action(message, action));
 }
 
 function send_action(verb, noun) {
@@ -550,6 +558,11 @@ function send_action(verb, noun) {
 		}
 	}
 	return false;
+}
+
+function confirm_action(message, verb, noun) {
+	if (window.confirm(message))
+		send_action(verb, noun);
 }
 
 let replay_query = null;
