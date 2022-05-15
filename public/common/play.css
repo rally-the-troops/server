@@ -29,6 +29,8 @@ body.Observer .resign {
 	display: none;
 }
 
+/* BUTTON */
+
 button {
 	box-sizing: border-box;
 	font-size: 16px;
@@ -39,14 +41,17 @@ button {
 	border: 2px solid;
 	outline: 1px solid black;
 }
+
 button:disabled {
 	color: gray;
 	border-color: gainsboro;
 	outline-color: gray;
 }
+
 button:enabled {
 	border-color: white darkgray darkgray white;
 }
+
 button:enabled:active:hover {
 	border-color: darkgray white white darkgray;
 	padding: 2px 11px 0px 13px;
@@ -104,10 +109,31 @@ aside {
 	grid-row: 1;
 }
 
+#turn_info {
+	border-bottom: 1px solid black;
+	padding: 8px;
+	white-space: pre-line;
+	font-style: italic;
+	font-size: 12px;
+	line-height: 18px;
+}
+
 #log {
 	grid-column: 1;
 	grid-row: 2;
 	overflow-y: scroll;
+}
+
+#log {
+	padding: 12px 0;
+	font-size: 12px;
+	line-height: 18px;
+	white-space: pre-wrap;
+}
+
+#log > * {
+	padding: 0 4px 0 8px;
+	min-height: 9px;
 }
 
 footer {
@@ -208,21 +234,16 @@ header .replay button {
 
 /* ROLES */
 
+.role_info {
+	border-bottom: 1px solid black;
+}
+
 .role_name {
 	border-bottom: 1px solid black;
 	padding-top: 3px;
 	padding-bottom: 3px;
 	padding-left: 5px;
 	padding-right: 5px;
-}
-
-.role_info, .card_info, #turn_info {
-	border-bottom: 1px solid black;
-	overflow: clip; /* clip dropshadow from filter:grayscale() stacking context */
-}
-
-.role_vp {
-	float: right;
 }
 
 .role_user {
@@ -233,31 +254,13 @@ header .replay button {
 	white-space: nowrap;
 }
 
-.role .role_name::before { content: "\25cb  "; opacity: 0.6; }
-.role.present .role_name::before { content: "\25cf  "; opacity: 0.6; }
-
-#turn_info {
-	padding: 8px 0px 8px 8px;
-	white-space: pre-line;
-	font-style: italic;
-	font-size: 12px;
-	line-height: 18px;
+.role_name::before {
+	content: "\25cb  ";
+	opacity: 0.6;
 }
 
-/* LOG */
-
-#log {
-	padding: 12px 0;
-	font-size: 12px;
-	line-height: 18px;
-	white-space: pre-wrap;
-}
-
-#log > * {
-	padding-left: 20px;
-	padding-right: 4px;
-	text-indent: -12px;
-	min-height: 9px;
+.role.present .role_name::before {
+	content: "\25cf  ";
 }
 
 /* MAP */
@@ -271,37 +274,10 @@ header .replay button {
 	max-width: 100%;
 }
 
-#map {
+#mapwrap #map {
 	position: absolute;
 	isolation: isolate;
 	transform-origin: 0 0;
-}
-
-/* CARDS */
-
-.card {
-	background-size: cover;
-	background-repeat: no-repeat;
-}
-
-.card.enabled {
-	cursor: pointer;
-}
-
-.card.disabled {
-	filter: grayscale(100%);
-}
-
-.hand {
-	margin: 15px;
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	min-height: 370px;
-}
-
-.hand .card {
-	margin: 10px;
 }
 
 /* CHAT WINDOW */
