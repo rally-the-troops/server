@@ -311,6 +311,8 @@ function parse_user_agent(req) {
 		agent = "MSIE";
 	else if (user_agent.indexOf("Trident/") >= 0)
 		agent = "MSIE";
+	else if (user_agent.indexOf("AppleWebKit/") >= 0)
+		agent = "AppleWebKit";
 	if (user_agent.indexOf("Mobile") >= 0)
 		return agent + "/M";
 	return agent;
