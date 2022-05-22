@@ -940,14 +940,14 @@ const SQL_INSERT_REMATCH = SQL(`
 const QUERY_LIST_GAMES = SQL(`
 	SELECT * FROM game_view
 	WHERE is_private=0 AND status=?
-	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND user_id = game_view.owner_id )
+	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
 	ORDER BY mtime DESC
 	`);
 
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	SELECT * FROM game_view
 	WHERE is_private=0 AND title_id=? AND status=?
-	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND user_id = game_view.owner_id )
+	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
 	ORDER BY mtime DESC
 	LIMIT ?
 	`);
