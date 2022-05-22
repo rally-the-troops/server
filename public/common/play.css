@@ -35,7 +35,6 @@ button {
 	box-sizing: border-box;
 	font-size: 16px;
 	height: 28px;
-	margin: 0;
 	padding: 1px 12px 1px 12px;
 	background-color: gainsboro;
 	border: 2px solid;
@@ -74,9 +73,16 @@ header {
 	grid-column: 1/3;
 	grid-row: 1;
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	border-bottom: 1px solid black;
 	background-color: gainsboro;
+	padding-right: 10px;
+}
+
+#toolbar {
+	display: flex;
+	flex-wrap: wrap;
 }
 
 header.disconnected {
@@ -137,7 +143,7 @@ aside {
 }
 
 footer {
-	position:absolute;
+	position: fixed;
 	z-index: 500;
 	bottom: 0;
 	background-color: white;
@@ -209,24 +215,31 @@ footer {
 	filter: invert(100%);
 }
 
-header button {
-	margin: 0 10px;
+header #actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: end;
+	gap: 10px;
+	padding-left: 10px;
+	margin: 5px 0;
 }
 
 header .replay {
-	margin: 0 10px;
 	display: flex;
+	flex-wrap: wrap;
+	justify-content: end;
+	padding-left: 10px;
+	margin: 5px 0;
 }
 
 header .replay button {
-	margin: 0;
+	margin-right: 0;
 }
 
 #prompt {
-	margin: 0 20px;
+	padding-left: 20px;
 	font-size: 18px;
-	flex: 1 1 0;
-	width: 0;
+	flex: 1 1 200px;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	overflow: hidden;
@@ -349,4 +362,53 @@ header .replay button {
 	border: none;
 	padding: 5px;
 	font-size: 1rem;
+}
+
+/* MOBILE PHONE LAYOUT */
+
+@media (max-width: 500px) {
+	body {
+		width: 100%;
+		height: auto;
+		grid-template-columns: 1fr;
+		grid-template-rows: min-content;
+		overflow-x: clip;
+		overflow-y: auto;
+	}
+	footer { width: 100%; background-color: rgba(255,255,255,0.5) }
+	header { display: block; }
+	#prompt { padding-left: 10px; display: block; white-space: normal; }
+
+	#chat_window {
+		position: static;
+		grid-column: 1;
+		grid-row: 2;
+		display: none;
+		width: auto;
+		box-shadow: none;
+		border-top: none;
+	}
+	#chat_window.show {
+		display: block;
+	}
+
+	/* game specific dialogs in rows 3-9 */
+
+	main {
+		grid-column: 1;
+		grid-row: 10;
+	}
+	aside {
+		grid-column: 1;
+		grid-row: 11;
+		width: auto !important;
+		border-left: none;
+		border-top: 1px solid black;
+	}
+	#log {
+		height: 50vh;
+	}
+	#replay_button, #rematch_button {
+		display: inline-block;
+	}
 }

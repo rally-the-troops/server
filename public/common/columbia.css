@@ -2,56 +2,55 @@
 
 #battle {
 	position: absolute;
-	left: 100px;
-	top: 100px;
+	min-width: 450px;
+	left: 10px;
+	top: 55px;
 	z-index: 50;
-	border-collapse: collapse;
-	border: 1px solid black;
-	background-color: white;
 	box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.5);
-	visibility: hidden;
+	background-color: white;
+	border: 1px solid black;
+	display: none;
 }
 
 #battle.show {
-	visibility: visible;
-}
-
-#battle th {
-	padding: 0;
-	border: 1px solid black;
-}
-
-#battle td {
-	padding: 0;
-	border: 1px solid black;
-	vertical-align: top;
+	display: block;
 }
 
 #battle_header {
-	font-weight: bold;
-	height: 2em;
-	line-height: 2em;
+	padding: 2px 8px;
+	line-height: 24px;
+	min-height: 24px;
 	font-weight: bold;
 	user-select: none;
 	cursor: move;
+	text-align: center;
+	border-bottom: 1px solid black;
+	overflow: hidden;
 }
 
 #battle_message {
-	font-weight: normal;
-	height: 2em;
-	line-height: 2em;
-	padding: 0 8px;
+	padding: 2px 8px;
+	line-height: 24px;
+	min-height: 24px;
+	text-align: center;
+	border-top: 1px solid black;
 }
 
-#FA, #FB, #FC, #FD, #FF, #FR, #EA, #EB, #EC, #ED, #EF, #ER {
+#FC, #FF, #FR, #EC, #EF, #ER {
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;
-	margin: 10px;
+	padding: 15px;
+	gap: 5px
 }
 
-.battle_separator {
-	height: 15px;
+#FR, #ER {
+	padding: 10px 15px;
+	min-height: 10px;
+}
+
+#FR .battle_menu_list, #ER .battle_menu_list {
+	display: none;
 }
 
 .battle_menu .block {
@@ -63,24 +62,19 @@
 }
 
 .battle_menu .action {
+	display: none;
 	width: 20px;
 	height: 20px;
 	border-radius: 5px;
 	padding: 3px;
-	display: none;
 }
 
 .battle_menu_list {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
 	margin-top: 5px;
 	min-height: 26px;
-	width: 80px;
-	text-align: center;
-	font-size: 1px;
-	line-height: 1px;
-}
-
-.battle_reserves .battle_menu_list {
-	display: none;
 }
 
 .battle_menu .action:hover { background-color: red; }
@@ -88,13 +82,28 @@
 .battle_menu .action.withdraw:hover { background-color: #eee; }
 .battle_menu .action.pass:hover { background-color: gray; }
 
-.battle_menu.fire .action.fire { display: inline; }
-.battle_menu.retreat .action.retreat { display: inline; }
-.battle_menu.pass .action.pass { display: inline; }
-.battle_menu.charge .action.charge { display: inline; }
-.battle_menu.treachery .action.treachery { display: inline; }
-.battle_menu.harry .action.harry { display: inline; }
-.battle_menu.withdraw .action.withdraw { display: inline; }
-.battle_menu.storm .action.storm { display: inline; }
-.battle_menu.sally .action.sally { display: inline; }
-.battle_menu.hit .action.hit { display: inline; }
+.battle_menu.fire .action.fire { display: block; }
+.battle_menu.retreat .action.retreat { display: block; }
+.battle_menu.pass .action.pass { display: block; }
+.battle_menu.charge .action.charge { display: block; }
+.battle_menu.treachery .action.treachery { display: block; }
+.battle_menu.harry .action.harry { display: block; }
+.battle_menu.withdraw .action.withdraw { display: block; }
+.battle_menu.storm .action.storm { display: block; }
+.battle_menu.sally .action.sally { display: block; }
+.battle_menu.hit .action.hit { display: block; }
+
+/* MOBILE PHONE LAYOUT */
+
+@media (max-width: 500px) {
+	#battle {
+		position: static;
+		grid-column: 1;
+		grid-row: 3;
+		min-width: auto !important;
+		box-shadow: none;
+		border-top: none;
+		border-left: none;
+		border-right: none;
+	}
+}

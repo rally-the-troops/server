@@ -144,7 +144,7 @@ function init_chat() {
 	chat_button.className = "icon_button";
 	chat_button.innerHTML = '<img src="/images/chat-bubble.svg">';
 	chat_button.addEventListener("click", toggle_chat);
-	document.querySelector("header").insertBefore(chat_button, document.getElementById("prompt"));
+	document.querySelector("#toolbar").appendChild(chat_button);
 
 	chat = {
 		is_visible: false,
