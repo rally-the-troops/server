@@ -1228,7 +1228,7 @@ let join_clients = {};
 function update_join_clients_deleted(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
-		for (let res of list) {
+		for (let {res} of list) {
 			res.write("retry: 15000\n");
 			res.write("event: deleted\n");
 			res.write("data: The game doesn't exist.\n\n");
@@ -1241,7 +1241,7 @@ function update_join_clients_game(game_id) {
 	let list = join_clients[game_id];
 	if (list && list.length > 0) {
 		let game = SQL_SELECT_GAME_VIEW.get(game_id);
-		for (let res of list) {
+		for (let {res} of list) {
 			res.write("retry: 15000\n");
 			res.write("event: game\n");
 			res.write("data: " + JSON.stringify(game) + "\n\n");
@@ -1255,7 +1255,7 @@ function update_join_clients_players(game_id) {
 	if (list && list.length > 0) {
 		let players = SQL_SELECT_PLAYERS_JOIN.all(game_id);
 		let ready = RULES[list.title_id].ready(list.scenario, list.options, players);
-		for (let res of list) {
+		for (let {res} of list) {
 			res.write("retry: 15000\n");
 			res.write("event: players\n");
 			res.write("data: " + JSON.stringify(players) + "\n\n");
@@ -1301,11 +1301,11 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 		join_clients[game_id].scenario = game.scenario;
 		join_clients[game_id].options = JSON.parse(game.options);
 	}
-	join_clients[game_id].push(res);
+	join_clients[game_id].push({ res: res, user_id: req.user.user_id});
 
 	res.on('close', () => {
 		let list = join_clients[game_id];
-		let i = list.indexOf(res);
+		let i = list.findIndex(item => item.res === res);
 		if (i >= 0)
 			list.splice(i, 1);
 	});
@@ -1382,6 +1382,7 @@ function start_game(game_id, game) {
 	if (is_solo(players))
 		SQL_UPDATE_GAME_PRIVATE.run(game_id);
 	update_join_clients_game(game_id);
+	mail_your_turn_notification_to_offline_users(game_id, null, state.active);
 }
 
 app.get('/start/:game_id', must_be_logged_in, function (req, res) {
@@ -1558,21 +1559,16 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 }
 
 function mail_your_turn_notification_to_offline_users(game_id, old_active, active) {
-	function is_online(game_id, user_id) {
-		for (let other of clients[game_id])
-			if (other.user && other.user.user_id === user_id)
-				return true;
-		return false;
-	}
-
-	// Only send notifications when the active player changes or if it's a simultaneous move.
-	if (old_active === active && active !== 'Both' && active !== 'All')
+	// Only send notifications when the active player changes.
+	if (old_active === active)
 		return;
 
 	let players = SQL_SELECT_PLAYERS.all(game_id);
 	for (let p of players) {
 		if (p.notify) {
-			if (active === p.role || active === 'Both' || active === 'All') {
+			let p_was_active = (old_active === p.role || old_active === 'Both' || old_active === 'All');
+			let p_is_active = (active === p.role || active === 'Both' || active === 'All');
+			if (!p_was_active && p_is_active) {
 				if (is_online(game_id, p.user_id)) {
 					reset_your_turn_notification(p, game_id);
 				} else {
@@ -1616,6 +1612,18 @@ setInterval(notify_ready_to_start_reminder, 5 * 60 * 1000);
  */
 
 let clients = {};
+
+function is_online(game_id, user_id) {
+	if (clients[game_id])
+		for (let other of clients[game_id])
+			if (other.user && other.user.user_id === user_id)
+				return true;
+	if (join_clients[game_id])
+		for (let other of join_clients[game_id])
+			if (other.user_id === user_id)
+				return true;
+	return false;
+}
 
 function send_message(socket, cmd, arg) {
 	socket.send(JSON.stringify([cmd, arg]));
