@@ -1465,7 +1465,7 @@ app.get('/replay/:game_id', function (req, res) {
  */
 
 const MAIL_FROM = process.env.MAIL_FROM || "user@localhost";
-const MAIL_FOOTER = `You can unsubscribe from notifications on your profile page:\n${SITE_URL}/profile\n`;
+const MAIL_FOOTER = "\n--\nYou can unsubscribe from notifications on your profile page:\n" + SITE_URL + "/profile\n";
 
 const SQL_SELECT_NOTIFIED = SQL("SELECT datetime('now') < datetime(time,?) FROM last_notified WHERE game_id=? AND user_id=?").pluck();
 const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,datetime('now'))");
@@ -1482,13 +1482,17 @@ function mail_addr(user) {
 	return user.name + " <" + user.mail + ">";
 }
 
-function mail_describe(game) {
+function mail_game_info(game) {
 	let desc = `Game: ${game.title_name}\n`;
 	desc += `Scenario: ${game.scenario}\n`;
 	desc += `Players: ${game.player_names}\n`;
 	if (game.description.length > 0)
 		desc += `Description: ${game.description}\n`;
 	return desc + "\n";
+}
+
+function mail_game_link(game_id, user) {
+	return SITE_URL + "/play/" + game_id + "/" + encodeURI(user.role) + "\n";
 }
 
 function mail_password_reset_token(user, token) {
@@ -1506,8 +1510,10 @@ function mail_password_reset_token(user, token) {
 function mail_new_message(user, msg_id, msg_from) {
 	if (mailer) {
 		let subject = "You have a new message from " + msg_from + ".";
-		let body = "Read the message here:\n" +
-			SITE_URL + "/message/read/" + msg_id + "\n\n";
+		let body =
+			"Read the message here:\n" +
+			SITE_URL + "/message/read/" + msg_id + "\n" +
+			MAIL_FOOTER;
 		console.log("SENT MAIL:", mail_addr(user), subject);
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
 	}
@@ -1519,10 +1525,10 @@ function mail_your_turn_notification(user, game_id, interval) {
 		if (!too_soon) {
 			SQL_INSERT_NOTIFIED.run(game_id, user.user_id);
 			let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id);
-			let subject = game.title_name + " - " + game_id + " - Your turn!";
-			let body = mail_describe(game) +
+			let subject = `${game.title_name} #${game_id} (${user.role}) - Your turn!`;
+			let body = mail_game_info(game) +
 				"It's your turn.\n\n" +
-				SITE_URL + "/play/" + game_id + "/" + encodeURI(user.role) + "\n\n--\n" +
+				mail_game_link(game_id, user) +
 				MAIL_FOOTER;
 			console.log("SENT MAIL:", mail_addr(user), subject);
 			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
@@ -1540,10 +1546,10 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 		if (!too_soon) {
 			SQL_INSERT_NOTIFIED.run(game_id, user.user_id);
 			let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id);
-			let subject = game.title_name + " - " + game_id + " - Ready to start!";
-			let body = mail_describe(game) +
+			let subject = `${game.title_name} #${game_id} - Ready to start!`;
+			let body = mail_game_info(game) +
 				"Your game is ready to start.\n\n" +
-				SITE_URL + "/join/" + game_id + "\n\n--\n" +
+				SITE_URL + "/join/" + game_id + "\n" +
 				MAIL_FOOTER;
 			console.log("SENT MAIL:", mail_addr(user), subject);
 			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
