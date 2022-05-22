@@ -684,7 +684,7 @@ app.post('/message/send', must_be_logged_in, function (req, res) {
 	}
 	let info = MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body);
 	if (to_user.notify)
-		mail_new_message(to_user, info.lastInsertRowid, req.user.name)
+		mail_new_message(to_user, info.lastInsertRowid, req.user.name);
 	res.redirect('/inbox');
 });
 
@@ -1419,7 +1419,7 @@ app.get('/play/:game_id', function (req, res) {
 
 app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, res) {
 	let user_id = req.user ? req.user.user_id : 0;
-	let title_id = req.params.title_id
+	let title_id = req.params.title_id;
 	let game_id = req.params.game_id;
 	let role = req.params.role;
 	if (!SQL_AUTHORIZE_GAME_ROLE.get(title_id, game_id, role, user_id))
@@ -1428,7 +1428,7 @@ app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, re
 });
 
 app.get('/:title_id/play\::game_id', function (req, res) {
-	let title_id = req.params.title_id
+	let title_id = req.params.title_id;
 	let game_id = req.params.game_id;
 	let a_title = SQL_SELECT_GAME_TITLE.get(game_id);
 	if (a_title !== title_id)
@@ -1437,7 +1437,7 @@ app.get('/:title_id/play\::game_id', function (req, res) {
 });
 
 app.get('/:title_id/replay\::game_id', function (req, res) {
-	let title_id = req.params.title_id
+	let title_id = req.params.title_id;
 	let game_id = req.params.game_id;
 	let game = SQL_SELECT_GAME.get(game_id);
 	if (!game)
