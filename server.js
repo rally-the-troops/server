@@ -54,6 +54,11 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT && process.env.MAIL_FROM) {
 	console.log("Mail notifications enabled: ", mailer.options);
 } else {
 	console.log("Mail notifications disabled.");
+	mailer = {
+		sendMail(obj, callback) {
+			callback("DID NOT SEND: " + JSON.stringify(obj,0,4));
+		}
+	}
 }
 
 /*
