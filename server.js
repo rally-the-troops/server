@@ -1362,13 +1362,7 @@ function assign_random_roles(game, players) {
 	}
 }
 
-app.get('/start/:game_id', must_be_logged_in, function (req, res) {
-	let game_id = req.params.game_id | 0;
-	let game = SQL_SELECT_GAME.get(game_id);
-	if (game.owner_id !== req.user.user_id)
-		return res.send("Not authorized to start that game ID.");
-	if (game.status !== 0)
-		return res.send("The game is already started.");
+function start_game(game_id, game) {
 	let players = SQL_SELECT_PLAYERS.all(game_id);
 	if (!RULES[game.title_id].ready(game.scenario, game.options, players))
 		return res.send("Invalid scenario/options/player configuration!");
@@ -1386,6 +1380,16 @@ app.get('/start/:game_id', must_be_logged_in, function (req, res) {
 	if (is_solo(players))
 		SQL_UPDATE_GAME_PRIVATE.run(game_id);
 	update_join_clients_game(game_id);
+}
+
+app.get('/start/:game_id', must_be_logged_in, function (req, res) {
+	let game_id = req.params.game_id | 0;
+	let game = SQL_SELECT_GAME.get(game_id);
+	if (game.owner_id !== req.user.user_id)
+		return res.send("Not authorized to start that game ID.");
+	if (game.status !== 0)
+		return res.send("The game is already started.");
+	start_game(game_id, game);
 	res.send("SUCCESS");
 });
 
