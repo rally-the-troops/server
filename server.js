@@ -1382,6 +1382,7 @@ function start_game(game_id, game) {
 	if (is_solo(players))
 		SQL_UPDATE_GAME_PRIVATE.run(game_id);
 	update_join_clients_game(game_id);
+	mail_game_started_notification_to_offline_users(game_id, game.owner_id);
 	mail_your_turn_notification_to_offline_users(game_id, null, state.active);
 }
 
@@ -1520,6 +1521,19 @@ function mail_new_message(user, msg_id, msg_from) {
 	}
 }
 
+function mail_game_started_notification(user, game_id) {
+	if (mailer) {
+		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id);
+		let subject = `${game.title_name} #${game_id} (${user.role}) - Started!`;
+		let body = mail_game_info(game) +
+			"The game has started!\n\n" +
+			mail_game_link(game_id, user) +
+			MAIL_FOOTER;
+		console.log("SENT MAIL:", mail_addr(user), subject);
+		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback);
+	}
+}
+
 function mail_game_over_notification(user, game_id, result, victory) {
 	if (mailer) {
 		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id);
@@ -1592,6 +1606,13 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 			}
 		}
 	}
+}
+
+function mail_game_started_notification_to_offline_users(game_id, owner_id) {
+	let players = SQL_SELECT_PLAYERS.all(game_id);
+	for (let p of players)
+		if (p.notify && !is_online(game_id, p.user_id))
+			mail_game_started_notification(p, game_id);
 }
 
 function mail_game_over_notification_to_offline_users(game_id, result, victory) {
