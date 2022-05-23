@@ -585,6 +585,24 @@ function confirm_resign() {
 		send_message("resign");
 }
 
+/* MOBILE PHONE LAYOUT */
+
+let mobile_scroll_header = document.querySelector("header");
+let mobile_scroll_last_y = 0;
+
+window.addEventListener("scroll", function scroll_mobile_fix (evt) {
+	if (mobile_scroll_header.clientWidth <= 640) {
+		if (window.scrollY > 40) {
+			if (mobile_scroll_last_y <= 40)
+				mobile_scroll_header.classList.add("mobilefix");
+		} else {
+			if (mobile_scroll_last_y > 40)
+				mobile_scroll_header.classList.remove("mobilefix");
+		}
+		mobile_scroll_last_y = window.scrollY;
+	}
+});
+
 /* DEBUGGING */
 
 function send_save() {

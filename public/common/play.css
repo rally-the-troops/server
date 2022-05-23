@@ -372,7 +372,7 @@ header .replay button {
 		width: 100%;
 		height: auto;
 		grid-template-columns: 1fr;
-		grid-template-rows: min-content;
+		grid-template-rows: 108px min-content;
 		overflow-x: clip;
 		overflow-y: auto;
 	}
@@ -380,8 +380,18 @@ header .replay button {
 		width: 100%;
 		background-color: rgba(255,255,255,0.9);
 	}
+	header.mobilefix {
+		position: fixed;
+		top: -40px;
+	}
 	header {
+		position: absolute;
+		min-height: 108px;
+		top: 0;
+		left: 0;
+		right: 0;
 		display: block;
+		z-index: 1000;
 	}
 	#prompt {
 		padding-left: 8px;
