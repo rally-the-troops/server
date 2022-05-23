@@ -3,8 +3,8 @@
 #battle {
 	position: absolute;
 	min-width: 450px;
-	left: 10px;
-	top: 55px;
+	left: 12px;
+	top: 56px;
 	z-index: 50;
 	box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.5);
 	background-color: white;
@@ -40,13 +40,8 @@
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;
-	padding: 15px;
-	gap: 5px
-}
-
-#FR, #ER {
-	padding: 10px 15px;
-	min-height: 10px;
+	padding: 12px;
+	gap: 4px
 }
 
 #FR .battle_menu_list, #ER .battle_menu_list {
@@ -65,7 +60,7 @@
 	display: none;
 	width: 20px;
 	height: 20px;
-	border-radius: 5px;
+	border-radius: 4px;
 	padding: 3px;
 }
 
@@ -73,7 +68,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;
-	margin-top: 5px;
+	margin-top: 4px;
 	min-height: 26px;
 }
 
@@ -95,7 +90,7 @@
 
 /* MOBILE PHONE LAYOUT */
 
-@media (max-width: 500px) {
+@media (max-width: 640px) {
 	#battle {
 		position: static;
 		grid-column: 1;
