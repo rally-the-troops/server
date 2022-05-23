@@ -1,7 +1,7 @@
 /* BATTLE DIALOG FOR COLUMBIA BLOCK GAMES */
 
 #battle {
-	position: absolute;
+	position: fixed;
 	min-width: 450px;
 	left: 12px;
 	top: 56px;

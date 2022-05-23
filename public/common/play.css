@@ -301,9 +301,9 @@ header .replay button {
 }
 
 #chat_window {
-	position: absolute;
-	left: 12px;
-	top: 56px;
+	position: fixed;
+	left: 24px;
+	top: 68px;
 	width: 640px;
 	z-index: 500;
 	border: 1px solid black;
