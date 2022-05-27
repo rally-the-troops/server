@@ -90,13 +90,19 @@ mixin gametable(status,table,hide_title=0)
 						else if status === 1
 							if row.is_yours
 								if row.is_shared
-									a(href="/join/"+row.game_id)= "Play"
+									a(href="/join/"+row.game_id) Play
 								else
-									a(href=`/${row.title_id}/play:${row.game_id}:${row.your_role}`)= "Play"
+									a(href=`/${row.title_id}/play:${row.game_id}:${row.your_role}`) Play
 							else
 								a(href=`/${row.title_id}/play:${row.game_id}`) View
 						else if status >= 2
-							a(href=`/${row.title_id}/replay:${row.game_id}`) View
+							if row.is_yours
+								if row.is_shared
+									a(href="/join/"+row.game_id) View
+								else
+									a(href=`/${row.title_id}/play:${row.game_id}:${row.your_role}`) View
+							else
+								a(href=`/${row.title_id}/replay:${row.game_id}`) View
 			else
 				tr
 					case status
