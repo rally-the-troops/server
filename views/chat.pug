@@ -38,56 +38,56 @@ html
 				p: a(href="/chat/all") All messages
 
 		script.
-			let chat_data = !{ JSON.stringify(chat).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") };
-			let page_size = !{ page_size };
-			let me = !{ JSON.stringify(user.name) };
-			let table = document.querySelector("tbody");
-			let foot = document.querySelector("#foot");
-			let chat_lines = [];
+			let chat_data = !{ JSON.stringify(chat).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") }
+			let page_size = !{ page_size }
+			let me = !{ JSON.stringify(user.name) }
+			let table = document.querySelector("tbody")
+			let foot = document.querySelector("#foot")
+			let chat_lines = []
 			function add(tr,text,link) {
-				let td = document.createElement("td");
+				let td = document.createElement("td")
 				if (link) {
-					let a = document.createElement("a");
-					a.href = link;
-					a.textContent = text;
-					td.appendChild(a);
+					let a = document.createElement("a")
+					a.href = link
+					a.textContent = text
+					td.appendChild(a)
 				} else {
-					td.textContent = text;
+					td.textContent = text
 				}
-				tr.appendChild(td);
+				tr.appendChild(td)
 			}
 			function format_date(date) {
-				let t = date.toISOString();
-				return t.substring(0,10) + " " + t.substring(11,19);
+				let t = date.toISOString()
+				return t.substring(0,10) + " " + t.substring(11,19)
 			}
 			for (let [game_id,time,user,message] of chat_data) {
-				let tr = document.createElement("tr");
-				if (user === me) tr.className = "me";
-				add(tr,game_id,"/join/"+game_id);
-				add(tr,format_date(new Date(time+"Z")));
-				add(tr,user,"/user/"+user);
-				add(tr,message);
-				chat_lines.push(tr);
+				let tr = document.createElement("tr")
+				if (user === me) tr.className = "me"
+				add(tr,game_id,"/join/"+game_id)
+				add(tr,format_date(new Date(time+"Z")))
+				add(tr,user,"/user/"+user)
+				add(tr,message)
+				chat_lines.push(tr)
 			}
 			function next() { if (page > 0) --page; update(); }
 			function back() { if (page < page_count-1) ++page; update(); }
 			function newest() { page=0; update(); }
 			function oldest() { page=page_count-1; update(); }
-			let chat_size = chat_lines.length;
-			let page_count = Math.ceil(chat_size / page_size);
-			let page = 0;
+			let chat_size = chat_lines.length
+			let page_count = Math.ceil(chat_size / page_size)
+			let page = 0
 			function update() {
-				table.innerHTML = "";
+				table.innerHTML = ""
 				for (let i = 0; i < page_size; ++i) {
-					let k = page * page_size + ( page_size - i - 1);
+					let k = page * page_size + ( page_size - i - 1)
 					if (k >= 0 && k < chat_size)
-						table.appendChild(chat_lines[k]);
-					foot.textContent = `${page_count-page} / ${page_count}`;
+						table.appendChild(chat_lines[k])
+					foot.textContent = `${page_count-page} / ${page_count}`
 				}
 			}
 			if (page_size > 0) {
-				newest();
+				newest()
 			} else {
 				for (let i = chat_size-1; i >= 0; --i)
-					table.appendChild(chat_lines[i]);
+					table.appendChild(chat_lines[i])
 			}

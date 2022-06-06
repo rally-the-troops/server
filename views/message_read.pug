@@ -8,12 +8,12 @@ html
 			.head {white-space:pre-wrap}
 		script.
 			function delete_message(id) {
-				let warning = "Are you sure you want to DELETE this message?";
+				let warning = "Are you sure you want to DELETE this message?"
 				if (window.confirm(warning))
-					window.location.href = "/message/delete/" + id;
+					window.location.href = "/message/delete/" + id
 			}
 			function reply_message(id) {
-				window.location.href = "/message/reply/" + id;
+				window.location.href = "/message/reply/" + id
 			}
 	body
 		include header
