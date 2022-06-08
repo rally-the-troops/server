@@ -19,6 +19,10 @@ html
 				h2 Open
 				+gametable(0,open_games)
 
+			if replacement_games.length > 0
+				h2 Need replacement
+				+gametable(0, replacement_games)
+
 			if active_games.length > 0
 				h2 Active
 				+gametable(1,active_games)

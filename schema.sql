@@ -387,28 +387,6 @@ create view your_turn as
 		and active in ('All', 'Both', role)
 	;
 
--- Triggers --
-
-drop trigger if exists no_part_on_active_game;
-create trigger no_part_on_active_game before delete on players
-begin
-	select
-		raise(abort, 'Cannot remove players from started games.')
-	where
-		(select status from games where games.game_id = old.game_id) > 0
-	;
-end;
-
-drop trigger if exists no_join_on_active_game;
-create trigger no_join_on_active_game before insert on players
-begin
-	select
-		raise(abort, 'Cannot add players to started games.')
-	where
-		(select status from games where games.game_id = new.game_id) > 0
-	;
-end;
-
 -- Manual key management if pragma foreign_keys = off
 drop trigger if exists trigger_delete_on_games;
 create trigger trigger_delete_on_games after delete on games

@@ -867,6 +867,26 @@ let RULES = {};
 let HTML_ABOUT = {};
 let HTML_CREATE = {};
 
+function is_open_game(game) {
+	return game.status === 0 && !game.is_ready;
+}
+
+function is_ready_game(game) {
+	return game.status === 0 && game.is_ready;
+}
+
+function is_replacement_game(game) {
+	return game.status === 1 && !game.is_ready;
+}
+
+function is_active_game(game) {
+	return game.status === 1 && game.is_ready;
+}
+
+function is_finished_game(game) {
+	return game.status === 2;
+}
+
 function load_rules() {
 	const SQL_SELECT_TITLES = SQL("SELECT * FROM titles");
 	for (let title of SQL_SELECT_TITLES.all()) {
@@ -944,16 +964,16 @@ const SQL_INSERT_REMATCH = SQL(`
 	)
 `);
 
-const QUERY_LIST_GAMES = SQL(`
+const QUERY_LIST_PUBLIC_GAMES = SQL(`
 	SELECT * FROM game_view
-	WHERE is_private=0 AND status=?
+	WHERE is_private=0 AND status < 2
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
 	ORDER BY mtime DESC
 	`);
 
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	SELECT * FROM game_view
-	WHERE is_private=0 AND title_id=? AND status=?
+	WHERE is_private=0 AND title_id=? AND status>=? AND status<=?
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
 	ORDER BY mtime DESC
 	LIMIT ?
@@ -1039,12 +1059,8 @@ function annotate_game(game, user_id) {
 function annotate_games(games, user_id) {
 	for (let i = 0; i < games.length; ++i) {
 		let game = games[i];
-		if (game.status === 0) {
-			let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id);
-			game.is_ready = RULES[game.title_id].ready(game.scenario, JSON.parse(game.options), players);
-		} else {
-			game.is_ready = false;
-		}
+		let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id);
+		game.is_ready = RULES[game.title_id].ready(game.scenario, JSON.parse(game.options), players);
 		annotate_game(game, user_id);
 	}
 }
@@ -1063,23 +1079,19 @@ app.get('/games', function (req, res) {
 });
 
 app.get('/games/active', must_be_logged_in, function (req, res) {
-	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id);
 	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({user_id: req.user.user_id});
 	annotate_games(games, req.user.user_id);
-	let open_games = games.filter(game => game.status === 0);
-	let active_games = games.filter(game => game.status === 1);
-	let finished_games = games.filter(game => game.status === 2);
 	res.render('games_active.pug', {
 		user: req.user,
-		open_games: open_games.filter(g => !g.is_ready),
-		ready_games: open_games.filter(g => g.is_ready),
-		active_games: active_games,
-		finished_games: finished_games,
+		open_games: games.filter(is_open_game),
+		replacement_games: games.filter(is_replacement_game),
+		ready_games: games.filter(is_ready_game),
+		active_games: games.filter(is_active_game),
+		finished_games: games.filter(is_finished_game),
 	});
 });
 
 app.get('/games/finished', must_be_logged_in, function (req, res) {
-	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id);
 	let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({user_id: req.user.user_id});
 	annotate_games(games, req.user.user_id);
 	res.render('games_finished.pug', {
@@ -1089,20 +1101,18 @@ app.get('/games/finished', must_be_logged_in, function (req, res) {
 });
 
 app.get('/games/public', function (req, res) {
-	let open_games = QUERY_LIST_GAMES.all(0);
-	let active_games = QUERY_LIST_GAMES.all(1);
-	if (req.user) {
-		annotate_games(open_games, req.user.user_id);
-		annotate_games(active_games, req.user.user_id);
-	} else {
-		annotate_games(open_games, 0);
-		annotate_games(active_games, 0);
-	}
+	let games = QUERY_LIST_PUBLIC_GAMES.all()
+	if (req.user)
+		annotate_games(games, req.user.user_id);
+	else
+		annotate_games(games, 0);
 	res.render('games_public.pug', {
 		user: req.user,
-		open_games: open_games.filter(g => !g.is_ready),
-		ready_games: open_games.filter(g => g.is_ready),
-		active_games: active_games,
+		open_games: games.filter(is_open_game),
+		replacement_games: games.filter(is_replacement_game),
+		ready_games: games.filter(is_ready_game),
+		active_games: games.filter(is_active_game),
+		finished_games: games.filter(is_finished_game),
 	});
 });
 
@@ -1114,19 +1124,18 @@ function get_title_page(req, res, title_id) {
 	let title = TITLES[title_id];
 	if (!title)
 		return res.status(404).send("Invalid title.");
-	let open_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1000);
-	let active_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 1, 1000);
-	let finished_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 50);
-	annotate_games(open_games, req.user ? req.user.user_id : 0);
+	let active_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1, 1000);
+	let finished_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 2, 50);
 	annotate_games(active_games, req.user ? req.user.user_id : 0);
 	annotate_games(finished_games, req.user ? req.user.user_id : 0);
 	res.render('info.pug', {
 		user: req.user,
 		title: title,
 		about_html: HTML_ABOUT[title_id],
-		open_games: open_games.filter(g => !g.is_ready),
-		ready_games: open_games.filter(g => g.is_ready),
-		active_games: active_games,
+		open_games: active_games.filter(is_open_game),
+		replacement_games: active_games.filter(is_replacement_game),
+		ready_games: active_games.filter(is_ready_game),
+		active_games: active_games.filter(is_active_game),
 		finished_games: finished_games,
 	});
 }
@@ -1323,12 +1332,12 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	res.flush();
 });
 
-app.get('/join/:game_id/:role', must_be_logged_in, function (req, res) {
+app.post('/join/:game_id/:role', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0;
 	let role = req.params.role;
 	let game = SQL_SELECT_GAME.get(game_id);
 	let roles = get_game_roles(game.title_id, game.scenario, game.options);
-	if (game.is_random) {
+	if (game.is_random && game.status === 0) {
 		let m = role.match(/^Random (\d+)$/);
 		if (!m || Number(m[1]) < 1 || Number(m[1]) > roles.length)
 			return res.status(404).send("Invalid role.");
@@ -1345,7 +1354,7 @@ app.get('/join/:game_id/:role', must_be_logged_in, function (req, res) {
 	}
 });
 
-app.get('/part/:game_id/:role', must_be_logged_in, function (req, res) {
+app.post('/part/:game_id/:role', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0;
 	let role = req.params.role;
 	SQL_DELETE_PLAYER_ROLE.run(game_id, role);
@@ -1391,7 +1400,7 @@ function start_game(game_id, game) {
 	mail_your_turn_notification_to_offline_users(game_id, null, state.active);
 }
 
-app.get('/start/:game_id', must_be_logged_in, function (req, res) {
+app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0;
 	let game = SQL_SELECT_GAME.get(game_id);
 	if (game.owner_id !== req.user.user_id)

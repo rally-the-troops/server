@@ -19,8 +19,12 @@ html
 
 			p Read more about the game on #[a(href="https://boardgamegeek.com/boardgame/"+title.bgg) boardgamegeek.com].
 
-			h2 Open games
+			h2 Open
 			+gametable(0,open_games,1)
+
+			if replacement_games.length > 0
+				h2 Need replacement
+				+gametable(0, replacement_games)
 
 			p
 				a(href="/create/"+title.title_id) Create a new game
@@ -30,9 +34,9 @@ html
 				+gametable(0,ready_games,1)
 
 			if active_games.length > 0
-				h2 Active games
+				h2 Active
 				+gametable(1,active_games,1)
 
 			if finished_games.length > 0
-				h2 Finished games
+				h2 Finished
 				+gametable(2,finished_games,1)
