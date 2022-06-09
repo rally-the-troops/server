@@ -1034,35 +1034,57 @@ function format_options(options) {
 }
 
 function annotate_game(game, user_id) {
-	let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id);
+	let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id)
+
+	game.human_options = format_options(game.options)
+	game.is_ready = RULES[game.title_id].ready(game.scenario, JSON.parse(game.options), players)
+	game.is_active = is_active(game, players, user_id)
+	game.is_shared = is_shared(game, players, user_id)
+	game.is_yours = false
+	game.your_role = null
+
 	game.player_names = players.map(p => {
-		let name = p.name.replace(/ /g, '\xa0');
-		return p.user_id > 0 ? `<a href="/user/${p.name}">${name}</a>` : name;
-	}).join(", ");
-	game.options = format_options(game.options);
-	game.is_active = is_active(game, players, user_id);
-	game.is_shared = is_shared(game, players, user_id);
-	game.is_yours = false;
-	game.your_role = null;
+		let name = p.name.replace(/ /g, '\xa0')
+		if (p.user_id > 0)
+			name = `<a href="/user/${p.name}">${name}</a>`
+		if (game.status === 0 && p.user_id === game.owner_id)
+			name = `<i>${name}</i>`
+		return name
+	}).join(", ")
+
 	if (user_id > 0) {
 		for (let i = 0; i < players.length; ++i) {
 			if (players[i].user_id === user_id) {
-				game.is_yours = 1;
-				game.your_role = players[i].role;
+				game.is_yours = 1
+				game.your_role = players[i].role
 			}
 		}
 	}
-	game.ctime = human_date(game.ctime);
-	game.mtime = human_date(game.mtime);
+
+	if (!game.is_shared) {
+		for (let i = 0; i < players.length; ++i) {
+			if (game.active === players[i].role) {
+				game.active = `<a href="/user/${players[i].name}">${players[i].name}</a>`
+				break
+			}
+		}
+		if (game.status > 1) {
+			for (let i = 0; i < players.length; ++i) {
+				if (game.result === players[i].role) {
+					game.result = `<a href="/user/${players[i].name}">${players[i].name}</a>`
+					break
+				}
+			}
+		}
+	}
+
+	game.ctime = human_date(game.ctime)
+	game.mtime = human_date(game.mtime)
 }
 
 function annotate_games(games, user_id) {
-	for (let i = 0; i < games.length; ++i) {
-		let game = games[i];
-		let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id);
-		game.is_ready = RULES[game.title_id].ready(game.scenario, JSON.parse(game.options), players);
-		annotate_game(game, user_id);
-	}
+	for (let i = 0; i < games.length; ++i)
+		annotate_game(games[i], user_id)
 }
 
 app.get('/profile', must_be_logged_in, function (req, res) {

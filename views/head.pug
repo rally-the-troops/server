@@ -46,7 +46,7 @@ mixin gametable(status,table,hide_title=0)
 				th Description
 				case status
 					when 0
-						th Created
+						th Date
 					when 1
 						th Changed
 						th Turn
@@ -60,33 +60,27 @@ mixin gametable(status,table,hide_title=0)
 					td: a(href="/join/"+row.game_id)= row.game_id
 					unless hide_title
 						td.w: a(href="/"+row.title_id)= row.title_name
-					if true
-						td= row.scenario
-					else
-						td= row.options !== "None" ? row.scenario + ", " + row.options : row.scenario
+					td= row.scenario
 					if row.player_names
 						td!= row.player_names
 					else
 						td.error Nobody
 					td= row.description
+					if row.status === 0
+						td.w= row.ctime
+					else
+						td.w= row.mtime
 					case status
-						when 0
-							td.w= row.ctime
 						when 1
-							td.w= row.mtime
 							if (row.is_active)
-								td.is_active= row.active
+								td.is_active!= row.active
 							else
-								td= row.active
+								td!= row.active
 						when 2
-							td.w= row.mtime
-							td= row.result
+							td!= row.result
 					td.command
 						if status === 0
-							if row.is_ready
-								a(href="/join/"+row.game_id) Enter
-							else
-								a(href="/join/"+row.game_id) Join
+							a(href="/join/"+row.game_id) Join
 						else if status === 1
 							if row.is_yours
 								if row.is_shared
