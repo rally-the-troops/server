@@ -1047,8 +1047,6 @@ function annotate_game(game, user_id) {
 		let name = p.name.replace(/ /g, '\xa0')
 		if (p.user_id > 0)
 			name = `<a href="/user/${p.name}">${name}</a>`
-		if (game.status === 0 && p.user_id === game.owner_id)
-			name = `<i>${name}</i>`
 		return name
 	}).join(", ")
 
