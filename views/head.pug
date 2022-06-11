@@ -34,75 +34,54 @@ mixin forumpost(row,show_buttons)
 				|
 			| #[a(href="/forum/reply/"+row.post_id) Reply]
 
-mixin gametable(status,table,hide_title=0)
-	table
-		thead
-			tr
-				th ID
-				unless hide_title
-					th Title
-				th Scenario
-				th Players
-				th Description
-				case status
-					when 0
-						th Date
-					when 1
-						th Changed
-						th Turn
-					when 2
-						th Finished
-						th Result
-				th
-		tbody
-			each row in table
-				tr
-					td: a(href="/join/"+row.game_id)= row.game_id
-					unless hide_title
-						td.w: a(href="/"+row.title_id)= row.title_name
-					td= row.scenario
-					if row.player_names
-						td!= row.player_names
-					else
-						td.error Nobody
-					td= row.description
-					if row.status === 0
-						td.w= row.ctime
-					else
-						td.w= row.mtime
-					case status
-						when 1
-							if (row.is_active)
-								td.is_active!= row.active
-							else
-								td!= row.active
-						when 2
-							td!= row.result
-					td.command
-						if status === 0
-							a(href="/join/"+row.game_id) Join
-						else if status === 1
-							if row.is_yours
-								if row.is_shared
-									a(href="/join/"+row.game_id) Play
+mixin gamelist(list,status,hide_title=0)
+	div.game_list(class=status)
+		each item in list
+			div
+				div.game_item(class=item.your_turn ? "your_turn" : "")
+					div.game_head
+						if item.scenario.length <= 2
+							div
+								| <a href="/join/#{item.game_id}">#{item.game_id}</a> &#x2013;
+								| <a href="/#{item.title_id}">#{item.title_name}</a>
+								| (#{item.scenario})
+						else
+							div
+								| <a href="/join/#{item.game_id}">#{item.game_id}</a> &#x2013;
+								| <a href="/#{item.title_id}">#{item.title_name}</a>
+
+						if item.status === 0 || !item.is_ready
+							a(class="command" href=`/join/${item.game_id}`) Join
+						else
+							if item.is_yours
+								- let verb = (item.status > 1) ? "Review" : "Play"
+								if item.your_role
+									a(class="command" href=`/${item.title_id}/play:${item.game_id}:${item.your_role}`)= verb
 								else
-									a(href=`/${row.title_id}/play:${row.game_id}:${row.your_role}`) Play
+									a(class="command" href="/join/"+item.game_id)= verb
 							else
-								a(href=`/${row.title_id}/play:${row.game_id}`) View
-						else if status >= 2
-							if row.is_yours
-								if row.is_shared
-									a(href="/join/"+row.game_id) View
-								else
-									a(href=`/${row.title_id}/play:${row.game_id}:${row.your_role}`) View
+								- let verb = (item.status > 1) ? "Review" : "View"
+								a(class="command" href=`/${item.title_id}/play:${item.game_id}`)= verb
+
+					div.game_main
+						div.game_info
+							if item.description
+								i= item.description
+							if item.scenario !== "Standard" && item.scenario !== "Historical" && item.scenario.length > 2
+								div Scenario: #{item.scenario}
+							unless item.human_options === "None"
+								div Options: #{item.human_options}
+							if item.player_names
+								div Players: !{item.player_names}
 							else
-								a(href=`/${row.title_id}/replay:${row.game_id}`) View
-			else
-				tr
-					case status
-						when 0
-							td(colspan=7-hide_title) No open games.
-						when 1
-							td(colspan=8-hide_title) No active games.
-						when 2
-							td(colspan=8-hide_title) No finished games.
+								div Players: <span class="error">Nobody</span>
+							case item.status
+								when 0
+									div Created: #{item.ctime}
+								when 1
+									div Changed: #{item.mtime}
+								when 2
+									div Finished: #{item.mtime}
+									div Result: !{item.result}
+						unless hide_title
+							img(src=`/${item.title_id}/thumbnail.jpg`)

@@ -1009,14 +1009,6 @@ function is_active(game, players, user_id) {
 	return false
 }
 
-function is_shared(game, players, user_id) {
-	let n = 0
-	for (let i = 0; i < players.length; ++i)
-		if (players[i].user_id === user_id)
-			++n
-	return n > 1
-}
-
 function is_solo(players) {
 	return players.every(p => p.user_id === players[0].user_id)
 }
@@ -1027,53 +1019,60 @@ function format_options(options) {
 		if (k === false) return 'no'
 		return k.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase())
 	}
-	if (!options || options === '{}')
-		return "None"
-	options = JSON.parse(options)
 	return Object.entries(options||{}).map(([k,v]) => (v === true || v === 1) ? to_english(k) : `${to_english(k)}=${to_english(v)}`).join(", ")
 }
 
 function annotate_game(game, user_id) {
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id)
+	let options = JSON.parse(game.options)
 
-	game.human_options = format_options(game.options)
-	game.is_ready = RULES[game.title_id].ready(game.scenario, JSON.parse(game.options), players)
-	game.is_active = is_active(game, players, user_id)
-	game.is_shared = is_shared(game, players, user_id)
-	game.is_yours = false
-	game.your_role = null
+	if (game.options === '{}')
+		game.human_options = "None"
+	else
+		game.human_options = format_options(options)
 
-	game.player_names = players.map(p => {
-		let name = p.name.replace(/ /g, '\xa0')
-		if (p.user_id > 0)
-			name = `<a href="/user/${p.name}">${name}</a>`
-		return name
-	}).join(", ")
+	game.is_ready = RULES[game.title_id].ready(game.scenario, options, players)
 
-	if (user_id > 0) {
-		for (let i = 0; i < players.length; ++i) {
-			if (players[i].user_id === user_id) {
-				game.is_yours = 1
-				game.your_role = players[i].role
-			}
+	let your_count = 0
+	let your_role = null
+	game.player_names = ""
+	for (let i = 0; i < players.length; ++i) {
+		let p = players[i]
+
+		if (p.user_id === user_id) {
+			your_role = p.role
+			your_count++
 		}
+
+		let p_is_active = false
+		if (game.status === 0 && (game.owner_id === p.user_id))
+			p_is_active = true
+		if (game.status === 1 && (game.active === p.role || game.active === "Both" || game.active === "All"))
+			p_is_active = true
+
+		let link
+		if (p_is_active) {
+			link = `<span class="is_active"><a href="/user/${p.name}">${p.name}</a></span>`
+			if (p.user_id === user_id)
+				game.your_turn = true
+		} else {
+			link = `<a href="/user/${p.name}">${p.name}</a>`
+		}
+
+		if (game.player_names.length > 0)
+			game.player_names += ", "
+		game.player_names += link
+
+		if (game.active === p.role)
+			game.active = link
+		if (game.result === p.role)
+			game.result = `${link} (${game.result})`
 	}
 
-	if (!game.is_shared) {
-		for (let i = 0; i < players.length; ++i) {
-			if (game.active === players[i].role) {
-				game.active = `<a href="/user/${players[i].name}">${players[i].name}</a>`
-				break
-			}
-		}
-		if (game.status > 1) {
-			for (let i = 0; i < players.length; ++i) {
-				if (game.result === players[i].role) {
-					game.result = `<a href="/user/${players[i].name}">${players[i].name}</a>`
-					break
-				}
-			}
-		}
+	if (your_count > 0) {
+		game.is_yours = true
+		if (your_count === 1)
+			game.your_role = your_role
 	}
 
 	game.ctime = human_date(game.ctime)
@@ -2064,7 +2063,7 @@ app.get('/stats', function (req, res) {
 	let stats = SQL_GAME_STATS.all()
 	stats.forEach(row => {
 		row.title_name = TITLES[row.title_id].title_name
-		row.options = format_options(row.options)
+		row.options = format_options(JSON.parse(row.options))
 		row.result_role = row.result_role.split(",")
 		row.result_count = row.result_count.split(",").map(Number)
 	})

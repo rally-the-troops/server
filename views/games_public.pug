@@ -12,15 +12,21 @@ html
 			h1 All Public Games
 
 			h2 Open
-			+gametable(0, open_games)
+			if open_games.length > 0
+				+gamelist(open_games, "open")
+			else
+				p No open games.
 
 			if replacement_games.length > 0
 				h2 Need replacement
-				+gametable(0, replacement_games)
+				+gamelist(replacement_games, "replacement")
 
 			if ready_games.length > 0
 				h2 Ready to start
-				+gametable(0, ready_games)
+				+gamelist(ready_games, "ready")
 
 			h2 Active
-			+gametable(1, active_games)
+			if active_games.length > 0
+				+gamelist(active_games, "active")
+			else
+				p No open games.

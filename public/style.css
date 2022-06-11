@@ -37,7 +37,7 @@ article p, article dl, article ul { max-width: 50rem; }
 
 img.avatar {
 	float: left; margin: 0 20px 5px 0;
-	box-shadow: 2px 2px 4px 0px rgba(0,0,0,.5);
+	box-shadow: 1px 2px 4px rgba(0,0,0,0.3);
 	width: 80px;
 	height: 80px;
 }
@@ -49,29 +49,8 @@ div.logo {
 	height: 200px;
 }
 div.logo img {
-	box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5);
+	box-shadow: 1px 2px 4px 0px rgba(0,0,0,0.3);
 }
-
-table {
-	min-width: min(50rem,100%);
-	border-collapse: collapse;
-	border: 1px solid black;
-}
-thead, tfoot {
-	background-color: gainsboro;
-	border: 1px solid black;
-}
-th, td {
-	vertical-align: top;
-	text-align: left;
-	padding: 5px 10px;
-}
-tbody tr:nth-child(2n) {
-	background-color: whitesmoke;
-}
-table a:not(:hover) { text-decoration: none; color: black; }
-td.command a { text-decoration: underline; color: blue; }
-td.is_active { background-color: lemonchiffon; }
 
 input[type="checkbox"] {
 	margin-right: 7px;
@@ -107,10 +86,37 @@ button:disabled {
 .warning { color: brown; }
 p.warning::before { content: "\26a0"; }
 
+/* TABLES */
+
+table {
+	min-width: min(50rem,100%);
+	border-collapse: collapse;
+	border: 1px solid black;
+	box-shadow: 1px 2px 4px rgba(0,0,0,0.2);
+}
+thead, tfoot {
+	background-color: gainsboro;
+	border: 1px solid black;
+}
+th, td {
+	vertical-align: top;
+	text-align: left;
+	padding: 5px 10px;
+}
+tbody tr:nth-child(2n) {
+	background-color: whitesmoke;
+}
+table a:not(:hover) { text-decoration: none; color: black; }
+td.command a { text-decoration: underline; color: blue; }
+td.is_active { background-color: lemonchiffon; }
+
+/* FORUM AND MESSAGE POSTS */
+
 div.post {
 	max-width: 50em;
 	margin-top: 24px;
 	border: 1px solid black;
+	box-shadow: 1px 2px 4px rgba(0,0,0,0.2);
 }
 div.post > div.head {
 	display: flex;
@@ -127,3 +133,55 @@ div.post + div.edit { max-width: 50em; margin-top: 5px; text-align:right; }
 article hr { max-width: 50rem; margin-right: auto; margin-left: 0; }
 article hr { border: none; border-top: 2px dotted brown; }
 article hr + p { font-style: italic; }
+
+/* GAME BOXES */
+
+.game_list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(0, 400px));
+	gap: 24px;
+}
+.game_item {
+	border: 1px solid black;
+	box-shadow: 1px 2px 4px rgba(0,0,0,0.2);
+}
+.game_head, .game_main {
+	display: flex;
+	justify-content: space-between;
+	padding: 4px 8px;
+}
+.game_head {
+	border-bottom: 1px solid black;
+}
+.game_info {
+	font-family: "Source Serif SmText", "Dingbats", "Noto Emoji", "Georgia", serif;
+	font-size: 14px;
+	line-height: 20px;
+}
+.game_item a:not(:hover) { text-decoration: none; color: black; }
+.game_item a.command { text-decoration: underline; font-weight: bold }
+.game_info .is_active { text-decoration: underline }
+.game_info div {
+	text-indent: -20px;
+	padding-left: 20px;
+}
+.game_main img {
+	display: block;
+	height: 72px;
+	margin: 4px 0;
+	border: 1px solid black;
+}
+.game_head { background-color: gainsboro }
+.game_main { background-color: whitesmoke }
+.game_list.open .game_head { background-color: lightskyblue }
+.game_list.open .game_main { background-color: aliceblue }
+.game_list.replacement .game_head { background-color: thistle }
+.game_list.replacement .game_main { background-color: lavenderblush }
+.game_list.finished .game_head { background-color: silver }
+.game_list.finished .game_main { background-color: gainsboro }
+.game_item.your_turn .game_head { background-color: gold }
+.game_item.your_turn .game_main { background-color: ivory }
+.game_list a:hover { color: navy }
+.game_list.open a:hover { color: blue }
+.game_list.replacement a:hover { color: purple }
+.game_item.your_turn a:hover { color: maroon }
