@@ -21,3 +21,13 @@ html
 			if user
 				p
 					a(href="/message/send/"+who.name) Send message
+
+			if active_games.length > 0
+				h2 Playing
+				+gamelist(active_games)
+
+			if finished_games.length > 0
+				h2 Recently finished
+				+gamelist(finished_games)
+
+			p <a href="/games/finished/#{who.name}">All #{who.name}'s finished games</a>

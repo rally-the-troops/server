@@ -173,15 +173,15 @@ article hr + p { font-style: italic; }
 }
 .game_head { background-color: gainsboro }
 .game_main { background-color: whitesmoke }
-.game_list.open .game_head { background-color: lightskyblue }
-.game_list.open .game_main { background-color: aliceblue }
-.game_list.replacement .game_head { background-color: thistle }
-.game_list.replacement .game_main { background-color: lavenderblush }
-.game_list.finished .game_head { background-color: silver }
-.game_list.finished .game_main { background-color: gainsboro }
+.game_item.open .game_head { background-color: lightskyblue }
+.game_item.open .game_main { background-color: aliceblue }
+.game_item.replacement .game_head { background-color: thistle }
+.game_item.replacement .game_main { background-color: lavenderblush }
+.game_item.finished .game_head { background-color: silver }
+.game_item.finished .game_main { background-color: gainsboro }
 .game_item.your_turn .game_head { background-color: gold }
 .game_item.your_turn .game_main { background-color: ivory }
-.game_list a:hover { color: navy }
-.game_list.open a:hover { color: blue }
-.game_list.replacement a:hover { color: purple }
+.game_item a:hover { color: navy }
+.game_item.open a:hover { color: blue }
+.game_item.replacement a:hover { color: purple }
 .game_item.your_turn a:hover { color: maroon }

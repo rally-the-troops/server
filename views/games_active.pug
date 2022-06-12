@@ -13,24 +13,23 @@ html
 
 			if ready_games.length > 0
 				h2 Ready to start
-				+gamelist(ready_games, "ready")
+				+gamelist(ready_games)
 
 			if open_games.length > 0
 				h2 Open
-				+gamelist(open_games, "open")
+				+gamelist(open_games)
 
 			if replacement_games.length > 0
 				h2 Need replacement
-				+gamelist(replacement_games, "replacement")
+				+gamelist(replacement_games)
 
 			if active_games.length > 0
 				h2 Active
-				+gamelist(active_games, "active")
-
+				+gamelist(active_games)
 
 			if finished_games.length > 0
 				h2 Recently finished
-				+gamelist(finished_games, "finished")
+				+gamelist(finished_games)
 
 			p <a href="/games/finished">All your finished games</a>
 

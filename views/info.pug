@@ -21,25 +21,25 @@ html
 
 			h2 Open
 			if open_games.length > 0
-				+gamelist(open_games, "open", true)
+				+gamelist(open_games, true)
 			else
 				p No open games.
 
 			if replacement_games.length > 0
 				h2 Need replacement
-				+gamelist(replacement_games, "replacement", true)
+				+gamelist(replacement_games, true)
 
 			p
 				a(href="/create/"+title.title_id) Create a new game
 
 			if ready_games.length > 0
 				h2 Ready to start
-				+gamelist(ready_games, "ready", true)
+				+gamelist(ready_games, true)
 
 			if active_games.length > 0
 				h2 Active
-				+gamelist(active_games, "active", true)
+				+gamelist(active_games, true)
 
 			if finished_games.length > 0
 				h2 Recently finished
-				+gamelist(finished_games, "finished", true)
+				+gamelist(finished_games, true)

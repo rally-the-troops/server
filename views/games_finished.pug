@@ -7,9 +7,12 @@ html
 	body
 		include header
 		article
-			h1 Your finished games
+			if user && user.user_id === who.user_id
+				h1 Your finished games
+			else
+				h1 #{who.name}&rsquo;s finished games
 
 			if finished_games.length > 0
-				+gamelist(finished_games, "finished")
+				+gamelist(finished_games)
 			else
 				p Nothing here.

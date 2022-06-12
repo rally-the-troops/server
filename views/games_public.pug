@@ -13,20 +13,20 @@ html
 
 			h2 Open
 			if open_games.length > 0
-				+gamelist(open_games, "open")
+				+gamelist(open_games)
 			else
 				p No open games.
 
 			if replacement_games.length > 0
 				h2 Need replacement
-				+gamelist(replacement_games, "replacement")
+				+gamelist(replacement_games)
 
 			if ready_games.length > 0
 				h2 Ready to start
-				+gamelist(ready_games, "ready")
+				+gamelist(ready_games)
 
 			h2 Active
 			if active_games.length > 0
-				+gamelist(active_games, "active")
+				+gamelist(active_games)
 			else
 				p No open games.

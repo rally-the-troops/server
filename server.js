@@ -567,7 +567,14 @@ app.get('/user/:who_name', function (req, res) {
 		who.avatar = get_avatar(who.mail)
 		who.ctime = human_date(who.ctime)
 		who.atime = human_date(who.atime)
-		res.render('user.pug', { user: req.user, who: who })
+		let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: who.user_id })
+		annotate_games(games, 0)
+		res.render('user.pug', {
+			user: req.user,
+			who: who,
+			active_games: games.filter(game => !is_finished_game(game)),
+			finished_games: games.filter(is_finished_game),
+		})
 	} else {
 		return res.status(404).send("Invalid user name.")
 	}
@@ -1098,7 +1105,7 @@ app.get('/games', function (req, res) {
 })
 
 app.get('/games/active', must_be_logged_in, function (req, res) {
-	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({user_id: req.user.user_id})
+	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: req.user.user_id })
 	annotate_games(games, req.user.user_id)
 	res.render('games_active.pug', {
 		user: req.user,
@@ -1115,8 +1122,24 @@ app.get('/games/finished', must_be_logged_in, function (req, res) {
 	annotate_games(games, req.user.user_id)
 	res.render('games_finished.pug', {
 		user: req.user,
+		who: req.user,
 		finished_games: games,
 	})
+})
+
+app.get('/games/finished/:who_name', function (req, res) {
+	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
+	if (who) {
+		let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({ user_id: who.user_id })
+		annotate_games(games, 0)
+		res.render('games_finished.pug', {
+			user: req.user,
+			who: who,
+			finished_games: games,
+		})
+	} else {
+		return res.status(404).send("Invalid user name.")
+	}
 })
 
 app.get('/games/public', function (req, res) {
