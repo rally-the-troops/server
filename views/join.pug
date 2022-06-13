@@ -8,10 +8,13 @@ html
 			game.title_id)
 		title= game.title_name
 		style.
-			table { min-width: auto; }
-			th,td { min-width: 10em; border: 1px solid black; }
-			table td a.red { text-decoration: none; color: brown; font-size: 14px; }
+			table { min-width: 0; }
+			th,td { border: 1px solid black; }
+			td a.red { text-decoration: none; color: brown; font-size: 14px; float: right; }
 			td a { text-decoration: underline; color: blue; }
+			th { white-space: nowrap; background-color: gainsboro; }
+			td { width: 180px; background-color: white; }
+			#message { background-color: whitesmoke; }
 			.hide { display: none; }
 		script.
 			let game = !{ JSON.stringify(game) }
@@ -45,16 +48,13 @@ html
 
 			p
 			table
-				thead
-					tr
-						each role in roles
-							th.command(id="role_"+role.replace(/ /g, "_")+"_name")= role
 				tbody
-					tr
-						each role in roles
+					each role in roles
+						tr
+							th(id="role_"+role.replace(/ /g, "_")+"_name")= role
 							td.command(id="role_"+role.replace(/ /g, "_")) -
 					tr
-						td.command#message(colspan=roles.length) -
+						td.command#message(colspan=2) -
 
 			p
 				button.hide#delete_button(onclick="confirm_delete()") Delete
