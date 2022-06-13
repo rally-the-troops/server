@@ -1104,6 +1104,12 @@ app.get('/games', function (req, res) {
 	res.redirect('/games/public')
 })
 
+function sort_your_turn(a, b) {
+	if (a.your_turn && !b.your_turn) return -1
+	if (!a.your_turn && b.your_turn) return 1
+	return 0
+}
+
 app.get('/games/active', must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: req.user.user_id })
 	annotate_games(games, req.user.user_id)
@@ -1111,8 +1117,8 @@ app.get('/games/active', must_be_logged_in, function (req, res) {
 		user: req.user,
 		open_games: games.filter(is_open_game),
 		replacement_games: games.filter(is_replacement_game),
-		ready_games: games.filter(is_ready_game),
-		active_games: games.filter(is_active_game),
+		ready_games: games.filter(is_ready_game).sort(sort_your_turn),
+		active_games: games.filter(is_active_game).sort(sort_your_turn),
 		finished_games: games.filter(is_finished_game),
 	})
 })

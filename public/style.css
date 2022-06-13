@@ -140,6 +140,7 @@ article hr + p { font-style: italic; }
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(0, 400px));
 	gap: 24px;
+	margin: 16px 0;
 }
 .game_item {
 	border: 1px solid black;
