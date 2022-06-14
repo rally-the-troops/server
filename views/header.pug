@@ -3,8 +3,8 @@ header
 		img(src="/images/rally-the-troops.svg" width=48 height=48)
 	nav
 		a(href="/about") About
-		a(href="/forum") Forum
 		if user
+			a(href="/forum") Forum
 			a(href="/games/public") Public
 			if user.active > 0
 				a(href="/games/active") Games (#{user.active})
