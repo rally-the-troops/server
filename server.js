@@ -896,6 +896,10 @@ function get_game_roles(title_id, scenario, options) {
 	return roles
 }
 
+function is_game_ready(title_id, scenario, options, players) {
+	return get_game_roles(title_id, scenario, options).length === players.length
+}
+
 load_rules()
 
 const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,is_private,is_random,description) VALUES (?,?,?,?,?,?,?)")
@@ -1013,7 +1017,7 @@ function annotate_game(game, user_id) {
 	else
 		game.human_options = format_options(options)
 
-	game.is_ready = RULES[game.title_id].ready(game.scenario, options, players)
+	game.is_ready = is_game_ready(game.title_id, game.scenario, options, players)
 
 	let your_count = 0
 	let your_role = null
@@ -1266,7 +1270,7 @@ function update_join_clients_players(game_id) {
 	let list = join_clients[game_id]
 	if (list && list.length > 0) {
 		let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
-		let ready = RULES[list.title_id].ready(list.scenario, list.options, players)
+		let ready = is_game_ready(list.title_id, list.scenario, list.options, players)
 		for (let {res} of list) {
 			res.write("retry: 15000\n")
 			res.write("event: players\n")
@@ -1286,7 +1290,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	annotate_game(game, req.user.user_id)
 	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
-	let ready = (game.status === 0) && RULES[game.title_id].ready(game.scenario, game.options, players)
+	let ready = (game.status === 0) && is_game_ready(game.title_id, game.scenario, game.options, players)
 	res.render('join.pug', {
 		user: req.user,
 		game: game,
@@ -1378,7 +1382,7 @@ function assign_random_roles(game, players) {
 
 function start_game(game_id, game) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
-	if (!RULES[game.title_id].ready(game.scenario, game.options, players))
+	if (!is_game_ready(game.title_id, game.scenario, game.options, players))
 		return res.send("Invalid scenario/options/player configuration!")
 	if (game.is_random) {
 		assign_random_roles(game, players)
@@ -1388,7 +1392,7 @@ function start_game(game_id, game) {
 	let options = game.options ? JSON.parse(game.options) : {}
 	let seed = random_seed()
 	let state = RULES[game.title_id].setup(seed, game.scenario, options, players)
-	put_replay(game_id, null, 'setup', [seed, game.scenario, options, players])
+	put_replay(game_id, null, 'setup', [seed, game.scenario, options])
 	SQL_UPDATE_GAME_RESULT.run(1, null, game_id)
 	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)
 	if (is_solo(players))
@@ -1666,8 +1670,7 @@ function notify_your_turn_reminder() {
 function notify_ready_to_start_reminder() {
 	for (let game of SQL_SELECT_OPEN_GAMES.all()) {
 		let players = SQL_SELECT_PLAYERS.all(game.game_id)
-		let rules = RULES[game.title_id]
-		if (rules && rules.ready(game.scenario, game.options, players)) {
+		if (is_game_ready(game.title_id, game.scenario, game.options, players)) {
 			let owner = SQL_OFFLINE_USER.get(game.owner_id, '+3 minutes')
 			if (owner) {
 				if (owner.notify)
