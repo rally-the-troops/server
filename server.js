@@ -1513,11 +1513,34 @@ app.get('/:title_id/replay\::game_id', function (req, res) {
 	return res.sendFile(__dirname + '/public/' + title_id + '/play.html')
 })
 
+app.get('/:title_id/debug\::game_id', function (req, res) {
+	if (!req.user || req.user.user_id !== 1)
+		return res.status(401).send("Not authorized to debug.")
+	let title_id = req.params.title_id
+	let game_id = req.params.game_id
+	let game = SQL_SELECT_GAME.get(game_id)
+	if (!game)
+		return res.status(404).send("Invalid game ID.")
+	if (game.title_id !== title_id)
+		return res.status(404).send("Invalid game ID.")
+	return res.sendFile(__dirname + '/public/' + title_id + '/play.html')
+})
+
 app.get('/replay/:game_id', function (req, res) {
 	let game_id = req.params.game_id
 	let game = SQL_SELECT_GAME.get(game_id)
 	if (game.status < 2)
 		return res.status(404).send("Invalid game ID.")
+	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
+	let state = SQL_SELECT_GAME_STATE.get(game_id)
+	let replay = SQL_SELECT_REPLAY.all(game_id)
+	return res.json({players, state, replay})
+})
+
+app.get('/debug/:game_id', function (req, res) {
+	if (!req.user || req.user.user_id !== 1)
+		return res.status(401).send("Not authorized to debug.")
+	let game_id = req.params.game_id
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
 	let state = SQL_SELECT_GAME_STATE.get(game_id)
 	let replay = SQL_SELECT_REPLAY.all(game_id)

@@ -10,7 +10,7 @@
 
 /* URL: /$title_id/(re)play:$game_id:$role */
 
-if (!/\/[\w-]+\/(re)?play:\d+(:[\w-]+)?/.test(window.location.pathname)) {
+if (!/\/[\w-]+\/(replay|play|debug):\d+(:[\w-]+)?/.test(window.location.pathname)) {
 	document.getElementById("prompt").textContent = "Invalid game ID."
 	throw Error("Invalid game ID.")
 }
@@ -540,7 +540,7 @@ function confirm_action_button(action, label, message) {
 }
 
 function send_action(verb, noun) {
-	if (params.mode === "replay")
+	if (params.mode === "replay" || params.mode === "debug")
 		return
 	// Reset action list here so we don't send more than one action per server prompt!
 	if (noun !== undefined) {
@@ -653,7 +653,7 @@ async function require(path) {
 
 let replay = null
 
-async function init_replay() {
+async function init_replay(debug) {
 	remove_resign_menu()
 
 	document.getElementById("prompt").textContent = "Loading replay..."
@@ -662,7 +662,7 @@ async function init_replay() {
 	let rules = await require("rules.js")
 
 	console.log("LOADING REPLAY")
-	let response = await fetch("/replay/" + params.game_id)
+	let response = await fetch((debug ? "/debug/" : "/replay/") + params.game_id)
 	let body = await response.json()
 	replay = body.replay
 
@@ -706,17 +706,22 @@ async function init_replay() {
 		} catch (err) {
 			console.log("ERROR IN REPLAY %d %s %s/%s/%s", p, s.state, replay[p].role, replay[p].action, replay[p].arguments)
 			console.log(err)
-			replay.length = 0
+			if (debug)
+				replay.length = p
+			else
+				replay.length = 0
 			break
 		}
 
-		replay[p].digest = adler32(JSON.stringify(s))
-		for (let k = p-1; k > 0; --k) {
-			if (replay[k].digest === replay[p].digest && !replay[k].is_undone) {
-				for (let a = k+1; a <= p; ++a)
-					if (!replay[a].is_undone)
-						replay[a].is_undone = true
-				break
+		if (!debug) {
+			replay[p].digest = adler32(JSON.stringify(s))
+			for (let k = p-1; k > 0; --k) {
+				if (replay[k].digest === replay[p].digest && !replay[k].is_undone) {
+					for (let a = k+1; a <= p; ++a)
+						if (!replay[a].is_undone)
+							replay[a].is_undone = true
+					break
+				}
 			}
 		}
 	}
@@ -791,7 +796,8 @@ async function init_replay() {
 		body.classList.add(player.replace(/ /g, "_"))
 
 		view = rules.view(s, player)
-		view.actions = null
+		if (!debug)
+			view.actions = null
 
 		if (viewpoint === "Observer")
 			view.game_over = 1
@@ -869,8 +875,10 @@ async function init_replay() {
 
 window.addEventListener("load", function () {
 	zoom_map()
+	if (params.mode === "debug")
+		init_replay(true)
 	if (params.mode === "replay")
-		init_replay()
+		init_replay(false)
 	if (params.mode === "play")
 		connect_play()
 })
