@@ -59,18 +59,28 @@ mixin gamelist(list,hide_title=0)
 								| <a href="/join/#{item.game_id}">#{item.game_id}</a> &#x2013;
 								| <a href="/#{item.title_id}">#{item.title_name}</a>
 
-						if item.status === 0 || !item.is_ready
-							a(class="command" href=`/join/${item.game_id}`) Join
-						else
-							if item.is_yours
-								- let verb = (item.status > 1) ? "Review" : "Play"
-								if item.your_role
-									a(class="command" href=`/${item.title_id}/play:${item.game_id}:${item.your_role}`)= verb
+						case item.status
+							when 0
+								if item.is_yours && item.is_ready
+									a(class="command" href=`/join/${item.game_id}`) Start
 								else
-									a(class="command" href="/join/"+item.game_id)= verb
-							else
-								- let verb = (item.status > 1) ? "Review" : "View"
-								a(class="command" href=`/${item.title_id}/play:${item.game_id}`)= verb
+									a(class="command" href=`/join/${item.game_id}`) Join
+							when 1
+								if item.is_yours
+									if item.your_role
+										a(class="command" href=`/${item.title_id}/play:${item.game_id}:${item.your_role}`) Play
+									else
+										a(class="command" href="/join/"+item.game_id) Play
+								else
+									a(class="command" href=`/${item.title_id}/play:${item.game_id}`) View
+							when 2
+								if item.is_yours
+									if item.your_role
+										a(class="command" href=`/${item.title_id}/play:${item.game_id}:${item.your_role}`) Review
+									else
+										a(class="command" href="/join/"+item.game_id) Review
+								else
+									a(class="command" href=`/${item.title_id}/play:${item.game_id}`) Review
 
 					div.game_main
 						div.game_info

@@ -1,27 +1,22 @@
 //- vim:ts=4:sw=4:
+- let open_games = games.filter(game => game.status === 0)
+- let active_games = games.filter(game => game.status === 1)
+- let finished_games = games.filter(game => game.status === 2)
 doctype html
 html
 	head
 		include head
 		title= SITE_NAME
 		if active_games.length > 0
-			meta(http-equiv="refresh" content=300)
+			meta(http-equiv="refresh" content=600)
 	body
 		include header
 		article
 			h1 Your games
 
-			if ready_games.length > 0
-				h2 Ready to start
-				+gamelist(ready_games)
-
 			if open_games.length > 0
 				h2 Open
 				+gamelist(open_games)
-
-			if replacement_games.length > 0
-				h2 Need replacement
-				+gamelist(replacement_games)
 
 			if active_games.length > 0
 				h2 Active
@@ -31,7 +26,8 @@ html
 				h2 Recently finished
 				+gamelist(finished_games)
 
-			p <a href="/games/finished">All your finished games</a>
-
-			if open_games.length === 0 && ready_games.length === 0 && active_games.length === 0 && finished_games.length === 0
+			if open_games.length === 0 && active_games.length === 0 && finished_games.length === 0
 				p Nothing here.
+
+			p
+				a(href="/games/finished") All your finished games

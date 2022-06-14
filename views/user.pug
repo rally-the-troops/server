@@ -1,4 +1,7 @@
 //- vim:ts=4:sw=4:
+- let open_games = games.filter(game => game.status === 0)
+- let active_games = games.filter(game => game.status === 1)
+- let finished_games = games.filter(game => game.status === 2)
 doctype html
 html
 	head
@@ -22,8 +25,12 @@ html
 				p
 					a(href="/message/send/"+who.name) Send message
 
+			if open_games.length > 0
+				h2 Open
+				+gamelist(open_games)
+
 			if active_games.length > 0
-				h2 Playing
+				h2 Active
 				+gamelist(active_games)
 
 			if finished_games.length > 0

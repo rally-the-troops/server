@@ -569,12 +569,7 @@ app.get('/user/:who_name', function (req, res) {
 		who.atime = human_date(who.atime)
 		let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: who.user_id })
 		annotate_games(games, 0)
-		res.render('user.pug', {
-			user: req.user,
-			who: who,
-			active_games: games.filter(game => !is_finished_game(game)),
-			finished_games: games.filter(is_finished_game),
-		})
+		res.render('user.pug', { user: req.user, who: who, games: games })
 	} else {
 		return res.status(404).send("Invalid user name.")
 	}
@@ -874,26 +869,6 @@ let RULES = {}
 let HTML_ABOUT = {}
 let HTML_CREATE = {}
 
-function is_open_game(game) {
-	return game.status === 0 && !game.is_ready
-}
-
-function is_ready_game(game) {
-	return game.status === 0 && game.is_ready
-}
-
-function is_replacement_game(game) {
-	return game.status === 1 && !game.is_ready
-}
-
-function is_active_game(game) {
-	return game.status === 1 && game.is_ready
-}
-
-function is_finished_game(game) {
-	return game.status === 2
-}
-
 function load_rules() {
 	const SQL_SELECT_TITLES = SQL("SELECT * FROM titles")
 	for (let title of SQL_SELECT_TITLES.all()) {
@@ -1046,25 +1021,26 @@ function annotate_game(game, user_id) {
 	for (let i = 0; i < players.length; ++i) {
 		let p = players[i]
 
-		if (p.user_id === user_id) {
-			your_role = p.role
-			your_count++
-		}
+		let p_is_owner = false
+		if (game.status === 0 && (game.owner_id === p.user_id))
+			p_is_owner = true
 
 		let p_is_active = false
-		if (game.status === 0 && (game.owner_id === p.user_id))
-			p_is_active = true
 		if (game.status === 1 && (game.active === p.role || game.active === "Both" || game.active === "All"))
 			p_is_active = true
 
-		let link
-		if (p_is_active) {
-			link = `<span class="is_active"><a href="/user/${p.name}">${p.name}</a></span>`
-			if (p.user_id === user_id)
+		if (p.user_id === user_id) {
+			your_role = p.role
+			your_count++
+			if (p_is_active || (p_is_owner && game.is_ready))
 				game.your_turn = true
-		} else {
-			link = `<a href="/user/${p.name}">${p.name}</a>`
 		}
+
+		let link
+		if (p_is_active || p_is_owner)
+			link = `<span class="is_active"><a href="/user/${p.name}">${p.name}</a></span>`
+		else
+			link = `<a href="/user/${p.name}">${p.name}</a>`
 
 		if (game.player_names.length > 0)
 			game.player_names += ", "
@@ -1113,24 +1089,13 @@ function sort_your_turn(a, b) {
 app.get('/games/active', must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: req.user.user_id })
 	annotate_games(games, req.user.user_id)
-	res.render('games_active.pug', {
-		user: req.user,
-		open_games: games.filter(is_open_game),
-		replacement_games: games.filter(is_replacement_game),
-		ready_games: games.filter(is_ready_game).sort(sort_your_turn),
-		active_games: games.filter(is_active_game).sort(sort_your_turn),
-		finished_games: games.filter(is_finished_game),
-	})
+	res.render('games_active.pug', { user: req.user, who: req.user, games: games })
 })
 
 app.get('/games/finished', must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({user_id: req.user.user_id})
 	annotate_games(games, req.user.user_id)
-	res.render('games_finished.pug', {
-		user: req.user,
-		who: req.user,
-		finished_games: games,
-	})
+	res.render('games_finished.pug', { user: req.user, who: req.user, games: games })
 })
 
 app.get('/games/finished/:who_name', function (req, res) {
@@ -1138,11 +1103,7 @@ app.get('/games/finished/:who_name', function (req, res) {
 	if (who) {
 		let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({ user_id: who.user_id })
 		annotate_games(games, 0)
-		res.render('games_finished.pug', {
-			user: req.user,
-			who: who,
-			finished_games: games,
-		})
+		res.render('games_finished.pug', { user: req.user, who: who, games: games })
 	} else {
 		return res.status(404).send("Invalid user name.")
 	}
@@ -1154,14 +1115,7 @@ app.get('/games/public', function (req, res) {
 		annotate_games(games, req.user.user_id)
 	else
 		annotate_games(games, 0)
-	res.render('games_public.pug', {
-		user: req.user,
-		open_games: games.filter(is_open_game),
-		replacement_games: games.filter(is_replacement_game),
-		ready_games: games.filter(is_ready_game),
-		active_games: games.filter(is_active_game),
-		finished_games: games.filter(is_finished_game),
-	})
+	res.render('games_public.pug', { user: req.user, games: games })
 })
 
 app.get('/info/:title_id', function (req, res) {
@@ -1180,11 +1134,7 @@ function get_title_page(req, res, title_id) {
 		user: req.user,
 		title: title,
 		about_html: HTML_ABOUT[title_id],
-		open_games: active_games.filter(is_open_game),
-		replacement_games: active_games.filter(is_replacement_game),
-		ready_games: active_games.filter(is_ready_game),
-		active_games: active_games.filter(is_active_game),
-		finished_games: finished_games,
+		games: active_games.concat(finished_games)
 	})
 }
 
