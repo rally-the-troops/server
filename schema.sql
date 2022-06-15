@@ -274,11 +274,11 @@ create view game_chat_view as
 create index if not exists game_chat_idx on game_chat(game_id);
 
 create table if not exists game_replay (
+	replay_id integer
+		primary key,
 	game_id integer
 		references games
 			on delete cascade,
-	time timestamp
-		default current_timestamp,
 	role text,
 	action text,
 	arguments json
