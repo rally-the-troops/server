@@ -180,12 +180,12 @@ create view thread_view as
 		author.name as author_name,
 		(
 			select
-				count(*) - 1
+				count(*)
 			from
 				posts
 			where
 				posts.thread_id = threads.thread_id
-		) as replies,
+		) as count,
 		(
 			select
 				max(posts.mtime)

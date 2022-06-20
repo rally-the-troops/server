@@ -8,25 +8,21 @@ html
 		title= SITE_NAME
 		style.
 			div.list {
-				max-width: 800px;
-				display: flex;
-				flex-wrap: wrap;
-				justify-content: left;
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(0, 160px));
+				gap: 16px;
 			}
-			div.list div {
-				min-width: 150px;
-				margin: 10px 15px;
+			div.item {
 				text-align: center;
 			}
-			div.list a:not(:hover) {
+			div.item a:not(:hover) {
 				color: black;
 				text-decoration: none;
 			}
-			div.list img {
+			div.item img {
 				box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5);
 				height: 200px;
 				margin: 5px auto;
-				display: block;
 			}
 	body
 		include header
@@ -41,8 +37,10 @@ html
 				each title in titles
 					unless title.is_hidden
 						- let cover = "/" + title.title_id + "/cover"
-						div
-							+gamecover(title.title_id)
-							| #{title.title_name}
+						div.item
+							div
+								+gamecover(title.title_id)
+							div
+								a(href="/"+title.title_id)= title.title_name
 
 			p!= process.env.SITE_INVITE

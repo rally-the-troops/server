@@ -7,7 +7,6 @@ html
 		meta(http-equiv="refresh" content=3600)
 		style.
 			tbody a { display: block }
-			td:nth-child(3) { text-align: right }
 	body
 		include header
 		article
@@ -17,16 +16,14 @@ html
 				thead
 					tr
 						th Subject
-						th Author
-						th Replies
-						th Time
+						th
+						th
 				tbody
 					each row in threads
 						tr
 							td: a(href="/forum/thread/"+row.thread_id)= row.subject
-							td: a(href="/user/"+row.author_name)= row.author_name
-							td= row.replies
-							td= row.mtime
+							td.r= row.count
+							td.w= row.mtime
 				tfoot
 					tr
 						td(colspan=4)
