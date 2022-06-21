@@ -172,17 +172,31 @@ article hr + p { font-style: italic; }
 	margin: 4px 0;
 	border: 1px solid black;
 }
+
 .game_head { background-color: gainsboro }
 .game_main { background-color: whitesmoke }
+.game_main a:hover { color: mediumblue }
+
 .game_item.open .game_head { background-color: lightskyblue }
 .game_item.open .game_main { background-color: aliceblue }
+.game_item.open a:hover { color: royalblue }
+
+.game_item.ready .game_head { background-color: darkseagreen }
+.game_item.ready .game_main { background-color: mintcream }
+.game_item.ready a:hover { color: seagreen }
+
 .game_item.replacement .game_head { background-color: thistle }
 .game_item.replacement .game_main { background-color: lavenderblush }
+.game_item.replacement a:hover { color: purple }
+
+.game_item.active .game_head { background-color: gainsboro }
+.game_item.active .game_main { background-color: whitesmoke }
+.game_item.active a:hover { color: mediumblue }
+
 .game_item.finished .game_head { background-color: silver }
 .game_item.finished .game_main { background-color: gainsboro }
+.game_item.finished a:hover { color: mediumblue }
+
 .game_item.your_turn .game_head { background-color: gold }
-.game_item.your_turn .game_main { background-color: ivory }
-.game_item a:hover { color: navy }
-.game_item.open a:hover { color: blue }
-.game_item.replacement a:hover { color: purple }
-.game_item.your_turn a:hover { color: maroon }
+.game_item.your_turn .game_main { background-color: lightyellow }
+.game_item.your_turn a:hover { color: #860 }
