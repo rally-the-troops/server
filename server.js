@@ -1036,7 +1036,7 @@ function annotate_game(game, user_id) {
 		if (p.user_id === user_id) {
 			your_role = p.role
 			your_count++
-			if (p_is_active || (p_is_owner && game.is_ready))
+			if ((p_is_active || p_is_owner) && game.is_ready)
 				game.your_turn = true
 		}
 
@@ -1093,6 +1093,7 @@ function sort_your_turn(a, b) {
 app.get('/games/active', must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: req.user.user_id })
 	annotate_games(games, req.user.user_id)
+	games.sort(sort_your_turn)
 	res.render('games_active.pug', { user: req.user, who: req.user, games: games })
 })
 

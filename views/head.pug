@@ -61,7 +61,7 @@ mixin gamelist(list,hide_title=0)
 
 						case item.status
 							when 0
-								if item.is_yours && item.is_ready
+								if item.is_ready && item.your_turn
 									a(class="command" href=`/join/${item.game_id}`) Start
 								else
 									a(class="command" href=`/join/${item.game_id}`) Join
