@@ -32,15 +32,15 @@ html
 			div.logo
 				+gamecover(game.title_id)
 
-			p
+			div
 				if game.is_private
 					| Owner: #{game.owner_name} (private)
 				else
 					| Owner: #{game.owner_name}
-				br
-				| Scenario: #{game.scenario}
-				br
-				| Options: #{game.human_options}
+			div Scenario: #{game.scenario}
+			div Options: #{game.human_options}
+			if game.status === 2
+				div Result: !{game.result}
 
 			p= game.description || "No description."
 

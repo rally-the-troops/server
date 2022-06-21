@@ -163,8 +163,12 @@ function update() {
 			message.innerHTML = `Waiting for ${game.owner_name} to start the game...`
 		else
 			message.innerHTML = "Waiting for players to join..."
-	} else {
+	} else if (game.status === 1) {
 		message.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}">Observe</a>`
+	} else if (game.status === 2) {
+		message.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}">Review</a>`
+	} else {
+		message.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}">Enter</a>`
 	}
 
 	if (game.owner_id === user_id) {

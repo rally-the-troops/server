@@ -1287,7 +1287,13 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	let game = SQL_SELECT_GAME_VIEW.get(game_id)
 	if (!game)
 		return res.status(404).send("Invalid game ID.")
-	annotate_game(game, req.user.user_id)
+
+	let options = JSON.parse(game.options)
+	if (game.options === '{}')
+		game.human_options = "None"
+	else
+		game.human_options = format_options(options)
+
 	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
 	let ready = (game.status === 0) && is_game_ready(game.title_id, game.scenario, game.options, players)
