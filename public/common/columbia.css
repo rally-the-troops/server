@@ -2,7 +2,7 @@
 
 #battle {
 	position: fixed;
-	min-width: 450px;
+	min-width: 524px; /* 6 blocks wide */
 	left: 12px;
 	top: 56px;
 	z-index: 50;
