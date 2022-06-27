@@ -156,7 +156,7 @@ if (HTTPS_PORT) {
  */
 
 function random_seed() {
-	return crypto.randomInt(1, 0x7ffffffe)
+	return crypto.randomInt(1, 2**35-31)
 }
 
 function SLOG(socket, ...msg) {
