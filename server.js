@@ -1398,7 +1398,7 @@ function start_game(game_id, game) {
 	}
 	let options = game.options ? JSON.parse(game.options) : {}
 	let seed = random_seed()
-	let state = RULES[game.title_id].setup(seed, game.scenario, options, players)
+	let state = RULES[game.title_id].setup(seed, game.scenario, options)
 	put_replay(game_id, null, 'setup', [seed, game.scenario, options])
 	SQL_UPDATE_GAME_RESULT.run(1, null, game_id)
 	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)
@@ -1907,8 +1907,8 @@ function on_restart(socket, scenario) {
 	try {
 		let seed = random_seed()
 		let options = JSON.parse(SQL_SELECT_GAME.get(socket.game_id).options)
-		let state = socket.rules.setup(seed, scenario, options, socket.players)
-		put_replay(socket.game_id, null, 'setup', [seed, scenario, options, socket.players])
+		let state = socket.rules.setup(seed, scenario, options)
+		put_replay(socket.game_id, null, 'setup', [seed, scenario, options])
 		for (let other of clients[socket.game_id]) {
 			other.seen = 0
 			send_state(other, state)
