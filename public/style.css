@@ -169,7 +169,7 @@ article hr + p { font-style: italic; }
 .game_main img {
 	display: block;
 	height: 72px;
-	margin: 4px 0;
+	margin: 4px 0 4px 4px;
 	border: 1px solid black;
 }
 

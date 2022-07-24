@@ -1015,11 +1015,16 @@ function format_options(options) {
 function annotate_game(game, user_id) {
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id)
 	let options = JSON.parse(game.options)
+	let roles = get_game_roles(game.title_id, game.scenario, options)
 
 	if (game.options === '{}')
 		game.human_options = "None"
 	else
 		game.human_options = format_options(options)
+
+	for (let i = 0; i < players.length; ++i)
+		players[i].index = roles.indexOf(players[i].role)
+	players.sort((a, b) => a.index - b.index)
 
 	game.is_ready = is_game_ready(game.title_id, game.scenario, options, players)
 
