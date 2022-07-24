@@ -18,6 +18,9 @@ html
 				h2 Open
 				+gamelist(open_games)
 
+			p
+				a(href="/create") Create a new game
+
 			if active_games.length > 0
 				h2 Active
 				+gamelist(active_games)

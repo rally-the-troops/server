@@ -359,6 +359,10 @@ app.get('/', function (req, res) {
 	res.render('index.pug', { user: req.user, titles: TITLES })
 })
 
+app.get('/create', must_be_logged_in, function (req, res) {
+	res.render('create-index.pug', { user: req.user, titles: TITLES })
+})
+
 app.get('/about', function (req, res) {
 	res.render('about.pug', { user: req.user })
 })

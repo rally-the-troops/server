@@ -21,6 +21,9 @@ html
 			else
 				p No open games.
 
+			p
+				a(href="/create") Create a new game
+
 			if replacement_games.length > 0
 				h2 Need replacement
 				+gamelist(replacement_games)
