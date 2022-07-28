@@ -541,7 +541,7 @@ function confirm_action_button(action, label, message) {
 
 function send_action(verb, noun) {
 	if (params.mode === "replay" || params.mode === "debug")
-		return
+		return false
 	// Reset action list here so we don't send more than one action per server prompt!
 	if (noun !== undefined) {
 		let realnoun = Array.isArray(noun) ? noun[0] : noun

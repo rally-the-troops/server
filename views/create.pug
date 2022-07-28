@@ -26,7 +26,15 @@ html
 				| !{ create_html }
 				p Description:
 					br
-					input(type="text" autocomplete="off" name="description" size=50)
+					input(type="text" list="speed" autocomplete="off" name="description" size=50)
+					datalist(id="speed")
+						option Async - 1 move per day
+						option Async - x moves per day
+						option Live - America
+						option Live - Europe
+						option Live - Asia
+						option Live - Oceania
+						option Learning game
 				p
 					label
 						input(type="checkbox" name="is_random" value="true")
