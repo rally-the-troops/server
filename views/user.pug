@@ -38,3 +38,9 @@ html
 				+gamelist(finished_games)
 
 			p <a href="/games/finished/#{who.name}">All #{who.name}'s finished games</a>
+
+			if user && user.user_id === 1
+				if who.is_banned
+					p <a href="/admin/unban-user/#{who.name}">UNBAN USER</a>
+				else
+					p <a href="/admin/ban-user/#{who.name}">BAN USER</a>

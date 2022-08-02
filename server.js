@@ -265,7 +265,8 @@ const SQL_SELECT_USER_INFO = SQL(`
 				status = 1
 				and players.user_id = users.user_id
 				and active in ( players.role, 'Both', 'All' )
-		) as active
+		) as active,
+		is_banned
 	from
 		users
 	where user_id = ?
@@ -280,6 +281,7 @@ const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?")
 const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?")
 const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?")
 const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,datetime('now'))")
+const SQL_UPDATE_USER_IS_BANNED = SQL("update users set is_banned=? where name=?")
 
 const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND datetime('now') < datetime(time, '+5 minutes')").pluck()
 const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime('now')) RETURNING token").pluck()
@@ -336,6 +338,8 @@ app.use(function (req, res, next) {
 			login_touch(res, sid)
 			req.user = SQL_SELECT_USER_INFO.get(user_id)
 			SQL_UPDATE_USER_LAST_SEEN.run(user_id)
+			if (req.user.is_banned)
+				return res.status(403).send("")
 		}
 	}
 
@@ -352,6 +356,12 @@ app.use(function (req, res, next) {
 function must_be_logged_in(req, res, next) {
 	if (!req.user)
 		return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl))
+	return next()
+}
+
+function must_be_administrator(req, res, next) {
+	if (!req.user || req.user.user_id !== 1)
+		return res.status(401).send("Not authorized")
 	return next()
 }
 
@@ -511,6 +521,18 @@ app.post('/change-password', must_be_logged_in, function (req, res) {
 	let salt = crypto.randomBytes(32).toString('hex')
 	let hash = hash_password(newpass, salt)
 	return res.redirect('/profile')
+})
+
+app.get('/admin/ban-user/:who', must_be_administrator, function (req, res) {
+	let who = req.params.who
+	SQL_UPDATE_USER_IS_BANNED.run(1, who)
+	return res.redirect('/user/' + who)
+})
+
+app.get('/admin/unban-user/:who', must_be_administrator, function (req, res) {
+	let who = req.params.who
+	SQL_UPDATE_USER_IS_BANNED.run(0, who)
+	return res.redirect('/user/' + who)
 })
 
 /*
@@ -747,6 +769,10 @@ const FORUM_NEW_THREAD = SQL("INSERT INTO threads (author_id,subject) VALUES (?,
 const FORUM_NEW_POST = SQL("INSERT INTO posts (thread_id,author_id,body) VALUES (?,?,?)")
 const FORUM_EDIT_POST = SQL("UPDATE posts SET body=?, mtime=datetime('now') WHERE post_id=? AND author_id=? RETURNING thread_id").pluck()
 
+const FORUM_DELETE_THREAD_POSTS = SQL("delete from posts where thread_id=?")
+const FORUM_DELETE_THREAD = SQL("delete from threads where thread_id=?")
+const FORUM_DELETE_POST = SQL("delete from posts where post_id=?")
+
 function show_forum_page(req, res, page) {
 	let thread_count = FORUM_COUNT_THREADS.get()
 	let page_count = Math.ceil(thread_count / FORUM_PAGE_SIZE)
@@ -798,6 +824,21 @@ app.get('/forum/thread/:thread_id', function (req, res) {
 		thread: thread,
 		posts: posts,
 	})
+})
+
+app.get('/admin/delete-thread/:thread_id', must_be_administrator, function (req, res) {
+	let thread_id = req.params.thread_id
+	res.send(JSON.stringify({
+		posts: FORUM_DELETE_THREAD_POSTS.run(thread_id),
+		thread: FORUM_DELETE_THREAD.run(thread_id),
+	}))
+})
+
+app.get('/admin/delete-post/:post_id', must_be_administrator, function (req, res) {
+	let post_id = req.params.post_id
+	res.send(JSON.stringify(
+		FORUM_DELETE_POST.run(post_id)
+	))
 })
 
 app.get('/forum/post', must_be_logged_in, function (req, res) {

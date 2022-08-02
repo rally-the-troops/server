@@ -91,7 +91,7 @@ create view user_login_view as
 drop view if exists user_profile_view;
 create view user_profile_view as
 	select
-		user_id, name, mail, notify, ctime, atime, about
+		user_id, name, mail, notify, ctime, atime, about, is_banned
 	from
 		users
 		natural left join user_last_seen
