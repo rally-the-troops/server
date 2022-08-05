@@ -13,7 +13,7 @@ let db = new sqlite3("./db");
 let game_id = process.argv[2];
 let title_id = db.prepare("select title_id from games where game_id=?").pluck().get(game_id);
 let rules = require("../public/" + title_id + "/rules.js");
-let log = db.prepare("select rowid,* from game_replay where game_id=?").all(game_id);
+let log = db.prepare("select * from game_replay where game_id=?").all(game_id);
 
 let save = db.prepare("select state from game_state where game_id=?").pluck().get(game_id);
 fs.writeFileSync("backup-" + game_id + ".txt", save);
@@ -40,5 +40,5 @@ db.prepare("update game_state set active=?, state=? where game_id=?").run(game.a
 
 if (i < log.length) {
 	console.log("BROKEN ENTRIES: %d", log.length-i);
-	console.log(`sqlite3 db "delete from game_replay where game_id=${game_id} and rowid>=${log[i].rowid}"`);
+	console.log(`sqlite3 db "delete from game_replay where game_id=${game_id} and replay_id>=${log[i].replay_id}"`);
 }
