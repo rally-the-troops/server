@@ -35,13 +35,6 @@ header nav a:hover { color: blue; }
 article { margin: 2em; }
 article p, article dl, article ul { max-width: 50rem; }
 
-img.avatar {
-	float: left; margin: 0 20px 5px 0;
-	box-shadow: 1px 2px 4px rgba(0,0,0,0.3);
-	width: 80px;
-	height: 80px;
-}
-
 div.logo {
 	float: left;
 	margin: 0 20px 5px 0;

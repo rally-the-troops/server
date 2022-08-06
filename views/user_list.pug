@@ -4,9 +4,6 @@ html
 	head
 		include head
 		title User List
-		style.
-			td.avatar { padding: 0; width: 80px; }
-			td.avatar img { display: block; width: 80px; height: 80px; }
 	body
 		include header
 		article
@@ -15,14 +12,12 @@ html
 			table
 				thead
 					tr
-						th Avatar
 						th Name
 						th Member since
 						th Last seen
 				tbody
 					each row in user_list
 						tr
-							td.avatar: img(src=row.avatar)
 							td.name: a(href="/user/"+row.name)= row.name
 							td= row.ctime
 							td= row.atime

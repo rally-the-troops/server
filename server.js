@@ -216,13 +216,6 @@ function hash_password(password, salt) {
 	return hash.digest('hex')
 }
 
-function get_avatar(mail) {
-	if (!mail)
-		mail = "foo@example.com"
-	let digest = crypto.createHash('md5').update(mail.trim().toLowerCase()).digest('hex')
-	return '//www.gravatar.com/avatar/' + digest + '?d=mp'
-}
-
 /*
  * USER AUTHENTICATION
  */
@@ -377,7 +370,7 @@ app.get('/about', function (req, res) {
 	res.render('about.pug', { user: req.user })
 })
 
-app.get('/logout', function (req, res) {
+app.post('/logout', function (req, res) {
 	let sid = login_cookie(req)
 	if (sid)
 		login_delete(res, sid)
@@ -590,7 +583,6 @@ app.post('/change-about', must_be_logged_in, function (req, res) {
 app.get('/user/:who_name', function (req, res) {
 	let who = SQL_SELECT_USER_PROFILE.get(req.params.who_name)
 	if (who) {
-		who.avatar = get_avatar(who.mail)
 		who.ctime = human_date(who.ctime)
 		who.atime = human_date(who.atime)
 		let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: who.user_id })
@@ -604,7 +596,6 @@ app.get('/user/:who_name', function (req, res) {
 app.get('/users', function (req, res) {
 	let rows = SQL("SELECT * FROM user_profile_view ORDER BY atime DESC").all()
 	rows.forEach(row => {
-		row.avatar = get_avatar(row.mail)
 		row.ctime = human_date(row.ctime)
 		row.atime = human_date(row.atime)
 	})
@@ -1123,11 +1114,7 @@ function annotate_games(games, user_id) {
 
 app.get('/profile', must_be_logged_in, function (req, res) {
 	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id)
-	let avatar = get_avatar(req.user.mail)
-	res.render('profile.pug', {
-		user: req.user,
-		avatar: avatar,
-	})
+	res.render('profile.pug', { user: req.user })
 })
 
 app.get('/games', function (req, res) {
