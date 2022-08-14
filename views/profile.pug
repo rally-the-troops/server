@@ -19,8 +19,14 @@ html
 			else
 				p <a href="/subscribe">Enable mail notifications</a>
 
+			if user.notify_discord
+				p <a href="/unsubscribediscord">Disable Discord notifications</a>
+			else
+				p <a href="/subscribediscord">Enable Discord notifications</a>
+
 			p <a href="/change-password">Change password</a>
 			p <a href="/change-mail">Change mail address</a>
+			p <a href="/change-discord-settings">Change Discord Notification Settings</a>
 			p <a href="/change-name">Change user name</a>
 			p <a href="/change-about">Change profile text</a>
 
