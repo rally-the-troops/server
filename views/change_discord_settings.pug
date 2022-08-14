@@ -1,0 +1,31 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Change mail address
+	body
+		include header
+		article
+			h1 Change Discord notification settings
+			p To use this feature, you need access to a discord server with webhooks set up. If you don't have that access, you can always create your own Discord server for free. <a href="https://support.discord.com/hc/en-us/articles/204849977-How-do-I-create-a-server-">Instructions here.</a>
+			p You can either ask your server admin for an existing webhook url and channel, or create your own webhook.
+			p To create a webhook, navigate to Server Settings -> Integrations -> Webhooks -> New Webhook. Select a channel and copy the webhook url to paste below.
+			p Navigate to the channel configured in the webhook, right click your name in the right column and select Copy ID, paste that id below. It will be all numbers.
+			if flash
+				p.error= flash
+			form(method="post" action="/change-discord-settings")
+				p Name: #{user.name}
+				p Webhook url: #{user.discord_url}
+				p Webhook Username: #{user.discord_user}
+				p
+					label New Discord Webhook url:
+						br
+						input(type="text" name="newurl" required)
+				p
+				p
+					label New Discord Webhook Username:
+						br
+						input(type="text" name="newusername" required)
+				p
+					button(type="submit") Change Discord Settings
