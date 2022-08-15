@@ -33,7 +33,11 @@ create table if not exists users (
 	mail text
 		unique
 		collate nocase,
+	discord_url text,
+	discord_user text,
 	notify boolean
+		default 0,
+	notify_discord boolean
 		default 0,
 	is_banned boolean
 		default 0,

@@ -61,6 +61,39 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT && process.env.MAIL_FROM) {
 	}
 }
 
+function discord_notification(user, message) {
+
+	const postData = JSON.stringify({"content": `<@${user.discord_user}> ${message}`, 
+	"username":"Rally The Troops"});
+	const path = user.discord_url.replace("https://discord.com",'')
+
+	const options = {
+		hostname: 'discord.com',
+		port: 443,
+		path,
+		method: 'POST',
+		headers: {
+		   'Content-Type': 'application/json',
+		   'Content-Length': postData.length
+		 }
+	};
+	
+	const req = https.request(options, (res) => {
+	
+	
+	  res.on('data', (d) => {
+		process.stdout.write(d);
+	  });
+	});
+	
+	req.on('error', (e) => {
+	  console.error(`Error sending discord notification: `, e);
+	});
+	
+	req.write(postData);
+	req.end();
+}
+
 /*
  * Login session management.
  */
@@ -192,6 +225,14 @@ function is_email(email) {
 	return email.match(/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/)
 }
 
+function is_webhook_url(url) {
+	return url.startsWith("https://discord.com/api/webhooks/");
+}
+
+function is_discord_user(user) {
+	return /^\d+$/.test(user)
+}
+
 function clean_user_name(name) {
 	name = name.replace(/^ */,'').replace(/ *$/,'').replace(/  */g,' ')
 	if (name.length > 50)
@@ -232,7 +273,7 @@ const SQL_BLACKLIST_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM blacklist_mail WHE
 const SQL_EXISTS_USER_NAME = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE name=? )").pluck()
 const SQL_EXISTS_USER_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE mail=? )").pluck()
 
-const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt) VALUES (?,?,?,?) RETURNING user_id,name,mail,notify")
+const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt) VALUES (?,?,?,?) RETURNING user_id,name,mail,notify,notify_discord")
 
 const SQL_SELECT_USER_BY_NAME = SQL("SELECT * FROM user_view WHERE name=?")
 const SQL_SELECT_LOGIN_BY_MAIL = SQL("SELECT * FROM user_login_view WHERE mail=?")
@@ -244,6 +285,8 @@ const SQL_SELECT_USER_INFO = SQL(`
 		user_id,
 		name,
 		mail,
+		discord_url,
+		discord_user,
 		(
 			select
 				count(*)
@@ -273,10 +316,12 @@ const SQL_SELECT_USER_INFO = SQL(`
 
 const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND datetime('now') > datetime(atime,?)")
 
-const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify FROM users WHERE user_id=?").pluck()
+const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify, notify_discord FROM users WHERE user_id=?")
 const SQL_UPDATE_USER_NOTIFY = SQL("UPDATE users SET notify=? WHERE user_id=?")
+const SQL_UPDATE_USER_NOTIFY_DISCORD = SQL("UPDATE users SET notify_discord=? WHERE user_id=?")
 const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?")
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?")
+const SQL_UPDATE_USER_DISCORD = SQL("UPDATE users SET discord_url=?, discord_user=? WHERE user_id=?")
 const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?")
 const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?")
 const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,datetime('now'))")
@@ -527,6 +572,16 @@ app.get('/unsubscribe', must_be_logged_in, function (req, res) {
 	res.redirect('/profile')
 })
 
+app.get('/subscribediscord', must_be_logged_in, function (req, res) {
+	SQL_UPDATE_USER_NOTIFY_DISCORD.run(1, req.user.user_id)
+	res.redirect('/profile')
+})
+
+app.get('/unsubscribediscord', must_be_logged_in, function (req, res) {
+	SQL_UPDATE_USER_NOTIFY_DISCORD.run(0, req.user.user_id)
+	res.redirect('/profile')
+})
+
 app.get('/change-name', must_be_logged_in, function (req, res) {
 	res.render('change_name.pug', { user: req.user })
 })
@@ -548,10 +603,23 @@ app.get('/change-mail', must_be_logged_in, function (req, res) {
 app.post('/change-mail', must_be_logged_in, function (req, res) {
 	let newmail = req.body.newmail
 	if (!is_email(newmail))
-		res.render('change_mail.pug', { user: req.user, flash: "Invalid mail address!" })
+		return res.render('change_mail.pug', { user: req.user, flash: "Invalid mail address!" })
 	if (SQL_EXISTS_USER_MAIL.get(newmail))
-		res.render('change_mail.pug', { user: req.user, flash: "That mail address is already taken!" })
+		return res.render('change_mail.pug', { user: req.user, flash: "That mail address is already taken!" })
 	SQL_UPDATE_USER_MAIL.run(newmail, req.user.user_id)
+	return res.redirect('/profile')
+})
+
+app.get('/change-discord-settings', must_be_logged_in, function (req, res) {
+	res.render('change_discord_settings.pug', { user: req.user })
+})
+
+app.post('/change-discord-settings', must_be_logged_in, function (req, res) {
+	let {newurl, newusername} = req.body
+
+	if (!is_discord_user(newusername) || !is_webhook_url(newurl))
+		return res.render('change_discord_settings.pug', { user: req.user, flash: "Invalid url or username! Please input the whole url and the channel username code (numerical)" })
+	SQL_UPDATE_USER_DISCORD.run(newurl, newusername, req.user.user_id)
 	return res.redirect('/profile')
 })
 
@@ -694,7 +762,7 @@ app.post('/message/send', must_be_logged_in, function (req, res) {
 		})
 	}
 	let info = MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body)
-	if (to_user.notify)
+	if (to_user.notify || to_user.notify_discord)
 		mail_new_message(to_user, info.lastInsertRowid, req.user.name)
 	res.redirect('/inbox')
 })
@@ -1080,8 +1148,9 @@ function annotate_games(games, user_id) {
 		annotate_game(games[i], user_id)
 }
 
-app.get('/profile', must_be_logged_in, function (req, res) {
-	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id)
+app.get('/profile', must_be_logged_in, async function  (req, res) {
+	const notif_settings = await SQL_SELECT_USER_NOTIFY.get(req.user.user_id)
+	req.user = {...req.user, ...notif_settings}
 	let avatar = get_avatar(req.user.mail)
 	res.render('profile.pug', {
 		user: req.user,
@@ -1565,19 +1634,24 @@ function mail_password_reset_token(user, token) {
 }
 
 function mail_new_message(user, msg_id, msg_from) {
-	if (mailer) {
+	if (mailer || user.notify_discord) {
 		let subject = "You have a new message from " + msg_from + "."
 		let body =
 			"Read the message here:\n" +
 			SITE_URL + "/message/read/" + msg_id + "\n" +
 			MAIL_FOOTER
 		console.log("SENT MAIL:", mail_addr(user), subject)
-		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+		if(mailer) {
+			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+		}
+		if(user.notify_discord) {
+			discord_notification(user, `You have a new message from ${msg_from} - ${SITE_URL + "/message/read/" + msg_id}`)
+		}
 	}
 }
 
 function mail_game_started_notification(user, game_id) {
-	if (mailer) {
+	if (mailer || user.discord_notify) {
 		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id)
 		let subject = `${game.title_name} #${game_id} (${user.role}) - Started!`
 		let body = mail_game_info(game) +
@@ -1585,12 +1659,17 @@ function mail_game_started_notification(user, game_id) {
 			mail_game_link(game_id, user) +
 			MAIL_FOOTER
 		console.log("SENT MAIL:", mail_addr(user), subject)
-		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+		if(mailer) {
+			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+		}
+		if(user.discord_notify) {
+			discord_notification(user, `${game.title_name} #${game_id} (${user.role}) - Started! - ${mail_game_link(game_id, user)}`)
+		}
 	}
 }
 
 function mail_game_over_notification(user, game_id, result, victory) {
-	if (mailer) {
+	if (mailer || user.discord_notify) {
 		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id)
 		let subject = `${game.title_name} #${game_id} (${user.role}) - Finished!`
 		let body = mail_game_info(game) +
@@ -1598,12 +1677,17 @@ function mail_game_over_notification(user, game_id, result, victory) {
 			mail_game_link(game_id, user) +
 			MAIL_FOOTER
 		console.log("SENT MAIL:", mail_addr(user), subject)
-		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+		if(mailer) {
+			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+		}
+		if(user.discord_notify) {
+			discord_notification(user, `${game.title_name} #${game_id} (${user.role}) - Finished! - ${victory} - ${mail_game_link(game_id, user)}`)
+		}
 	}
 }
 
 function mail_your_turn_notification(user, game_id, interval) {
-	if (mailer) {
+	if (mailer || user.discord_notify) {
 		let too_soon = SQL_SELECT_NOTIFIED.get(interval, game_id, user.user_id)
 		if (!too_soon) {
 			SQL_INSERT_NOTIFIED.run(game_id, user.user_id)
@@ -1614,7 +1698,12 @@ function mail_your_turn_notification(user, game_id, interval) {
 				mail_game_link(game_id, user) +
 				MAIL_FOOTER
 			console.log("SENT MAIL:", mail_addr(user), subject)
-			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+			if(mailer) {
+				mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+			}
+			if(user.discord_notify) {
+				discord_notification(user, `${game.title_name} #${game_id} (${user.role}) - Your turn! - ${mail_game_link(game_id, user)}`)
+			}
 		}
 	}
 }
@@ -1624,7 +1713,7 @@ function reset_your_turn_notification(user, game_id) {
 }
 
 function mail_ready_to_start_notification(user, game_id, interval) {
-	if (mailer) {
+	if (mailer || user.discord_notify) {
 		let too_soon = SQL_SELECT_NOTIFIED.get(interval, game_id, user.user_id)
 		if (!too_soon) {
 			SQL_INSERT_NOTIFIED.run(game_id, user.user_id)
@@ -1635,7 +1724,12 @@ function mail_ready_to_start_notification(user, game_id, interval) {
 				SITE_URL + "/join/" + game_id + "\n" +
 				MAIL_FOOTER
 			console.log("SENT MAIL:", mail_addr(user), subject)
-			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+			if(mailer) {
+				mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+			} 
+			if(user.discord_notify) {
+				discord_notification(user, `${subject} - ${SITE_URL + "/join/" + game_id}`)
+			}
 		}
 	}
 }
@@ -1647,7 +1741,7 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		if (p.notify) {
+		if (p.notify || p.notify_discord) {
 			let p_was_active = (old_active === p.role || old_active === 'Both' || old_active === 'All')
 			let p_is_active = (active === p.role || active === 'Both' || active === 'All')
 			if (!p_was_active && p_is_active) {
@@ -1666,14 +1760,14 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 function mail_game_started_notification_to_offline_users(game_id, owner_id) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players)
-		if (p.notify && !is_online(game_id, p.user_id))
+		if ((p.notify || p.notify_discord) && !is_online(game_id, p.user_id))
 			mail_game_started_notification(p, game_id)
 }
 
 function mail_game_over_notification_to_offline_users(game_id, result, victory) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players)
-		if (p.notify && !is_online(game_id, p.user_id))
+		if ((p.notify || p.notify_discord) && !is_online(game_id, p.user_id))
 			mail_game_over_notification(p, game_id, result, victory)
 }
 
@@ -1689,7 +1783,7 @@ function notify_ready_to_start_reminder() {
 		if (is_game_ready(game.title_id, game.scenario, game.options, players)) {
 			let owner = SQL_OFFLINE_USER.get(game.owner_id, '+3 minutes')
 			if (owner) {
-				if (owner.notify)
+				if (owner.notify || owner.notify_discord)
 					mail_ready_to_start_notification(owner, game.game_id, '+25 hours')
 			}
 		}
