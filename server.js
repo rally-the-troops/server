@@ -27,6 +27,39 @@ if (!SITE_URL) {
 		SITE_URL = "http://" + SITE_HOST + ":" + HTTP_PORT
 }
 
+var stat_start = Date.now() / 60000
+var stat_http_reqs = 0
+var stat_pug_reqs = 0
+var stat_ws_reqs = 0
+var stat_total1 = 0
+var stat_total2 = 0
+
+function LOG_STATS() {
+
+	// Count clients connected to join page events
+	let num_joins = 0
+	for (let id in join_clients)
+		num_joins += join_clients[id].length
+
+	// Count clients connected to game websockets
+	let num_games = 0
+	let num_sockets = 0
+	for (let id in game_clients) {
+		num_games ++
+		num_sockets += game_clients[id].length
+	}
+
+	let elapsed = Date.now() / 60000 - stat_start
+	stat_total1 += stat_http_reqs - stat_pug_reqs
+	stat_total2 += stat_pug_reqs + stat_ws_reqs
+
+	console.log(`>>> STATS: games=${num_games} sockets=${num_sockets} joins=${num_joins} http=${stat_http_reqs} pug=${stat_pug_reqs} ws=${stat_ws_reqs} http-req/min=${Math.round(stat_total1 / elapsed)} server-req/min=${Math.round(stat_total2 / elapsed)}`)
+
+	stat_http_reqs = stat_pug_reqs = stat_ws_reqs = 0
+}
+
+setInterval(LOG_STATS, 30 * 1000)
+
 /*
  * Main database.
  */
@@ -123,6 +156,11 @@ app.locals.SITE_URL = SITE_URL
 app.set('x-powered-by', false)
 app.set('etag', false)
 app.set('view engine', 'pug')
+
+app.use(function (req, res, next) {
+	stat_http_reqs++
+	return next()
+})
 
 app.use(compression())
 app.use(express.static('public', { redirect: false, etag: false, cacheControl: false, setHeaders: set_static_headers }))
@@ -342,6 +380,8 @@ app.use(function (req, res, next) {
 	let ua = req.user_agent.padEnd(10)
 	ip = String(ip).padEnd(15)
 	console.log(time, ip, ua, name, req.method, req.url)
+
+	stat_pug_reqs++
 
 	return next()
 })
@@ -1277,7 +1317,7 @@ app.get('/rematch/:old_game_id/:role', must_be_logged_in, function (req, res) {
 	return res.status(404).send("Can't create or find rematch game!")
 })
 
-let join_clients = {}
+var join_clients = {}
 
 function update_join_clients_deleted(game_id) {
 	let list = join_clients[game_id]
@@ -1734,11 +1774,11 @@ setInterval(notify_ready_to_start_reminder, 5 * 60 * 1000)
  * GAME SERVER
  */
 
-let clients = {}
+var game_clients = {}
 
 function is_online(game_id, user_id) {
-	if (clients[game_id])
-		for (let other of clients[game_id])
+	if (game_clients[game_id])
+		for (let other of game_clients[game_id])
 			if (other.user && other.user.user_id === user_id)
 				return true
 	if (join_clients[game_id])
@@ -1787,7 +1827,7 @@ function put_game_state(game_id, state, old_active) {
 		mail_game_over_notification_to_offline_users(game_id, state.result, state.victory)
 	}
 	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)
-	for (let other of clients[game_id])
+	for (let other of game_clients[game_id])
 		send_state(other, state)
 	update_join_clients_game(game_id)
 	mail_your_turn_notification_to_offline_users(game_id, old_active, state.active)
@@ -1872,7 +1912,7 @@ function on_chat(socket, message) {
 		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.user.user_id, message)
 		chat[2] = socket.user.name
 		SLOG(socket, "CHAT")
-		for (let other of clients[socket.game_id])
+		for (let other of game_clients[socket.game_id])
 			if (other.role !== "Observer")
 				send_message(other, 'chat', chat)
 	} catch (err) {
@@ -1922,7 +1962,7 @@ function on_restore(socket, state_text) {
 		SQL_UPDATE_GAME_RESULT.run(1, null, socket.game_id)
 		SQL_UPDATE_GAME_STATE.run(socket.game_id, state_text, state.active)
 		put_replay(socket.game_id, null, 'restore', state_text)
-		for (let other of clients[socket.game_id])
+		for (let other of game_clients[socket.game_id])
 			send_state(other, state)
 	} catch (err) {
 		console.log(err)
@@ -1932,9 +1972,9 @@ function on_restore(socket, state_text) {
 
 function broadcast_presence(game_id) {
 	let presence = {}
-	for (let socket of clients[game_id])
+	for (let socket of game_clients[game_id])
 		presence[socket.role] = true
-	for (let socket of clients[game_id])
+	for (let socket of game_clients[game_id])
 		send_message(socket, 'presence', presence)
 }
 
@@ -1946,7 +1986,7 @@ function on_restart(socket, scenario) {
 		let options = JSON.parse(SQL_SELECT_GAME.get(socket.game_id).options)
 		let state = socket.rules.setup(seed, scenario, options)
 		put_replay(socket.game_id, null, 'setup', [seed, scenario, options])
-		for (let other of clients[socket.game_id]) {
+		for (let other of game_clients[socket.game_id]) {
 			other.seen = 0
 			send_state(other, state)
 		}
@@ -2022,6 +2062,8 @@ wss.on('connection', (socket, req, client) => {
 	SLOG(socket, "OPEN " + socket.seen)
 
 	try {
+		stat_ws_reqs++
+
 		let title_id = SQL_SELECT_GAME_TITLE.get(socket.game_id)
 		if (title_id !== socket.title_id)
 			return socket.close(1000, "Invalid game ID.")
@@ -2044,18 +2086,22 @@ wss.on('connection', (socket, req, client) => {
 		if (socket.seen === 0)
 			send_message(socket, 'players', [socket.role, players])
 
-		if (clients[socket.game_id])
-			clients[socket.game_id].push(socket)
+		if (game_clients[socket.game_id])
+			game_clients[socket.game_id].push(socket)
 		else
-			clients[socket.game_id] = [ socket ]
+			game_clients[socket.game_id] = [ socket ]
 
 		socket.on('close', (code, reason) => {
 			SLOG(socket, "CLOSE " + code)
-			clients[socket.game_id].splice(clients[socket.game_id].indexOf(socket), 1)
-			broadcast_presence(socket.game_id)
+			game_clients[socket.game_id].splice(game_clients[socket.game_id].indexOf(socket), 1)
+			if (game_clients[socket.game_id].length > 0)
+				broadcast_presence(socket.game_id)
+			else
+				delete game_clients[socket.game_id]
 		})
 
 		socket.on('message', (data) => {
+			stat_ws_reqs++
 			try {
 				let [ cmd, arg ] = JSON.parse(data)
 				if (socket.role !== "Observer")
