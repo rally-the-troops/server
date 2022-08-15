@@ -619,7 +619,6 @@ app.post('/change-discord-settings', must_be_logged_in, function (req, res) {
 
 	if (!is_discord_user(newusername) || !is_webhook_url(newurl))
 		return res.render('change_discord_settings.pug', { user: req.user, flash: "Invalid url or username! Please input the whole url and the channel username code (numerical)" })
-		discord_notification(req.user, 'user updated');
 	SQL_UPDATE_USER_DISCORD.run(newurl, newusername, req.user.user_id)
 	return res.redirect('/profile')
 })
