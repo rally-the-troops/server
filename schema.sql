@@ -221,7 +221,7 @@ create table if not exists games (
 	title_id text
 		references titles,
 	scenario text,
-	options json,
+	options text,
 	owner_id integer
 		references users,
 	ctime timestamp
@@ -246,7 +246,7 @@ create table if not exists game_state (
 			on delete cascade,
 	mtime timestamp,
 	active text,
-	state json
+	state text
 );
 
 create table if not exists game_chat (
@@ -281,7 +281,7 @@ create table if not exists game_replay (
 			on delete cascade,
 	role text,
 	action text,
-	arguments json
+	arguments text
 );
 
 create index if not exists game_replay_idx on game_replay(game_id);
