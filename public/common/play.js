@@ -620,6 +620,31 @@ function send_restart(scenario) {
 
 /* REPLAY */
 
+function deep_copy(original) {
+	if (Array.isArray(original)) {
+		let n = original.length
+		let copy = new Array(n)
+		for (let i = 0; i < n; ++i) {
+			let v = original[i]
+			if (typeof v === "object" && v !== null)
+				copy[i] = deep_copy(v)
+			else
+				copy[i] = v
+		}
+		return copy
+	} else {
+		let copy = {}
+		for (let i in original) {
+			let v = original[i]
+			if (typeof v === "object" && v !== null)
+				copy[i] = deep_copy(v)
+			else
+				copy[i] = v
+		}
+		return copy
+	}
+}
+
 function adler32(data) {
 	let a = 1, b = 0
 	for (let i = 0, n = data.length; i < n; ++i) {
@@ -698,7 +723,7 @@ async function init_replay(debug) {
 
 		if (rules.is_checkpoint) {
 			replay[p].is_checkpoint = (p > 0 && rules.is_checkpoint(ss, s))
-			ss = Object.assign({}, s)
+			ss = deep_copy(s)
 		}
 
 		try {
