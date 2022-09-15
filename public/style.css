@@ -48,7 +48,7 @@ div.logo img {
 input[type="checkbox"] {
 	margin-right: 7px;
 }
-input[type="text"], input[type="password"], textarea {
+input[type="text"], input[type="password"], input[type="email"], textarea {
 	padding: 5px;
 	margin: 5px 0;
 	border: 1px solid black;

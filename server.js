@@ -263,7 +263,7 @@ const SQL_BLACKLIST_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM blacklist_mail WHE
 const SQL_EXISTS_USER_NAME = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE name=? )").pluck()
 const SQL_EXISTS_USER_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE mail=? )").pluck()
 
-const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt) VALUES (?,?,?,?) RETURNING user_id,name,mail,notify")
+const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt,notify) VALUES (?,?,?,?,?) RETURNING user_id,name,mail,notify")
 
 const SQL_SELECT_USER_BY_NAME = SQL("SELECT * FROM user_view WHERE name=?")
 const SQL_SELECT_LOGIN_BY_MAIL = SQL("SELECT * FROM user_login_view WHERE mail=?")
@@ -451,6 +451,7 @@ app.post('/signup', function (req, res) {
 	let name = req.body.username
 	let mail = req.body.mail
 	let password = req.body.password
+	let notify = req.body.notify === 'true'
 	name = clean_user_name(name)
 	if (!is_valid_user_name(name))
 		return err("Invalid user name!")
@@ -466,7 +467,7 @@ app.post('/signup', function (req, res) {
 		return err("Password is too long!")
 	let salt = crypto.randomBytes(32).toString('hex')
 	let hash = hash_password(password, salt)
-	let user = SQL_INSERT_USER.get(name, mail, hash, salt)
+	let user = SQL_INSERT_USER.get(name, mail, hash, salt, notify ? 1 : 0)
 	login_insert(res, user.user_id)
 	res.redirect('/profile')
 })
