@@ -620,14 +620,14 @@ function send_restart(scenario) {
 
 /* REPLAY */
 
-function deep_copy(original) {
+function object_copy(original) {
 	if (Array.isArray(original)) {
 		let n = original.length
 		let copy = new Array(n)
 		for (let i = 0; i < n; ++i) {
 			let v = original[i]
 			if (typeof v === "object" && v !== null)
-				copy[i] = deep_copy(v)
+				copy[i] = object_copy(v)
 			else
 				copy[i] = v
 		}
@@ -637,7 +637,7 @@ function deep_copy(original) {
 		for (let i in original) {
 			let v = original[i]
 			if (typeof v === "object" && v !== null)
-				copy[i] = deep_copy(v)
+				copy[i] = object_copy(v)
 			else
 				copy[i] = v
 		}
@@ -722,8 +722,8 @@ async function init_replay(debug) {
 		replay[p].arguments = JSON.parse(replay[p].arguments)
 
 		if (rules.is_checkpoint) {
-			replay[p].is_checkpoint = (p > 0 && rules.is_checkpoint(ss, s))
-			ss = deep_copy(s)
+			replay[p].is_checkpoint = p > 1 && rules.is_checkpoint(ss, s)
+			ss = object_copy(s)
 		}
 
 		try {
