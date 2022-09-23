@@ -1847,6 +1847,10 @@ function on_action(socket, action, arg) {
 		SLOG(socket, "ACTION", action)
 	try {
 		let state = get_game_state(socket.game_id)
+
+		if (state.active !== socket.role && state.active !== "Both" && state.active !== "All")
+			return send_message(socket, 'error', "It's not your turn!")
+
 		let old_active = state.active
 		state = socket.rules.action(state, socket.role, action, arg)
 		put_game_state(socket.game_id, state, old_active)
