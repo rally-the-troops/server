@@ -177,8 +177,9 @@ function init_chat() {
 			}
 		}
 		if (e.key === "Enter") {
-			let input = document.getElementById("chat_input")
-			if (document.activeElement !== input) {
+			let chat_input = document.getElementById("chat_input")
+			let notepad_input = document.getElementById("notepad_input")
+			if (document.activeElement !== chat_input && document.activeElement !== notepad_input) {
 				e.preventDefault()
 				show_chat()
 			}
@@ -255,6 +256,83 @@ function toggle_chat() {
 		hide_chat()
 	else
 		show_chat()
+}
+
+/* NOTEPAD */
+
+let notepad = null
+
+function init_notepad() {
+	if (notepad !== null)
+		return
+
+	add_main_menu_item("Notepad", toggle_notepad)
+
+	let notepad_window = document.createElement("div")
+	notepad_window.id = "notepad_window"
+	notepad_window.innerHTML = `
+		<div id="notepad_x" onclick="toggle_notepad()">\u274c</div>
+		<div id="notepad_header">Notepad: ${player}</div>
+		<textarea id="notepad_input" cols="55" rows="20" maxlength="16000" oninput="dirty_notepad()"></textarea>
+		<div id="notepad_footer"><button id="notepad_save" onclick="save_notepad()" disabled>Save</button></div>
+		`
+	document.querySelector("body").appendChild(notepad_window)
+
+	notepad = {
+		is_visible: false,
+		is_dirty: false,
+	}
+
+	drag_element_with_mouse("#notepad_window", "#notepad_header")
+}
+
+function dirty_notepad() {
+	if (!notepad.is_dirty) {
+		notepad.is_dirty = true
+		document.getElementById("notepad_save").disabled = false
+	}
+}
+
+function save_notepad() {
+	if (notepad.is_dirty) {
+		let text = document.getElementById("notepad_input").value
+		send_message("putnote", text)
+		notepad.is_dirty = false
+		document.getElementById("notepad_save").disabled = true
+	}
+}
+
+function load_notepad() {
+	send_message("getnote")
+}
+
+function update_notepad(text) {
+	document.getElementById("notepad_input").value = text
+}
+
+function show_notepad() {
+	if (!notepad.is_visible) {
+		load_notepad()
+		document.getElementById("notepad_window").classList.add("show")
+		document.getElementById("notepad_input").focus()
+		notepad.is_visible = true
+	}
+}
+
+function hide_notepad() {
+	if (notepad.is_visible) {
+		save_notepad()
+		document.getElementById("notepad_window").classList.remove("show")
+		document.getElementById("notepad_input").blur()
+		notepad.is_visible = false
+	}
+}
+
+function toggle_notepad() {
+	if (notepad.is_visible)
+		hide_notepad()
+	else
+		show_notepad()
 }
 
 /* REMATCH BUTTON */
@@ -361,13 +439,19 @@ function connect_play() {
 			update_chat(arg[0], arg[1], arg[2], arg[3])
 			break
 
+		case 'note':
+			update_notepad(arg)
+			break
+
 		case 'players':
 			player = arg[0]
 			document.querySelector("body").classList.add(player.replace(/ /g, "_"))
-			if (player !== "Observer")
+			if (player !== "Observer") {
 				init_chat()
-			else
+				init_notepad()
+			} else {
 				remove_resign_menu()
+			}
 			init_player_names(arg[1])
 			break
 
@@ -908,16 +992,23 @@ window.addEventListener("load", function () {
 		connect_play()
 })
 
-function init_home_menu(link, text) {
+function init_main_menu() {
 	let popup = document.querySelector(".menu_popup")
 	let sep = document.createElement("div")
 	sep.className = "menu_separator"
+	sep.id = "main_menu_separator"
 	popup.insertBefore(sep, popup.firstChild)
-	let item = document.createElement("div")
-	item.className = "menu_item"
-	item.onclick = () => window.open(link, "_self")
-	item.textContent = text
-	popup.insertBefore(item, popup.firstChild)
 }
 
-init_home_menu("/games/active", "Go Home")
+function add_main_menu_item(text, onclick) {
+	let popup = document.querySelector(".menu_popup")
+	let sep = document.getElementById("main_menu_separator")
+	let item = document.createElement("div")
+	item.className = "menu_item"
+	item.onclick = onclick
+	item.textContent = text
+	popup.insertBefore(item, sep)
+}
+
+init_main_menu()
+add_main_menu_item("Go Home", () => window.open("/games/active", "_self"))

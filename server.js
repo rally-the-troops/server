@@ -988,6 +988,10 @@ const SQL_SELECT_USER_CHAT_N = SQL("SELECT game_id,time,name,message FROM game_c
 const SQL_SELECT_GAME_CHAT = SQL("SELECT chat_id,time,name,message FROM game_chat_view WHERE game_id=? AND chat_id>?").raw()
 const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,user_id,message) VALUES (?,?,?) RETURNING chat_id,time,'',message").raw()
 
+const SQL_SELECT_GAME_NOTE = SQL("SELECT note FROM game_notes WHERE game_id=? AND role=?").pluck()
+const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,role,note) VALUES (?,?,?)")
+const SQL_DELETE_GAME_NOTE = SQL("DELETE FROM game_notes WHERE game_id=? AND role=?")
+
 const SQL_SELECT_GAME_STATE = SQL("SELECT state FROM game_state WHERE game_id=?").pluck()
 const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,state,active,mtime) VALUES (?,?,?,datetime('now'))")
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?")
@@ -1898,6 +1902,35 @@ function on_resign(socket) {
 	}
 }
 
+function on_getnote(socket) {
+	try {
+		let note = SQL_SELECT_GAME_NOTE.get(socket.game_id, socket.role)
+		if (note) {
+			SLOG(socket, "GETNOTE", note.length)
+			send_message(socket, 'note', note)
+		} else {
+			SLOG(socket, "GETNOTE null")
+			send_message(socket, 'note', "")
+		}
+	} catch (err) {
+		console.log(err)
+		return send_message(socket, 'error', err.toString())
+	}
+}
+
+function on_putnote(socket, note) {
+	try {
+		SLOG(socket, "PUTNOTE", note.length)
+		if (note.length > 0)
+			SQL_UPDATE_GAME_NOTE.run(socket.game_id, socket.role, note)
+		else
+			SQL_DELETE_GAME_NOTE.run(socket.game_id, socket.role)
+	} catch (err) {
+		console.log(err)
+		return send_message(socket, 'error', err.toString())
+	}
+}
+
 function on_getchat(socket, seen) {
 	try {
 		let chat = SQL_SELECT_GAME_CHAT.all(socket.game_id, seen)
@@ -2014,6 +2047,12 @@ function handle_player_message(socket, cmd, arg) {
 		break
 	case "resign":
 		on_resign(socket)
+		break
+	case "getnote":
+		on_getnote(socket)
+		break
+	case "putnote":
+		on_putnote(socket, arg)
 		break
 	case "getchat":
 		on_getchat(socket, arg)

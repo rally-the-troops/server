@@ -286,6 +286,15 @@ create table if not exists game_replay (
 
 create index if not exists game_replay_idx on game_replay(game_id);
 
+create table if not exists game_notes (
+	game_id integer
+		references games
+			on delete cascade,
+	role text,
+	note text,
+	primary key (game_id, role)
+) without rowid;
+
 create table if not exists players (
 	game_id integer
 		references games
