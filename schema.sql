@@ -5,40 +5,27 @@ create table if not exists blacklist_mail ( mail text primary key ) without rowi
 -- Titles --
 
 create table if not exists titles (
-	title_id text
-		primary key,
+	title_id text primary key,
 	title_name text,
 	bgg integer,
-	is_hidden boolean
-		default 0
+	is_hidden boolean default 0
 ) without rowid;
 
 -- Users --
 
 create table if not exists logins (
-	sid integer
-		primary key,
-	user_id integer
-		references users
-			on delete cascade,
+	sid integer primary key,
+	user_id integer,
 	expires real
 );
 
 create table if not exists users (
-	user_id integer
-		primary key,
-	name text
-		unique
-		collate nocase,
-	mail text
-		unique
-		collate nocase,
-	notify boolean
-		default 0,
-	is_banned boolean
-		default 0,
-	ctime timestamp
-		default current_timestamp,
+	user_id integer primary key,
+	name text unique collate nocase,
+	mail text unique collate nocase,
+	notify boolean default 0,
+	is_banned boolean default 0,
+	ctime timestamp default current_timestamp,
 	password text,
 	salt text,
 	about text
@@ -50,29 +37,19 @@ insert or ignore into
 ;
 
 create table if not exists user_last_seen (
-	user_id integer
-		primary key
-		references users
-			on delete cascade,
+	user_id integer primary key,
 	atime timestamp
 );
 
 create table if not exists tokens (
-	user_id integer
-		primary key
-		references users
-			on delete cascade,
+	user_id integer primary key,
 	token text,
 	time timestamp
 );
 
 create table if not exists last_notified (
-	game_id integer
-		references games
-			on delete cascade,
-	user_id integer
-		references users
-			on delete cascade,
+	game_id integer,
+	user_id integer,
 	time timestamp,
 	primary key (game_id, user_id)
 ) without rowid;
@@ -105,20 +82,13 @@ create view user_profile_view as
 -- Messages --
 
 create table if not exists messages (
-	message_id integer
-		primary key,
-	is_deleted_from_inbox boolean
-		default 0,
-	is_deleted_from_outbox boolean
-		default 0,
-	from_id integer
-		references users,
-	to_id integer
-		references users,
-	time timestamp
-		default current_timestamp,
-	is_read boolean
-		default 0,
+	message_id integer primary key,
+	is_deleted_from_inbox boolean default 0,
+	is_deleted_from_outbox boolean default 0,
+	from_id integer,
+	to_id integer,
+	time timestamp default current_timestamp,
+	is_read boolean default 0,
 	subject text,
 	body text
 );
@@ -154,27 +124,18 @@ create index if not exists messages_inbox_unread_idx
 -- Forum --
 
 create table if not exists threads (
-	thread_id integer
-		primary key,
-	author_id integer
-		references users,
+	thread_id integer primary key,
+	author_id integer,
 	subject text,
-	is_locked boolean
-		default 0
+	is_locked boolean default 0
 );
 
 create table if not exists posts (
-	post_id integer
-		primary key,
-	thread_id integer
-		references threads
-			on delete cascade,
-	author_id integer
-		references users,
-	ctime timestamp
-		default current_timestamp,
-	mtime timestamp
-		default current_timestamp,
+	post_id integer primary key,
+	thread_id integer,
+	author_id integer,
+	ctime timestamp default current_timestamp,
+	mtime timestamp default current_timestamp,
 	body text
 );
 
@@ -221,23 +182,16 @@ create index if not exists posts_thread_idx on posts(thread_id);
 -- Games --
 
 create table if not exists games (
-	game_id integer
-		primary key,
-	title_id text
-		references titles,
+	game_id integer primary key,
+	title_id text,
 	scenario text,
 	options text,
-	owner_id integer
-		references users,
-	ctime timestamp
-		default current_timestamp,
-	is_private boolean
-		default 0,
-	is_random boolean
-		default 0,
+	owner_id integer,
+	ctime timestamp default current_timestamp,
+	is_private boolean default 0,
+	is_random boolean default 0,
 	description text,
-	status integer
-		default 0,
+	status integer default 0,
 	result text
 );
 
@@ -245,25 +199,17 @@ create index if not exists games_title_idx on games(title_id);
 create index if not exists games_status_idx on games(status);
 
 create table if not exists game_state (
-	game_id integer
-		primary key
-		references games
-			on delete cascade,
+	game_id integer primary key,
 	mtime timestamp,
 	active text,
 	state text
 );
 
 create table if not exists game_chat (
-	chat_id integer
-		primary key,
-	game_id integer
-		references games
-			on delete cascade,
-	time timestamp
-		default current_timestamp,
-	user_id integer
-		references users,
+	chat_id integer primary key,
+	game_id integer,
+	time timestamp default current_timestamp,
+	user_id integer,
 	message text
 );
 
@@ -279,11 +225,8 @@ create view game_chat_view as
 create index if not exists game_chat_idx on game_chat(game_id);
 
 create table if not exists game_replay (
-	replay_id integer
-		primary key,
-	game_id integer
-		references games
-			on delete cascade,
+	replay_id integer primary key,
+	game_id integer,
 	role text,
 	action text,
 	arguments text
@@ -292,21 +235,16 @@ create table if not exists game_replay (
 create index if not exists game_replay_idx on game_replay(game_id);
 
 create table if not exists game_notes (
-	game_id integer
-		references games
-			on delete cascade,
+	game_id integer,
 	role text,
 	note text,
 	primary key (game_id, role)
 ) without rowid;
 
 create table if not exists players (
-	game_id integer
-		references games
-			on delete cascade,
+	game_id integer,
 	role text,
-	user_id integer
-		references users,
+	user_id integer,
 	primary key (game_id, role)
 ) without rowid;
 
