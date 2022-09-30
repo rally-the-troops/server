@@ -1,0 +1,29 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Delete account
+	body
+		include header
+		article
+			h1 Delete account
+			if flash
+				p.error= flash
+
+			form(method="post" action="/delete-account")
+				p Name: #{user.name}
+				p Mail: #{user.mail}
+				p
+					label Password:
+						br
+						input(type="password" name="password" required)
+				p
+					label Type DELETE to confirm:
+						br
+						input(type="text" name="confirm" pattern="^DELETE$" required)
+				p.warning WARNING: Deleting your account is permanent!
+				p All your games and messages will be lost forever.
+				p
+					button(onclick="window.location='/profile'") Cancel
+					button(type="submit") Delete!

@@ -264,7 +264,9 @@ const SQL_EXISTS_USER_NAME = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE name
 const SQL_EXISTS_USER_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE mail=? )").pluck()
 
 const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt,notify) VALUES (?,?,?,?,?) RETURNING user_id,name,mail,notify")
+const SQL_DELETE_USER = SQL("DELETE FROM users WHERE user_id = ?")
 
+const SQL_SELECT_LOGIN = SQL("SELECT * FROM user_login_view WHERE user_id=?")
 const SQL_SELECT_USER_BY_NAME = SQL("SELECT * FROM user_view WHERE name=?")
 const SQL_SELECT_LOGIN_BY_MAIL = SQL("SELECT * FROM user_login_view WHERE mail=?")
 const SQL_SELECT_LOGIN_BY_NAME = SQL("SELECT * FROM user_login_view WHERE name=?")
@@ -544,7 +546,7 @@ app.post('/change-password', must_be_logged_in, function (req, res) {
 	let oldpass = req.body.password
 	let newpass = req.body.newpass
 	// Get full user record including password and salt
-	let user = SQL_SELECT_LOGIN_BY_MAIL.get(req.user.mail)
+	let user = SQL_SELECT_LOGIN.get(req.user.user_id)
 	if (newpass.length < 4)
 		return res.render('change_password.pug', { user: req.user, flash: "Password is too short!" })
 	if (newpass.length > 100)
@@ -555,6 +557,21 @@ app.post('/change-password', must_be_logged_in, function (req, res) {
 	let salt = crypto.randomBytes(32).toString('hex')
 	let hash = hash_password(newpass, salt)
 	return res.redirect('/profile')
+})
+
+app.get('/delete-account', must_be_logged_in, function (req, res) {
+	res.render('delete_account.pug', { user: req.user })
+})
+
+app.post('/delete-account', must_be_logged_in, function (req, res) {
+	let password = req.body.password
+	// Get full user record including password and salt
+	let user = SQL_SELECT_LOGIN.get(req.user.user_id)
+	let hash = hash_password(password, user.salt)
+	if (hash !== user.password)
+		return res.render('delete_account.pug', { user: req.user, flash: "Wrong password!" })
+	SQL_DELETE_USER.run(req.user.user_id)
+	return res.send("Goodbye!")
 })
 
 app.get('/admin/ban-user/:who', must_be_administrator, function (req, res) {

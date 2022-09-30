@@ -44,6 +44,11 @@ create table if not exists users (
 	about text
 );
 
+insert or ignore into
+	users (user_id, name, mail, ctime)
+	values (0, 'Deleted', 'deleted@rally-the-troops.com', datetime('1970-01-01'))
+;
+
 create table if not exists user_last_seen (
 	user_id integer
 		primary key
@@ -396,7 +401,8 @@ create view your_turn as
 		and active in ('All', 'Both', role)
 	;
 
--- Manual key management if pragma foreign_keys = off
+-- Triggers to clean up without relying on foreign key cascades
+
 drop trigger if exists trigger_delete_on_games;
 create trigger trigger_delete_on_games after delete on games
 begin
@@ -406,3 +412,24 @@ begin
 	delete from last_notified where game_id = old.game_id;
 	delete from players where game_id = old.game_id;
 end;
+
+drop trigger if exists trigger_delete_on_users;
+create trigger trigger_delete_on_users after delete on users
+begin
+	delete from logins where user_id = old.user_id;
+	delete from tokens where user_id = old.user_id;
+	delete from user_last_seen where user_id = old.user_id;
+	delete from last_notified where user_id = old.user_id;
+	delete from messages where from_id = old.user_id or to_id = old.user_id;
+	delete from posts where author_id = old.user_id;
+	delete from threads where author_id = old.user_id;
+	delete from game_chat where user_id = old.user_id;
+	delete from players where user_id = old.user_id;
+	update games set owner_id = 0 where owner_id = old.user_id;
+end;
+
+drop trigger if exists trigger_delete_on_threads;
+create trigger trigger_delete_on_threads after delete on threads
+begin
+	delete from posts where thread_id = old.thread_id;
+end
