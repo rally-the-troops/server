@@ -1052,15 +1052,28 @@ const QUERY_LIST_PUBLIC_GAMES = SQL(`
 	SELECT * FROM game_view
 	WHERE is_private=0 AND status < 2
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
-	ORDER BY mtime DESC
+	ORDER BY mtime DESC, ctime DESC
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	SELECT * FROM game_view
 	WHERE is_private=0 AND title_id=? AND status>=? AND status<=?
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
-	ORDER BY mtime DESC
+	ORDER BY mtime DESC, ctime DESC
 	LIMIT ?
+	`)
+
+const QUERY_NEXT_GAME_OF_USER = SQL(`
+	select title_id, game_id, role
+	from games
+	join game_state using(game_id)
+	join players using(game_id)
+	where
+		status = 1
+		and active in ('All', 'Both', role)
+		and user_id = ?
+	order by mtime
+	limit 1
 	`)
 
 const QUERY_LIST_ACTIVE_GAMES_OF_USER = SQL(`
@@ -1188,6 +1201,15 @@ function sort_your_turn(a, b) {
 	if (!a.your_turn && b.your_turn) return 1
 	return 0
 }
+
+app.get('/games/next', must_be_logged_in, function (req, res) {
+	let next = QUERY_NEXT_GAME_OF_USER.get(req.user.user_id)
+	console.log("NEXT", next)
+	if (next !== undefined)
+		res.redirect(`/${next.title_id}/play:${next.game_id}:${next.role}`)
+	else
+		res.redirect(`/games/active`)
+})
 
 app.get('/games/active', must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: req.user.user_id })
@@ -1617,6 +1639,7 @@ const MAIL_FOOTER = "\n--\nYou can unsubscribe from notifications on your profil
 const SQL_SELECT_NOTIFIED = SQL("SELECT datetime('now') < datetime(time,?) FROM last_notified WHERE game_id=? AND user_id=?").pluck()
 const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,datetime('now'))")
 const SQL_DELETE_NOTIFIED = SQL("DELETE FROM last_notified WHERE game_id=? AND user_id=?")
+const SQL_DELETE_NOTIFIED_ALL = SQL("DELETE FROM last_notified WHERE game_id=?")
 
 const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
 
@@ -1846,6 +1869,7 @@ function get_game_state(game_id) {
 function put_game_state(game_id, state, old_active) {
 	if (state.state === 'game_over') {
 		SQL_UPDATE_GAME_RESULT.run(2, state.result, game_id)
+		SQL_DELETE_NOTIFIED_ALL.run(game_id)
 		mail_game_over_notification_to_offline_users(game_id, state.result, state.victory)
 	}
 	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)

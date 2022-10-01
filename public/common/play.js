@@ -1011,4 +1011,9 @@ function add_main_menu_item(text, onclick) {
 }
 
 init_main_menu()
-add_main_menu_item("Go Home", () => window.open("/games/active", "_self"))
+if (params.role !== "Observer") {
+	add_main_menu_item("Go home", () => window.open("/games/active", "_self"))
+	add_main_menu_item("Go to next game", () => window.open("/games/next", "_self"))
+} else {
+	add_main_menu_item("Go home", () => window.open("/", "_self"))
+}
