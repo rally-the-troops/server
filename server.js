@@ -65,9 +65,7 @@ setInterval(LOG_STATS, 30 * 1000)
  */
 
 let db = new sqlite3(process.env.DATABASE || "./db")
-db.pragma("journal_mode = WAL")
 db.pragma("synchronous = NORMAL")
-db.pragma("foreign_keys = ON")
 
 function SQL(s) {
 	return db.prepare(s)
