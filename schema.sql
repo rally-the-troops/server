@@ -79,6 +79,31 @@ create view user_profile_view as
 		natural left join user_last_seen
 	;
 
+-- Friend and Block Lists --
+
+create table if not exists contacts (
+	me integer,
+	you integer,
+	relation integer,
+	primary key (me, you)
+) without rowid;
+
+drop view if exists contact_view;
+create view contact_view as
+	select
+		contacts.me,
+		users.user_id,
+		users.name,
+		user_last_seen.atime,
+		contacts.relation
+	from
+		contacts
+		left join users on contacts.you = users.user_id
+		left join user_last_seen on contacts.you = user_last_seen.user_id
+	order by
+		users.name
+;
+
 -- Messages --
 
 create table if not exists messages (
@@ -229,7 +254,7 @@ create table if not exists game_replay (
 	game_id integer,
 	role text,
 	action text,
-	arguments text
+	arguments json -- numeric affinity is more compact for numbers
 );
 
 create index if not exists game_replay_idx on game_replay(game_id);
@@ -358,6 +383,7 @@ begin
 	delete from tokens where user_id = old.user_id;
 	delete from user_last_seen where user_id = old.user_id;
 	delete from last_notified where user_id = old.user_id;
+	delete from contacts where me = old.user_id or you = old.user_id;
 	delete from messages where from_id = old.user_id or to_id = old.user_id;
 	delete from posts where author_id = old.user_id;
 	delete from threads where author_id = old.user_id;

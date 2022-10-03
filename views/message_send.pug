@@ -33,7 +33,11 @@ html
 						value=to_name
 						onpress="return next(event,'#subject')"
 						autofocus=(to_name === "")
+						list="friends"
 					)
+					datalist(id="friends")
+						each who in friends
+							option= who
 
 				p Subject:
 					br

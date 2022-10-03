@@ -643,7 +643,10 @@ app.get('/user/:who_name', function (req, res) {
 		who.atime = human_date(who.atime)
 		let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: who.user_id })
 		annotate_games(games, 0)
-		res.render('user.pug', { user: req.user, who: who, games: games })
+		let relation = 0
+		if (req.user)
+			relation = SQL_SELECT_RELATION.get(req.user.user_id, who.user_id) | 0
+		res.render('user.pug', { user: req.user, who, relation, games })
 	} else {
 		return res.status(404).send("Invalid user name.")
 	}
@@ -666,6 +669,60 @@ app.get('/chat', must_be_logged_in, function (req, res) {
 app.get('/chat/all', must_be_logged_in, function (req, res) {
 	let chat = SQL_SELECT_USER_CHAT.all(req.user.user_id)
 	res.render('chat.pug', { user: req.user, chat: chat, page_size: 0 })
+})
+
+/*
+ * CONTACTS
+ */
+
+const SQL_SELECT_CONTACT_BLACKLIST = SQL("select you from contacts where me=? and relation<0").pluck()
+const SQL_SELECT_CONTACT_WHITELIST = SQL("select you from contacts where me=? and relation>0").pluck()
+const SQL_SELECT_CONTACT_FRIEND_NAMES = SQL("select name from contact_view where me=? and relation>0").pluck()
+const SQL_SELECT_CONTACT_LIST = SQL("select * from contact_view where me=?")
+const SQL_INSERT_CONTACT = SQL("insert into contacts (me,you,relation) values (?,?,?)")
+const SQL_DELETE_CONTACT = SQL("delete from contacts where me=? and you=?")
+const SQL_SELECT_RELATION = SQL("select relation from contacts where me=? and you=?").pluck()
+
+app.get('/contacts', must_be_logged_in, function (req, res) {
+	let contacts = SQL_SELECT_CONTACT_LIST.all(req.user.user_id)
+	contacts.forEach(user => user.atime = human_date(user.atime))
+	res.render('contacts.pug', {
+		user: req.user,
+		friends: contacts.filter(user => user.relation > 0),
+		enemies: contacts.filter(user => user.relation < 0),
+	})
+})
+
+app.get("/contact/remove/:who_name", must_be_logged_in, function (req, res) {
+	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
+	if (!who)
+		return res.status(404).send("User not found.")
+	SQL_DELETE_CONTACT.run(req.user.user_id, who.user_id)
+	return res.redirect("/contacts")
+})
+
+app.get("/contact/add-friend/:who_name", must_be_logged_in, function (req, res) {
+	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
+	if (!who)
+		return res.status(404).send("User not found.")
+	SQL_INSERT_CONTACT.run(req.user.user_id, who.user_id, 1)
+	return res.redirect("/user/" + who.name)
+})
+
+app.get("/contact/add-enemy/:who_name", must_be_logged_in, function (req, res) {
+	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
+	if (!who)
+		return res.status(404).send("User not found.")
+	SQL_INSERT_CONTACT.run(req.user.user_id, who.user_id, -1)
+	return res.redirect("/user/" + who.name)
+})
+
+app.get("/contact/remove-user/:who_name", must_be_logged_in, function (req, res) {
+	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
+	if (!who)
+		return res.status(404).send("User not found.")
+	SQL_DELETE_CONTACT.run(req.user.user_id, who.user_id)
+	return res.redirect("/user/" + who.name)
 })
 
 /*
@@ -729,21 +786,25 @@ app.get('/message/read/:message_id', must_be_logged_in, function (req, res) {
 })
 
 app.get('/message/send', must_be_logged_in, function (req, res) {
+	let friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
 	res.render('message_send.pug', {
 		user: req.user,
 		to_name: "",
 		subject: "",
 		body: "",
+		friends,
 	})
 })
 
 app.get('/message/send/:to_name', must_be_logged_in, function (req, res) {
+	let friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
 	let to_name = req.params.to_name
 	res.render('message_send.pug', {
 		user: req.user,
 		to_name: to_name,
 		subject: "",
 		body: "",
+		friends,
 	})
 })
 
@@ -753,13 +814,15 @@ app.post('/message/send', must_be_logged_in, function (req, res) {
 	let body = req.body.body.trim()
 	let to_user = SQL_SELECT_USER_BY_NAME.get(to_name)
 	if (!to_user) {
+		let friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
 		return res.render('message_send.pug', {
 			user: req.user,
 			to_id: 0,
 			to_name: to_name,
 			subject: subject,
 			body: body,
-			flash: "Cannot find that user."
+			friends,
+			flash: "Cannot find that user.",
 		})
 	}
 	let info = MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body)
@@ -780,12 +843,14 @@ app.get('/message/reply/:message_id', must_be_logged_in, function (req, res) {
 	let message = MESSAGE_FETCH.get(message_id, req.user.user_id, req.user.user_id)
 	if (!message)
 		return res.status(404).send("Invalid message ID.")
+	let friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
 	return res.render('message_send.pug', {
 		user: req.user,
 		to_id: message.from_id,
 		to_name: message.from_name,
 		subject: message.subject.startsWith("Re: ") ? message.subject : "Re: " + message.subject,
 		body: quote_body(message),
+		friends,
 	})
 })
 
@@ -1416,13 +1481,11 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 
 	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
+	let whitelist = SQL_SELECT_CONTACT_WHITELIST.all(req.user.user_id)
+	let blacklist = SQL_SELECT_CONTACT_BLACKLIST.all(req.user.user_id)
 	let ready = (game.status === 0) && is_game_ready(game.title_id, game.scenario, game.options, players)
 	res.render('join.pug', {
-		user: req.user,
-		game: game,
-		roles: roles,
-		players: players,
-		ready: ready,
+		user: req.user, game, roles, players, ready, whitelist, blacklist
 	})
 })
 

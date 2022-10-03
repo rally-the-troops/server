@@ -10,17 +10,21 @@ html
 		style.
 			table { min-width: 0; }
 			th,td { border: 1px solid black; }
-			td a.red { text-decoration: none; color: brown; font-size: 14px; float: right; }
+			td a.red { text-decoration: none; color: brown; font-size: 15px; float: right; }
 			td a { text-decoration: underline; color: blue; }
 			th { white-space: nowrap; background-color: gainsboro; }
 			td { width: 180px; background-color: white; }
 			#message { background-color: whitesmoke; }
 			.hide { display: none; }
+			td.enemy { background-color: #f66 }
+			td.enemy::before { content: "\1f6ab    "; color: #000; font-size: 15px; }
 		script.
 			let game = !{ JSON.stringify(game) }
 			let roles = !{ JSON.stringify(roles) }
 			let players = !{ JSON.stringify(players) }
 			let user_id = !{ user.user_id }
+			let whitelist = !{ JSON.stringify(whitelist) }
+			let blacklist = !{ JSON.stringify(blacklist) }
 			let ready = !{ ready }
 		script(src="/join.js")
 	body

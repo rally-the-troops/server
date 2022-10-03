@@ -99,6 +99,14 @@ function start_event_source() {
 	}
 }
 
+function is_friend(p) {
+	return whitelist.includes(p.user_id)
+}
+
+function is_enemy(p) {
+	return blacklist.includes(p.user_id)
+}
+
 function is_active(player, role) {
 	return (game.active === role || game.active === "Both" || game.active === "All")
 }
@@ -127,21 +135,27 @@ function update() {
 			case 1:
 				element.classList.toggle("is_active", is_active(player, role))
 				if (player.user_id === user_id)
-					element.innerHTML = `<a class="red" href="javascript:part('${role}')">\u274c</a> <a href="/${game.title_id}/play:${game.game_id}:${role}">${player.name}</a>`
+					element.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}:${role}">${player.name}</a><a class="red" href="javascript:part('${role}')">\u274c</a>`
 				else if (game.owner_id === user_id)
-					element.innerHTML = `<a class="red" href="javascript:kick('${role}')">\u274c</a> ${player.name}`
+					element.innerHTML = `${player.name}<a class="red" href="javascript:kick('${role}')">\u274c</a>`
 				else
 					element.innerHTML = player.name
 				break
 			case 0:
 				if (player.user_id === user_id)
-					element.innerHTML = `<a class="red" href="javascript:part('${role}')">\u274c</a> ${player.name}`
+					element.innerHTML = `${player.name}<a class="red" href="javascript:part('${role}')">\u274c</a>`
 				else if (game.owner_id === user_id)
-					element.innerHTML = `<a class="red" href="javascript:kick('${role}')">\u274c</a> ${player.name}`
+					element.innerHTML = `${player.name}<a class="red" href="javascript:kick('${role}')">\u274c</a>`
 				else
 					element.innerHTML = player.name
 				break
 			}
+			element.classList.toggle("friend", is_friend(player))
+			element.classList.toggle("enemy", is_enemy(player))
+			if (is_enemy(player))
+				element.title = "You have blacklisted this user!"
+			else
+				element.title = ""
 		} else {
 			switch (game.status) {
 			case 2:
@@ -152,6 +166,9 @@ function update() {
 				element.innerHTML = `<a class="join" href="javascript:join('${role}')">Join</a>`
 				break
 			}
+			element.classList.remove("friend")
+			element.classList.remove("enemy")
+			element.title = ""
 		}
 	}
 
