@@ -889,10 +889,8 @@ function show_forum_page(req, res, page) {
 	let thread_count = FORUM_COUNT_THREADS.get()
 	let page_count = Math.ceil(thread_count / FORUM_PAGE_SIZE)
 	let threads = FORUM_LIST_THREADS.all(FORUM_PAGE_SIZE, FORUM_PAGE_SIZE * (page - 1))
-	for (let thread of threads) {
-		thread.ctime = human_date(thread.ctime)
+	for (let thread of threads)
 		thread.mtime = human_date(thread.mtime)
-	}
 	res.render('forum_view.pug', {
 		user: req.user,
 		threads: threads,
