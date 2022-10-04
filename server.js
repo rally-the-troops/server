@@ -27,6 +27,10 @@ if (!SITE_URL) {
 		SITE_URL = "http://" + SITE_HOST + ":" + HTTP_PORT
 }
 
+// Time intervals in julian days
+const HOURS = 1 / 24
+const MINUTES = 1 / (24 * 60)
+
 var stat_start = Date.now() / 60000
 var stat_http_reqs = 0
 var stat_pug_reqs = 0
@@ -195,6 +199,14 @@ function random_seed() {
 	return crypto.randomInt(1, 2**35-31)
 }
 
+function from_julianday(jd) {
+	return (jd - 2440587.5) * 86400000
+}
+
+function to_julianday(t) {
+	return t / 86400000 + 2440587.5
+}
+
 function SLOG(socket, ...msg) {
 	let time = new Date().toISOString().substring(11,19)
 	let name = (socket.user ? socket.user.name : "guest").padEnd(20)
@@ -207,21 +219,22 @@ function SLOG(socket, ...msg) {
 		...msg)
 }
 
-function human_date(time) {
-	var date = time ? new Date(time + " UTC") : new Date(0)
-	var seconds = (Date.now() - date.getTime()) / 1000
-	var days = Math.floor(seconds / 86400)
-	if (days === 0) {
-		if (seconds < 60) return "Now"
+function human_date(date) {
+	if (typeof date !== 'number')
+		return "never"
+	var days = to_julianday(Date.now()) - date
+	var seconds = days * 86400
+	if (days < 1) {
+		if (seconds < 60) return "now"
 		if (seconds < 120) return "1 minute ago"
 		if (seconds < 3600) return Math.floor(seconds / 60) + " minutes ago"
 		if (seconds < 7200) return "1 hour ago"
 		if (seconds < 86400) return Math.floor(seconds / 3600) + " hours ago"
 	}
-	if (days === 1) return "Yesterday"
-	if (days < 14) return days + " days ago"
+	if (days < 2) return "yesterday"
+	if (days < 14) return Math.floor(days) + " days ago"
 	if (days < 31) return Math.floor(days / 7) + " weeks ago"
-	return date.toISOString().substring(0,10)
+	return new Date(from_julianday(date)).toISOString().substring(0,10)
 }
 
 function is_email(email) {
@@ -303,7 +316,7 @@ const SQL_SELECT_USER_INFO = SQL(`
 	where user_id = ?
 	`)
 
-const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND datetime('now') > datetime(atime,?)")
+const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND julianday() > atime + ?")
 
 const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify FROM users WHERE user_id=?").pluck()
 const SQL_UPDATE_USER_NOTIFY = SQL("UPDATE users SET notify=? WHERE user_id=?")
@@ -311,12 +324,12 @@ const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?")
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?")
 const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?")
 const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?")
-const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,datetime('now'))")
+const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,julianday())")
 const SQL_UPDATE_USER_IS_BANNED = SQL("update users set is_banned=? where name=?")
 
-const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND datetime('now') < datetime(time, '+5 minutes')").pluck()
-const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime('now')) RETURNING token").pluck()
-const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id=? AND datetime('now') < datetime(time, '+20 minutes') AND token=? )").pluck()
+const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND julianday() < time + 0.004").pluck()
+const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), julianday()) RETURNING token").pluck()
+const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id=? AND julianday() < time + 0.020 AND token=? )").pluck()
 
 function is_blacklisted(mail) {
 	if (SQL_BLACKLIST_MAIL.get(mail) === 1)
@@ -879,7 +892,7 @@ const FORUM_LIST_POSTS = SQL("SELECT * FROM post_view WHERE thread_id=?")
 const FORUM_GET_POST = SQL("SELECT * FROM post_view WHERE post_id=?")
 const FORUM_NEW_THREAD = SQL("INSERT INTO threads (author_id,subject) VALUES (?,?)")
 const FORUM_NEW_POST = SQL("INSERT INTO posts (thread_id,author_id,body) VALUES (?,?,?)")
-const FORUM_EDIT_POST = SQL("UPDATE posts SET body=?, mtime=datetime('now') WHERE post_id=? AND author_id=? RETURNING thread_id").pluck()
+const FORUM_EDIT_POST = SQL("UPDATE posts SET body=?, mtime=julianday() WHERE post_id=? AND author_id=? RETURNING thread_id").pluck()
 
 const FORUM_DELETE_THREAD_POSTS = SQL("delete from posts where thread_id=?")
 const FORUM_DELETE_THREAD = SQL("delete from threads where thread_id=?")
@@ -1071,7 +1084,7 @@ const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,rol
 const SQL_DELETE_GAME_NOTE = SQL("DELETE FROM game_notes WHERE game_id=? AND role=?")
 
 const SQL_SELECT_GAME_STATE = SQL("SELECT state FROM game_state WHERE game_id=?").pluck()
-const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,state,active,mtime) VALUES (?,?,?,datetime('now'))")
+const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,state,active,mtime) VALUES (?,?,?,julianday())")
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?")
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
 const SQL_INSERT_REPLAY = SQL("INSERT INTO game_replay (game_id,role,action,arguments) VALUES (?,?,?,?)")
@@ -1142,7 +1155,7 @@ const QUERY_LIST_ACTIVE_GAMES_OF_USER = SQL(`
 	where
 		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
 		and
-		( status < 2 or mtime > datetime('now', '-7 days') )
+		( status < 2 or mtime > julianday() - 7 )
 	order by status asc, mtime desc
 	`)
 
@@ -1265,7 +1278,6 @@ function sort_your_turn(a, b) {
 
 app.get('/games/next', must_be_logged_in, function (req, res) {
 	let next = QUERY_NEXT_GAME_OF_USER.get(req.user.user_id)
-	console.log("NEXT", next)
 	if (next !== undefined)
 		res.redirect(`/${next.title_id}/play:${next.game_id}:${next.role}`)
 	else
@@ -1695,8 +1707,8 @@ app.get('/debug/:game_id', function (req, res) {
 const MAIL_FROM = process.env.MAIL_FROM || "user@localhost"
 const MAIL_FOOTER = "\n--\nYou can unsubscribe from notifications on your profile page:\n" + SITE_URL + "/profile\n"
 
-const SQL_SELECT_NOTIFIED = SQL("SELECT datetime('now') < datetime(time,?) FROM last_notified WHERE game_id=? AND user_id=?").pluck()
-const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,datetime('now'))")
+const SQL_SELECT_NOTIFIED = SQL("SELECT julianday() < time + ? FROM last_notified WHERE game_id=? AND user_id=?").pluck()
+const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,julianday())")
 const SQL_DELETE_NOTIFIED = SQL("DELETE FROM last_notified WHERE game_id=? AND user_id=?")
 const SQL_DELETE_NOTIFIED_ALL = SQL("DELETE FROM last_notified WHERE game_id=?")
 
@@ -1826,7 +1838,7 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 				if (is_online(game_id, p.user_id)) {
 					reset_your_turn_notification(p, game_id)
 				} else {
-					mail_your_turn_notification(p, game_id, '+15 minutes')
+					mail_your_turn_notification(p, game_id, 15 * MINUTES)
 				}
 			} else {
 				reset_your_turn_notification(p, game_id)
@@ -1851,7 +1863,7 @@ function mail_game_over_notification_to_offline_users(game_id, result, victory) 
 
 function notify_your_turn_reminder() {
 	for (let item of QUERY_LIST_YOUR_TURN.all()) {
-		mail_your_turn_notification(item, item.game_id, '+25 hours')
+		mail_your_turn_notification(item, item.game_id, 25 * HOURS)
 	}
 }
 
@@ -1859,10 +1871,10 @@ function notify_ready_to_start_reminder() {
 	for (let game of SQL_SELECT_OPEN_GAMES.all()) {
 		let players = SQL_SELECT_PLAYERS.all(game.game_id)
 		if (is_game_ready(game.title_id, game.scenario, game.options, players)) {
-			let owner = SQL_OFFLINE_USER.get(game.owner_id, '+3 minutes')
+			let owner = SQL_OFFLINE_USER.get(game.owner_id, 3 * MINUTES)
 			if (owner) {
 				if (owner.notify)
-					mail_ready_to_start_notification(owner, game.game_id, '+25 hours')
+					mail_ready_to_start_notification(owner, game.game_id, 25 * HOURS)
 			}
 		}
 	}

@@ -25,7 +25,7 @@ create table if not exists users (
 	mail text unique collate nocase,
 	notify boolean default 0,
 	is_banned boolean default 0,
-	ctime timestamp default current_timestamp,
+	ctime real default (julianday()),
 	password text,
 	salt text,
 	about text
@@ -33,24 +33,24 @@ create table if not exists users (
 
 insert or ignore into
 	users (user_id, name, mail, ctime)
-	values (0, 'Deleted', 'deleted@rally-the-troops.com', datetime('1970-01-01'))
+	values (0, 'Deleted', 'deleted@rally-the-troops.com', null)
 ;
 
 create table if not exists user_last_seen (
 	user_id integer primary key,
-	atime timestamp
+	atime real
 );
 
 create table if not exists tokens (
 	user_id integer primary key,
 	token text,
-	time timestamp
+	time real
 );
 
 create table if not exists last_notified (
 	game_id integer,
 	user_id integer,
-	time timestamp,
+	time real,
 	primary key (game_id, user_id)
 ) without rowid;
 
@@ -112,7 +112,7 @@ create table if not exists messages (
 	is_deleted_from_outbox boolean default 0,
 	from_id integer,
 	to_id integer,
-	time timestamp default current_timestamp,
+	time real default (julianday()),
 	is_read boolean default 0,
 	subject text,
 	body text
@@ -159,8 +159,8 @@ create table if not exists posts (
 	post_id integer primary key,
 	thread_id integer,
 	author_id integer,
-	ctime timestamp default current_timestamp,
-	mtime timestamp default current_timestamp,
+	ctime real default (julianday()),
+	mtime real default (julianday()),
 	body text
 );
 
@@ -212,7 +212,7 @@ create table if not exists games (
 	scenario text,
 	options text,
 	owner_id integer,
-	ctime timestamp default current_timestamp,
+	ctime real default (julianday()),
 	is_private boolean default 0,
 	is_random boolean default 0,
 	description text,
@@ -225,7 +225,7 @@ create index if not exists games_status_idx on games(status);
 
 create table if not exists game_state (
 	game_id integer primary key,
-	mtime timestamp,
+	mtime real,
 	active text,
 	state text
 );
@@ -233,7 +233,7 @@ create table if not exists game_state (
 create table if not exists game_chat (
 	chat_id integer primary key,
 	game_id integer,
-	time timestamp default current_timestamp,
+	time real default (julianday()),
 	user_id integer,
 	message text
 );
@@ -348,7 +348,7 @@ create view your_turn_reminder as
 		and active in ('All', 'Both', role)
 		and is_solo = 0
 		and notify = 1
-		and datetime('now') > datetime(mtime, '+1 hour')
+		and julianday() > mtime + 0.04
 	;
 
 drop view if exists your_turn;
