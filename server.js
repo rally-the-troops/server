@@ -1060,11 +1060,11 @@ load_rules()
 const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,is_private,is_random,description) VALUES (?,?,?,?,?,?,?)")
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
 
-const SQL_SELECT_USER_CHAT = SQL("SELECT game_id,time,name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC").raw()
-const SQL_SELECT_USER_CHAT_N = SQL("SELECT game_id,time,name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC LIMIT ?").raw()
+const SQL_SELECT_USER_CHAT = SQL("SELECT game_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC").raw()
+const SQL_SELECT_USER_CHAT_N = SQL("SELECT game_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC LIMIT ?").raw()
 
-const SQL_SELECT_GAME_CHAT = SQL("SELECT chat_id,time,name,message FROM game_chat_view WHERE game_id=? AND chat_id>?").raw()
-const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,user_id,message) VALUES (?,?,?) RETURNING chat_id,time,'',message").raw()
+const SQL_SELECT_GAME_CHAT = SQL("SELECT chat_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id=? AND chat_id>?").raw()
+const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,user_id,message) VALUES (?,?,?) RETURNING chat_id,unixepoch(time),NULL,message").raw()
 
 const SQL_SELECT_GAME_NOTE = SQL("SELECT note FROM game_notes WHERE game_id=? AND role=?").pluck()
 const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,role,note) VALUES (?,?,?)")

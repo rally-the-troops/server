@@ -193,7 +193,7 @@ function save_chat() {
 	window.localStorage.setItem(chat.key, chat.log)
 }
 
-function update_chat(chat_id, utc_date, user, message) {
+function update_chat(chat_id, raw_date, user, message) {
 	function format_time(date) {
 		let mm = date.getMinutes()
 		let hh = date.getHours()
@@ -215,7 +215,7 @@ function update_chat(chat_id, utc_date, user, message) {
 	}
 	if (chat_id > chat.log) {
 		chat.log = chat_id
-		let date = new Date(utc_date + "Z")
+		let date = new Date(raw_date * 1000)
 		let day = date.toDateString()
 		if (day !== chat.last_day) {
 			add_date_line(day)
