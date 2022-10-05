@@ -189,6 +189,7 @@ footer {
 }
 .menu_item {
 	padding: 4px 8px;
+	cursor: pointer;
 }
 .menu_item:hover {
 	background-color: black;
@@ -196,6 +197,11 @@ footer {
 }
 .menu_item:hover img {
 	filter: invert(100%);
+}
+a.menu_item {
+	display: block;
+	text-decoration: none;
+	color: black;
 }
 
 /* TOOL BAR */

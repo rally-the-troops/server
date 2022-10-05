@@ -1010,10 +1010,20 @@ function add_main_menu_item(text, onclick) {
 	popup.insertBefore(item, sep)
 }
 
+function add_main_menu_item_link(text, url) {
+	let popup = document.querySelector(".menu_popup")
+	let sep = document.getElementById("main_menu_separator")
+	let item = document.createElement("a")
+	item.className = "menu_item"
+	item.href = url
+	item.textContent = text
+	popup.insertBefore(item, sep)
+}
+
 init_main_menu()
-if (params.role !== "Observer") {
-	add_main_menu_item("Go home", () => window.open("/games/active", "_self"))
-	add_main_menu_item("Go to next game", () => window.open("/games/next", "_self"))
+if (params.mode === "play" && params.role !== "Observer") {
+	add_main_menu_item_link("Go home", "/games/active")
+	add_main_menu_item_link("Go to next game", "/games/next")
 } else {
-	add_main_menu_item("Go home", () => window.open("/", "_self"))
+	add_main_menu_item_link("Go home", "/")
 }
