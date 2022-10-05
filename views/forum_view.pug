@@ -6,6 +6,7 @@ html
 		title Forum
 		meta(http-equiv="refresh" content=3600)
 		style.
+			.unread { font-weight: bold }
 			tbody a { display: block }
 	body
 		include header
@@ -21,7 +22,8 @@ html
 				tbody
 					each row in threads
 						tr
-							td: a(href="/forum/thread/"+row.thread_id)= row.subject
+							td(class=row.is_read?"read":"unread")
+								a(href="/forum/thread/"+row.thread_id)= row.subject
 							td.r= row.count
 							td.w= row.mtime
 				tfoot

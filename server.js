@@ -886,13 +886,15 @@ app.get('/outbox/delete', must_be_logged_in, function (req, res) {
 const FORUM_PAGE_SIZE = 15
 
 const FORUM_COUNT_THREADS = SQL("SELECT COUNT(*) FROM threads").pluck()
-const FORUM_LIST_THREADS = SQL("SELECT * FROM thread_view ORDER BY mtime DESC LIMIT ? OFFSET ?")
+const FORUM_LIST_THREADS_USER = SQL("SELECT *, (exists (select 1 from read_threads where user_id=? and read_threads.thread_id=thread_view.thread_id)) as is_read FROM thread_view ORDER BY mtime DESC LIMIT ? OFFSET ?")
+const FORUM_LIST_THREADS = SQL("SELECT *, 1 as is_read FROM thread_view ORDER BY mtime DESC LIMIT ? OFFSET ?")
 const FORUM_GET_THREAD = SQL("SELECT * FROM thread_view WHERE thread_id=?")
 const FORUM_LIST_POSTS = SQL("SELECT * FROM post_view WHERE thread_id=?")
 const FORUM_GET_POST = SQL("SELECT * FROM post_view WHERE post_id=?")
 const FORUM_NEW_THREAD = SQL("INSERT INTO threads (author_id,subject) VALUES (?,?)")
 const FORUM_NEW_POST = SQL("INSERT INTO posts (thread_id,author_id,body) VALUES (?,?,?)")
 const FORUM_EDIT_POST = SQL("UPDATE posts SET body=?, mtime=julianday() WHERE post_id=? AND author_id=? RETURNING thread_id").pluck()
+const FORUM_MARK_READ = SQL("insert or ignore into read_threads (user_id,thread_id) values (?,?)")
 
 const FORUM_DELETE_THREAD_POSTS = SQL("delete from posts where thread_id=?")
 const FORUM_DELETE_THREAD = SQL("delete from threads where thread_id=?")
@@ -901,7 +903,11 @@ const FORUM_DELETE_POST = SQL("delete from posts where post_id=?")
 function show_forum_page(req, res, page) {
 	let thread_count = FORUM_COUNT_THREADS.get()
 	let page_count = Math.ceil(thread_count / FORUM_PAGE_SIZE)
-	let threads = FORUM_LIST_THREADS.all(FORUM_PAGE_SIZE, FORUM_PAGE_SIZE * (page - 1))
+	let threads
+	if (req.user)
+		threads = FORUM_LIST_THREADS_USER.all(req.user.user_id, FORUM_PAGE_SIZE, FORUM_PAGE_SIZE * (page - 1))
+	else
+		threads = FORUM_LIST_THREADS.all(FORUM_PAGE_SIZE, FORUM_PAGE_SIZE * (page - 1))
 	for (let thread of threads)
 		thread.mtime = human_date(thread.mtime)
 	res.render('forum_view.pug', {
@@ -942,6 +948,8 @@ app.get('/forum/thread/:thread_id', function (req, res) {
 		posts[i].ctime = human_date(posts[i].ctime)
 		posts[i].mtime = human_date(posts[i].mtime)
 	}
+	if (req.user)
+		FORUM_MARK_READ.run(req.user.user_id, thread_id)
 	res.render('forum_thread.pug', {
 		user: req.user,
 		thread: thread,

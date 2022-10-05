@@ -5,7 +5,7 @@ html
 		include head
 		title Inbox
 		style.
-			.unread { background-color: lightyellow }
+			.unread { font-weight: bold }
 			td a { display: block }
 	body
 		include header
@@ -23,9 +23,11 @@ html
 						th Date
 				tbody
 					each row in messages
-						tr(class=row.is_read?"read":"unread")
-							td: a(href="/user/"+row.from_name)= row.from_name
-							td: a(href="/message/read/"+row.message_id)= row.subject
+						tr
+							td
+								a(href="/user/"+row.from_name)= row.from_name
+							td(class=row.is_read?"read":"unread")
+								a(href="/message/read/"+row.message_id)= row.subject
 							td= row.time
 					else
 						tr

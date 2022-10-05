@@ -164,6 +164,12 @@ create table if not exists posts (
 	body text
 );
 
+create table if not exists read_threads (
+	user_id integer,
+	thread_id integer,
+	primary key (user_id, thread_id)
+) without rowid;
+
 drop view if exists thread_view;
 create view thread_view as
 	select
@@ -383,6 +389,7 @@ begin
 	delete from tokens where user_id = old.user_id;
 	delete from user_last_seen where user_id = old.user_id;
 	delete from last_notified where user_id = old.user_id;
+	delete from read_threads where user_id = old.user_id;
 	delete from contacts where me = old.user_id or you = old.user_id;
 	delete from messages where from_id = old.user_id or to_id = old.user_id;
 	delete from posts where author_id = old.user_id;
@@ -396,4 +403,17 @@ drop trigger if exists trigger_delete_on_threads;
 create trigger trigger_delete_on_threads after delete on threads
 begin
 	delete from posts where thread_id = old.thread_id;
-end
+	delete from read_threads where thread_id = old.thread_id;
+end;
+
+drop trigger if exists trigger_mark_threads_as_unread1;
+create trigger trigger_mark_threads_as_unread1 after insert on posts
+begin
+	delete from read_threads where user_id != new.author_id and thread_id = new.thread_id;
+end;
+
+drop trigger if exists trigger_mark_threads_as_unread2;
+create trigger trigger_mark_threads_as_unread2 after update on posts
+begin
+	delete from read_threads where user_id != new.author_id and thread_id = new.thread_id;
+end;
