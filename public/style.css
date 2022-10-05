@@ -193,3 +193,5 @@ article hr + p { font-style: italic; }
 .game_item.your_turn .game_head { background-color: gold }
 .game_item.your_turn .game_main { background-color: lightyellow }
 .game_item.your_turn a:hover { color: #860 }
+
+.game_item.unread .game_head div::after { content: " \1f4dd  "; }

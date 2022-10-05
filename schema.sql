@@ -244,6 +244,12 @@ create table if not exists game_chat (
 	message text
 );
 
+create table if not exists unread_chats (
+	user_id integer,
+	game_id integer,
+	primary key (user_id, game_id)
+) without rowid;
+
 drop view if exists game_chat_view;
 create view game_chat_view as
 	select
@@ -379,6 +385,7 @@ begin
 	delete from game_chat where game_id = old.game_id;
 	delete from game_replay where game_id = old.game_id;
 	delete from last_notified where game_id = old.game_id;
+	delete from unread_chats where game_id = old.game_id;
 	delete from players where game_id = old.game_id;
 end;
 
@@ -390,6 +397,7 @@ begin
 	delete from user_last_seen where user_id = old.user_id;
 	delete from last_notified where user_id = old.user_id;
 	delete from read_threads where user_id = old.user_id;
+	delete from unread_chats where user_id = old.user_id;
 	delete from contacts where me = old.user_id or you = old.user_id;
 	delete from messages where from_id = old.user_id or to_id = old.user_id;
 	delete from posts where author_id = old.user_id;

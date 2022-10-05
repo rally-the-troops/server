@@ -75,6 +75,24 @@ function SQL(s) {
 	return db.prepare(s)
 }
 
+function set_has(set, item) {
+	if (!set)
+		return false
+	let a = 0
+	let b = set.length - 1
+	while (a <= b) {
+		let m = (a + b) >> 1
+		let x = set[m]
+		if (item < x)
+			b = m - 1
+		else if (item > x)
+			a = m + 1
+		else
+			return true
+	}
+	return false
+}
+
 /*
  * Notification mail setup.
  */
@@ -655,7 +673,7 @@ app.get('/user/:who_name', function (req, res) {
 		who.ctime = human_date(who.ctime)
 		who.atime = human_date(who.atime)
 		let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: who.user_id })
-		annotate_games(games, 0)
+		annotate_games(games, 0, null)
 		let relation = 0
 		if (req.user)
 			relation = SQL_SELECT_RELATION.get(req.user.user_id, who.user_id) | 0
@@ -1084,6 +1102,10 @@ const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
 const SQL_SELECT_USER_CHAT = SQL("SELECT game_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC").raw()
 const SQL_SELECT_USER_CHAT_N = SQL("SELECT game_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC LIMIT ?").raw()
 
+const SQL_SELECT_UNREAD_CHAT_GAMES = SQL("select game_id from unread_chats where user_id = ?").pluck()
+const SQL_INSERT_UNREAD_CHAT = SQL("insert or ignore into unread_chats (user_id,game_id) values (?,?)")
+const SQL_DELETE_UNREAD_CHAT = SQL("delete from unread_chats where user_id = ? and game_id = ?")
+
 const SQL_SELECT_GAME_CHAT = SQL("SELECT chat_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id=? AND chat_id>?").raw()
 const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,user_id,message) VALUES (?,?,?) RETURNING chat_id,unixepoch(time),NULL,message").raw()
 
@@ -1106,6 +1128,7 @@ const SQL_SELECT_GAME_RANDOM = SQL("SELECT is_random FROM games WHERE game_id=?"
 
 const SQL_SELECT_GAME_HAS_TITLE_AND_STATUS = SQL("SELECT 1 FROM games WHERE game_id=? AND title_id=? AND status=?")
 
+const SQL_SELECT_PLAYERS_ID = SQL("SELECT DISTINCT user_id FROM players WHERE game_id=?").pluck()
 const SQL_SELECT_PLAYERS = SQL("SELECT * FROM players NATURAL JOIN user_view WHERE game_id=?")
 const SQL_SELECT_PLAYERS_JOIN = SQL("SELECT role, user_id, name FROM players NATURAL JOIN users WHERE game_id=?")
 const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
@@ -1201,7 +1224,7 @@ function format_options(options) {
 	return Object.entries(options||{}).map(([k,v]) => (v === true || v === 1) ? to_english(k) : `${to_english(k)}=${to_english(v)}`).join(", ")
 }
 
-function annotate_game(game, user_id) {
+function annotate_game(game, user_id, unread) {
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id)
 	let options = JSON.parse(game.options)
 	let roles = get_game_roles(game.title_id, game.scenario, options)
@@ -1216,6 +1239,7 @@ function annotate_game(game, user_id) {
 	players.sort((a, b) => a.index - b.index)
 
 	game.is_ready = is_game_ready(game.title_id, game.scenario, options, players)
+	game.is_unread = set_has(unread, game.game_id)
 
 	let your_count = 0
 	let your_role = null
@@ -1264,9 +1288,9 @@ function annotate_game(game, user_id) {
 	game.mtime = human_date(game.mtime)
 }
 
-function annotate_games(games, user_id) {
+function annotate_games(games, user_id, unread) {
 	for (let i = 0; i < games.length; ++i)
-		annotate_game(games[i], user_id)
+		annotate_game(games[i], user_id, unread)
 }
 
 app.get('/profile', must_be_logged_in, function (req, res) {
@@ -1294,22 +1318,24 @@ app.get('/games/next', must_be_logged_in, function (req, res) {
 
 app.get('/games/active', must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: req.user.user_id })
-	annotate_games(games, req.user.user_id)
+	let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
+	annotate_games(games, req.user.user_id, unread)
 	games.sort(sort_your_turn)
-	res.render('games_active.pug', { user: req.user, who: req.user, games: games })
+	res.render('games_active.pug', { user: req.user, who: req.user, games })
 })
 
 app.get('/games/finished', must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({user_id: req.user.user_id})
-	annotate_games(games, req.user.user_id)
-	res.render('games_finished.pug', { user: req.user, who: req.user, games: games })
+	let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
+	annotate_games(games, req.user.user_id, unread)
+	res.render('games_finished.pug', { user: req.user, who: req.user, games })
 })
 
 app.get('/games/finished/:who_name', function (req, res) {
 	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
 	if (who) {
 		let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({ user_id: who.user_id })
-		annotate_games(games, 0)
+		annotate_games(games, 0, null)
 		res.render('games_finished.pug', { user: req.user, who: who, games: games })
 	} else {
 		return res.status(404).send("Invalid user name.")
@@ -1318,11 +1344,13 @@ app.get('/games/finished/:who_name', function (req, res) {
 
 app.get('/games/public', function (req, res) {
 	let games = QUERY_LIST_PUBLIC_GAMES.all()
-	if (req.user)
-		annotate_games(games, req.user.user_id)
-	else
-		annotate_games(games, 0)
-	res.render('games_public.pug', { user: req.user, games: games })
+	if (req.user) {
+		let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
+		annotate_games(games, req.user.user_id, unread)
+	} else {
+		annotate_games(games, 0, null)
+	}
+	res.render('games_public.pug', { user: req.user, games })
 })
 
 app.get('/info/:title_id', function (req, res) {
@@ -1333,10 +1361,13 @@ function get_title_page(req, res, title_id) {
 	let title = TITLES[title_id]
 	if (!title)
 		return res.status(404).send("Invalid title.")
+	let unread = null
+	if (req.user)
+		unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
 	let active_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1, 1000)
 	let finished_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 2, 50)
-	annotate_games(active_games, req.user ? req.user.user_id : 0)
-	annotate_games(finished_games, req.user ? req.user.user_id : 0)
+	annotate_games(active_games, req.user ? req.user.user_id : 0, unread)
+	annotate_games(finished_games, req.user ? req.user.user_id : 0, unread)
 	res.render('info.pug', {
 		user: req.user,
 		title: title,
@@ -2058,6 +2089,7 @@ function on_getchat(socket, seen) {
 			SLOG(socket, "GETCHAT", seen, chat.length)
 		for (let i = 0; i < chat.length; ++i)
 			send_message(socket, 'chat', chat[i])
+		SQL_DELETE_UNREAD_CHAT.run(socket.user.user_id, socket.game_id)
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, 'error', err.toString())
@@ -2073,6 +2105,16 @@ function on_chat(socket, message) {
 		for (let other of game_clients[socket.game_id])
 			if (other.role !== "Observer")
 				send_message(other, 'chat', chat)
+
+		let users = SQL_SELECT_PLAYERS_ID.all(socket.game_id)
+		for (let user_id of users) {
+			let found = false
+			for (let other of game_clients[socket.game_id])
+				if (other.user.user_id === user_id)
+					found = true
+			if (!found)
+				SQL_INSERT_UNREAD_CHAT.run(user_id, socket.game_id)
+		}
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, 'error', err.toString())
