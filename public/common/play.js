@@ -1,13 +1,5 @@
 "use strict"
 
-// TODO: Remove when CSS Images Module Level 4 is widely supported,
-;(function () {
-	let avif = new Image()
-	avif.src = "data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUEAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAABkAAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgSAAAAAAABNjb2xybmNseAABAA0ABoAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACFtZGF0EgAKBzgABhAQ0GkyDBZABhhhhAAAeUzRyg=="
-	avif.onload = () => document.documentElement.className = "avif"
-	avif.onerror = () => document.documentElement.className = "jpeg"
-})()
-
 /* URL: /$title_id/(re)play:$game_id:$role */
 
 if (!/\/[\w-]+\/(replay|play|debug):\d+(:[\w-]+)?/.test(window.location.pathname)) {
