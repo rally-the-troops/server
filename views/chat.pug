@@ -64,7 +64,7 @@ html
 				let tr = document.createElement("tr")
 				if (user === me) tr.className = "me"
 				add(tr,game_id,"/join/"+game_id)
-				add(tr,format_date(new Date(time+"Z")))
+				add(tr,format_date(new Date(time*1000)))
 				add(tr,user,"/user/"+user)
 				add(tr,message)
 				chat_lines.push(tr)
