@@ -71,6 +71,9 @@ setInterval(LOG_STATS, 30 * 1000)
 let db = new sqlite3(process.env.DATABASE || "./db")
 db.pragma("synchronous = NORMAL")
 
+db.exec("delete from logins where julianday() > expires")
+db.exec("delete from tokens where julianday() > time + 1")
+
 function SQL(s) {
 	return db.prepare(s)
 }
@@ -120,7 +123,6 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT && process.env.MAIL_FROM) {
 
 const COOKIE = (process.env.COOKIE || "login") + "="
 
-db.exec("delete from logins where expires < julianday()")
 const login_sql_select = SQL("select user_id from logins where sid = ? and expires > julianday()").pluck()
 const login_sql_insert = SQL("insert into logins values (abs(random()) % (1<<48), ?, julianday() + 28) returning sid").pluck()
 const login_sql_delete = SQL("delete from logins where sid = ?")
