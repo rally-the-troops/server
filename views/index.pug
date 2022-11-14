@@ -8,21 +8,24 @@ html
 		title= SITE_NAME
 		style.
 			div.list {
-				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(0, 160px));
-				gap: 16px;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px 0;
 			}
 			div.item {
-				text-align: center;
+				display: flex;
+				flex-direction: column;
+				justify-content: space-between;
+				align-items: center;
 			}
 			div.item a:not(:hover) {
 				color: black;
 				text-decoration: none;
 			}
 			div.item img {
+				display: block;
 				box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5);
-				height: 200px;
-				margin: 5px auto;
+				margin: 6px 16px;
 			}
 	body
 		include header
