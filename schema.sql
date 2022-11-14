@@ -425,3 +425,15 @@ create trigger trigger_mark_threads_as_unread2 after update on posts
 begin
 	delete from read_threads where user_id != new.author_id and thread_id = new.thread_id;
 end;
+
+create table if not exists deleted_users (
+	user_id integer primary key,
+	name text collate nocase,
+	mail text collate nocase,
+	time real default (julianday())
+);
+
+drop trigger if exists trigger_log_deleted_users;
+create trigger trigger_log_deleted_users before delete on users begin
+	insert into deleted_users (user_id, name, mail) values (old.user_id, old.name, old.mail);
+end;
