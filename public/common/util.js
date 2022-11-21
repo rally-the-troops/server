@@ -1,5 +1,34 @@
 // === COMMON LIBRARY ===
 
+function clear_undo() {
+	if (game.undo.length > 0)
+		game.undo = []
+}
+
+function push_undo() {
+	let copy = {}
+	for (let k in game) {
+		let v = game[k]
+		if (k === "undo")
+			continue
+		else if (k === "log")
+			v = v.length
+		else if (typeof v === "object" && v !== null)
+			v = object_copy(v)
+		copy[k] = v
+	}
+	game.undo.push(copy)
+}
+
+function pop_undo() {
+	let save_log = game.log
+	let save_undo = game.undo
+	game = save_undo.pop()
+	save_log.length = game.log
+	game.log = save_log
+	game.undo = save_undo
+}
+
 function random(range) {
 	// An MLCG using integer arithmetic with doubles.
 	// https://www.ams.org/journals/mcom/1999-68-225/S0025-5718-99-00996-5/S0025-5718-99-00996-5.pdf
@@ -16,6 +45,7 @@ function random_bigint(range) {
 }
 
 function shuffle(list) {
+	// Fisher-Yates shuffle
 	for (let i = list.length - 1; i > 0; --i) {
 		let j = random(i + 1)
 		let tmp = list[j]
@@ -25,6 +55,7 @@ function shuffle(list) {
 }
 
 function shuffle_bigint(list) {
+	// Fisher-Yates shuffle
 	for (let i = list.length - 1; i > 0; --i) {
 		let j = random_bigint(i + 1)
 		let tmp = list[j]
@@ -33,22 +64,64 @@ function shuffle_bigint(list) {
 	}
 }
 
-// remove item at index (faster than splice)
+// Fast deep copy for objects without cycles
+function object_copy(original) {
+	if (Array.isArray(original)) {
+		let n = original.length
+		let copy = new Array(n)
+		for (let i = 0; i < n; ++i) {
+			let v = original[i]
+			if (typeof v === "object" && v !== null)
+				copy[i] = object_copy(v)
+			else
+				copy[i] = v
+		}
+		return copy
+	} else {
+		let copy = {}
+		for (let i in original) {
+			let v = original[i]
+			if (typeof v === "object" && v !== null)
+				copy[i] = object_copy(v)
+			else
+				copy[i] = v
+		}
+		return copy
+	}
+}
+
+// Array remove and insert (faster than splice)
+
 function array_remove(array, index) {
 	let n = array.length
 	for (let i = index + 1; i < n; ++i)
 		array[i - 1] = array[i]
 	array.length = n - 1
-	return array
 }
 
-// insert item at index (faster than splice)
 function array_insert(array, index, item) {
 	for (let i = array.length; i > index; --i)
 		array[i] = array[i - 1]
 	array[index] = item
-	return array
 }
+
+function array_remove_pair(array, index) {
+	let n = array.length
+	for (let i = index + 2; i < n; ++i)
+		array[i - 2] = array[i]
+	array.length = n - 2
+}
+
+function array_insert_pair(array, index, key, value) {
+	for (let i = array.length; i > index; i -= 2) {
+		array[i] = array[i-2]
+		array[i+1] = array[i-1]
+	}
+	array[index] = key
+	array[index+1] = value
+}
+
+// Set as plain sorted array
 
 function set_clear(set) {
 	set.length = 0
@@ -81,9 +154,9 @@ function set_add(set, item) {
 		else if (item > x)
 			a = m + 1
 		else
-			return set
+			return
 	}
-	return array_insert(set, a, item)
+	array_insert(set, a, item)
 }
 
 function set_delete(set, item) {
@@ -96,10 +169,11 @@ function set_delete(set, item) {
 			b = m - 1
 		else if (item > x)
 			a = m + 1
-		else
-			return array_remove(set, m)
+		else {
+			array_remove(set, m)
+			return
+		}
 	}
-	return set
 }
 
 function set_toggle(set, item) {
@@ -112,63 +186,83 @@ function set_toggle(set, item) {
 			b = m - 1
 		else if (item > x)
 			a = m + 1
+		else {
+			array_remove(set, m)
+			return
+		}
+	}
+	array_insert(set, a, item)
+}
+
+// Map as plain sorted array of key/value pairs
+
+function map_clear(map) {
+	map.length = 0
+}
+
+function map_has(map, key) {
+	let a = 0
+	let b = (map.length >> 1) - 1
+	while (a <= b) {
+		let m = (a + b) >> 1
+		let x = map[m<<1]
+		if (key < x)
+			b = m - 1
+		else if (key > x)
+			a = m + 1
 		else
-			return array_remove(set, m)
+			return true
 	}
-	return array_insert(set, a, item)
+	return false
 }
 
-// Fast deep copy for objects without cycles
-function object_copy(original) {
-	if (Array.isArray(original)) {
-		let n = original.length
-		let copy = new Array(n)
-		for (let i = 0; i < n; ++i) {
-			let v = original[i]
-			if (typeof v === "object" && v !== null)
-				copy[i] = object_copy(v)
-			else
-				copy[i] = v
+function map_get(map, key, missing) {
+	let a = 0
+	let b = (map.length >> 1) - 1
+	while (a <= b) {
+		let m = (a + b) >> 1
+		let x = map[m<<1]
+		if (key < x)
+			b = m - 1
+		else if (key > x)
+			a = m + 1
+		else
+			return map[(m<<1)+1]
+	}
+	return missing
+}
+
+function map_set(map, key, value) {
+	let a = 0
+	let b = (map.length >> 1) - 1
+	while (a <= b) {
+		let m = (a + b) >> 1
+		let x = map[m<<1]
+		if (key < x)
+			b = m - 1
+		else if (key > x)
+			a = m + 1
+		else {
+			map[(m<<1)+1] = value
+			return
 		}
-		return copy
-	} else {
-		let copy = {}
-		for (let i in original) {
-			let v = original[i]
-			if (typeof v === "object" && v !== null)
-				copy[i] = object_copy(v)
-			else
-				copy[i] = v
+	}
+	array_insert_pair(map, a<<1, key, value)
+}
+
+function map_delete(map, item) {
+	let a = 0
+	let b = (map.length >> 1) - 1
+	while (a <= b) {
+		let m = (a + b) >> 1
+		let x = map[m<<1]
+		if (item < x)
+			b = m - 1
+		else if (item > x)
+			a = m + 1
+		else {
+			array_remove_pair(map, m<<1)
+			return
 		}
-		return copy
 	}
-}
-
-function clear_undo() {
-	if (game.undo.length > 0)
-		game.undo = []
-}
-
-function push_undo() {
-	let copy = {}
-	for (let k in game) {
-		let v = game[k]
-		if (k === "undo")
-			continue
-		else if (k === "log")
-			v = v.length
-		else if (typeof v === "object" && v !== null)
-			v = object_copy(v)
-		copy[k] = v
-	}
-	game.undo.push(copy)
-}
-
-function pop_undo() {
-	let save_log = game.log
-	let save_undo = game.undo
-	game = save_undo.pop()
-	save_log.length = game.log
-	game.log = save_log
-	game.undo = save_undo
 }
