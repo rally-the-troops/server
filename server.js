@@ -3,43 +3,26 @@
 const fs = require('fs')
 const crypto = require('crypto')
 const http = require('http')
-const https = require('https')
 const { WebSocketServer } = require('ws')
 const express = require('express')
 const url = require('url')
-const compression = require('compression')
 const sqlite3 = require('better-sqlite3')
 
 require('dotenv').config()
 
-let DEBUG = process.env.DEBUG || 0
+const DEBUG = process.env.DEBUG || 0
 
-let HTTP_PORT = process.env.HTTP_PORT || 8080
-let HTTPS_PORT = process.env.HTTPS_PORT
+const HTTP_HOST = process.env.HTTP_HOST || "localhost"
+const HTTP_PORT = process.env.HTTP_PORT || 8080
 
-let SITE_HOST = process.env.SITE_HOST || "localhost"
-let SITE_NAME = process.env.SITE_NAME || "Untitled"
-let SITE_URL = process.env.SITE_URL
-if (!SITE_URL) {
-	if (HTTPS_PORT)
-		SITE_URL = "https://" + SITE_HOST + ":" + HTTPS_PORT
-	else
-		SITE_URL = "http://" + SITE_HOST + ":" + HTTP_PORT
-}
+const SITE_NAME = process.env.SITE_NAME || "Localhost"
+const SITE_URL = process.env.SITE_URL || "http://" + HTTP_HOST + ":" + HTTP_PORT
 
 // Time intervals in julian days
 const HOURS = 1 / 24
 const MINUTES = 1 / (24 * 60)
 
-var stat_start = Date.now() / 60000
-var stat_http_reqs = 0
-var stat_pug_reqs = 0
-var stat_ws_reqs = 0
-var stat_total1 = 0
-var stat_total2 = 0
-
 function LOG_STATS() {
-
 	// Count clients connected to join page events
 	let num_joins = 0
 	for (let id in join_clients)
@@ -53,16 +36,11 @@ function LOG_STATS() {
 		num_sockets += game_clients[id].length
 	}
 
-	let elapsed = Date.now() / 60000 - stat_start
-	stat_total1 += stat_http_reqs - stat_pug_reqs
-	stat_total2 += stat_pug_reqs + stat_ws_reqs
-
-	console.log(`>>> STATS: games=${num_games} sockets=${num_sockets} joins=${num_joins} http=${stat_http_reqs} pug=${stat_pug_reqs} ws=${stat_ws_reqs} http-req/min=${Math.round(stat_total1 / elapsed)} server-req/min=${Math.round(stat_total2 / elapsed)}`)
-
-	stat_http_reqs = stat_pug_reqs = stat_ws_reqs = 0
+	if (num_games > 0 || num_sockets > 0 || num_joins > 0)
+		console.log(`>>> games=${num_games} sockets=${num_sockets} joins=${num_joins}`)
 }
 
-setInterval(LOG_STATS, 30 * 1000)
+setInterval(LOG_STATS, 60 * 1000)
 
 /*
  * Main database.
@@ -129,8 +107,6 @@ const login_sql_delete = SQL("delete from logins where sid = ?")
 const login_sql_touch = SQL("update logins set expires = julianday() + 28 where sid = ? and expires < julianday() + 27")
 
 function make_cookie(sid, age) {
-	if (SITE_HOST !== "localhost")
-		return `${COOKIE}${sid}; Path=/; Domain=${SITE_HOST}; Max-Age=${age}; HttpOnly`
 	return `${COOKIE}${sid}; Path=/; Max-Age=${age}; HttpOnly`
 }
 
@@ -177,37 +153,13 @@ app.set('x-powered-by', false)
 app.set('etag', false)
 app.set('view engine', 'pug')
 
-app.use(function (req, res, next) {
-	stat_http_reqs++
-	return next()
-})
-
-app.use(compression())
 app.use(express.static('public', { redirect: false, etag: false, cacheControl: false, setHeaders: set_static_headers }))
 app.use(express.urlencoded({extended:false}))
 
-let wss
-
-if (HTTPS_PORT) {
-	let https_server = https.createServer({
-		key: fs.readFileSync(process.env.SSL_KEY || "key.pem"),
-		cert: fs.readFileSync(process.env.SSL_CERT || "cert.pem")
-	}, app)
-	wss = new WebSocketServer({server: https_server})
-	https_server.listen(HTTPS_PORT, "0.0.0.0", () => console.log("Listening to HTTPS on *:" + HTTPS_PORT))
-	https_server.keepAliveTimeout = 0
-
-	// Force HTTPS by redirecting HTTP.
-	let redirect_app = express()
-	redirect_app.all("*", (req, res) => res.redirect(308, SITE_URL + req.url))
-	let redirect_server = http.createServer(redirect_app)
-	redirect_server.listen(HTTP_PORT, "0.0.0.0", () => console.log("Redirecting from HTTP on *:" + HTTP_PORT))
-} else {
-	let http_server = http.createServer(app)
-	wss = new WebSocketServer({server: http_server})
-	http_server.keepAliveTimeout = 0
-	http_server.listen(HTTP_PORT, "0.0.0.0", () => console.log("Listening to HTTP on *:" + HTTP_PORT))
-}
+let http_server = http.createServer(app)
+let wss = new WebSocketServer({server: http_server})
+http_server.keepAliveTimeout = 0
+http_server.listen(HTTP_PORT, HTTP_HOST, () => console.log(`Listening to HTTP on ${HTTP_HOST}:${HTTP_PORT}`))
 
 /*
  * MISC FUNCTIONS
@@ -391,7 +343,9 @@ app.use(function (req, res, next) {
 	req.user_agent = parse_user_agent(req)
 	if (req.user_agent === "MSIE")
 		return res.redirect("/msie.html")
-	let ip = req.ip || req.connection.remoteAddress || "0.0.0.0"
+
+	let ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
+
 	res.setHeader('Cache-Control', 'no-store')
 	let sid = login_cookie(req)
 	if (sid) {
@@ -411,8 +365,6 @@ app.use(function (req, res, next) {
 	let ua = req.user_agent.padEnd(10)
 	ip = String(ip).padEnd(15)
 	console.log(time, ip, ua, name, req.method, req.url)
-
-	stat_pug_reqs++
 
 	return next()
 })
@@ -1482,7 +1434,6 @@ function update_join_clients_deleted(game_id) {
 			res.write("retry: 15000\n")
 			res.write("event: deleted\n")
 			res.write("data: The game doesn't exist.\n\n")
-			res.flush()
 		}
 	}
 }
@@ -1495,7 +1446,6 @@ function update_join_clients_game(game_id) {
 			res.write("retry: 15000\n")
 			res.write("event: game\n")
 			res.write("data: " + JSON.stringify(game) + "\n\n")
-			res.flush()
 		}
 	}
 }
@@ -1511,7 +1461,6 @@ function update_join_clients_players(game_id) {
 			res.write("data: " + JSON.stringify(players) + "\n\n")
 			res.write("event: ready\n")
 			res.write("data: " + ready + "\n\n")
-			res.flush()
 		}
 	}
 }
@@ -1545,6 +1494,7 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 
 	res.setHeader("Content-Type", "text/event-stream")
 	res.setHeader("Connection", "keep-alive")
+	res.setHeader("X-Accel-Buffering", "no")
 
 	if (!game) {
 		return res.send("event: deleted\ndata: The game doesn't exist.\n\n")
@@ -1569,7 +1519,6 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	res.write("data: " + JSON.stringify(game) + "\n\n")
 	res.write("event: players\n")
 	res.write("data: " + JSON.stringify(players) + "\n\n")
-	res.flush()
 })
 
 app.post('/join/:game_id/:role', must_be_logged_in, function (req, res) {
@@ -2254,7 +2203,7 @@ wss.on('connection', (socket, req, client) => {
 	if (user_id)
 		socket.user = SQL_SELECT_USER_INFO.get(user_id)
 
-	socket.ip = req.ip || req.connection.remoteAddress || "0.0.0.0"
+	socket.ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
 	socket.title_id = req.query.title || "unknown"
 	socket.game_id = req.query.game | 0
 	socket.role = req.query.role
@@ -2264,8 +2213,6 @@ wss.on('connection', (socket, req, client) => {
 	SLOG(socket, "OPEN " + socket.seen)
 
 	try {
-		stat_ws_reqs++
-
 		let title_id = SQL_SELECT_GAME_TITLE.get(socket.game_id)
 		if (title_id !== socket.title_id)
 			return socket.close(1000, "Invalid game ID.")
@@ -2303,7 +2250,6 @@ wss.on('connection', (socket, req, client) => {
 		})
 
 		socket.on('message', (data) => {
-			stat_ws_reqs++
 			try {
 				let [ cmd, arg ] = JSON.parse(data)
 				if (socket.role !== "Observer")
