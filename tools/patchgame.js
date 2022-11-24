@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+const VERIFY = true
+
 const fs = require('fs')
 const sqlite3 = require('better-sqlite3')
 
@@ -20,8 +22,8 @@ fs.writeFileSync("backup-" + game_id + ".txt", save)
 
 function is_valid_action(rules, game, role, action, a) {
 	if (action !== 'undo')
-	if (game.active !== role && game.active !== "Both" && game.active !== "All")
-		return false
+		if (game.active !== role && game.active !== "Both" && game.active !== "All")
+			return false
 	let view = rules.view(game, role)
 	let va = view.actions[action]
 	if (va === undefined)
@@ -47,26 +49,26 @@ try {
 			game = rules.resign(game, item.role)
 		else {
 			console.log("ACTION", i, game.seed, game.state, game.active, ">", item.role, item.action, item.arguments)
-			if (1)
-			if (!is_valid_action(rules, game, item.role, item.action, args)) {
-				console.log(`invalid action: ${item.role} ${item.action} ${item.arguments}`)
-				console.log("\t", game.state, game.active, JSON.stringify(rules.view(game, item.role).actions))
-				throw "invalid action"
+			if (VERIFY) {
+				if (!is_valid_action(rules, game, item.role, item.action, args)) {
+					console.log(`invalid action: ${item.role} ${item.action} ${item.arguments}`)
+					console.log("\t", game.state, game.active, JSON.stringify(rules.view(game, item.role).actions))
+					throw "invalid action"
+				}
 			}
 			game = rules.action(game, item.role, item.action, args)
 		}
 		++i
 	})
+	console.log("SUCCESS %d", log.length)
+	db.prepare("update game_state set active=?, state=? where game_id=?").run(game.active, JSON.stringify(game), game_id)
 } catch (err) {
 	console.log("FAILED %d/%d", i+1, log.length)
 	console.log(err)
-	game.log=undefined
-	game.undo=undefined
-	//console.log(JSON.stringify(game,0,4))
+	delete game.log
+	delete game.undo
 	console.log(game)
 }
-
-db.prepare("update game_state set active=?, state=? where game_id=?").run(game.active, JSON.stringify(game), game_id)
 
 if (i < log.length) {
 	console.log("BROKEN ENTRIES: %d", log.length-i)

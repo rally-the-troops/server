@@ -1,4 +1,5 @@
 # Source assets and working files
+WIP*
 HIRES
 vassal
 tmp
@@ -9,8 +10,6 @@ tmp
 db
 db-shm
 db-wal
-key.pem
-cert.pem
 
 # Development clutter
 node_modules
