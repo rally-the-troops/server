@@ -248,43 +248,13 @@ const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt,notify) 
 const SQL_DELETE_USER = SQL("DELETE FROM users WHERE user_id = ?")
 
 const SQL_SELECT_LOGIN = SQL("SELECT * FROM user_login_view WHERE user_id=?")
+const SQL_SELECT_USER_VIEW = SQL("SELECT * FROM user_view WHERE user_id=?")
 const SQL_SELECT_USER_BY_NAME = SQL("SELECT * FROM user_view WHERE name=?")
 const SQL_SELECT_LOGIN_BY_MAIL = SQL("SELECT * FROM user_login_view WHERE mail=?")
 const SQL_SELECT_LOGIN_BY_NAME = SQL("SELECT * FROM user_login_view WHERE name=?")
 const SQL_SELECT_USER_PROFILE = SQL("SELECT * FROM user_profile_view WHERE name=?")
+const SQL_SELECT_USER_DYNAMIC = SQL("select * from user_dynamic_view where user_id=?")
 const SQL_SELECT_USER_NAME = SQL("SELECT name FROM users WHERE user_id=?").pluck()
-const SQL_SELECT_USER_INFO = SQL(`
-	select
-		user_id,
-		name,
-		mail,
-		(
-			select
-				count(*)
-			from
-				messages
-			where
-				to_id = user_id
-				and is_read = 0
-				and is_deleted_from_inbox = 0
-		) as unread,
-		(
-			select
-				count(*)
-			from
-				players
-				join games using(game_id)
-				join game_state using(game_id)
-			where
-				status = 1
-				and players.user_id = users.user_id
-				and active in ( players.role, 'Both', 'All' )
-		) as active,
-		is_banned
-	from
-		users
-	where user_id = ?
-	`)
 
 const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND julianday() > atime + ?")
 
@@ -352,7 +322,7 @@ app.use(function (req, res, next) {
 		let user_id = login_sql_select.get(sid)
 		if (user_id) {
 			login_touch(res, sid)
-			req.user = SQL_SELECT_USER_INFO.get(user_id)
+			req.user = SQL_SELECT_USER_DYNAMIC.get(user_id)
 			SQL_UPDATE_USER_LAST_SEEN.run(user_id)
 			if (req.user.is_banned)
 				return res.status(403).send("")
@@ -2202,7 +2172,7 @@ wss.on('connection', (socket, req, client) => {
 	if (sid)
 		user_id = login_sql_select.get(sid)
 	if (user_id)
-		socket.user = SQL_SELECT_USER_INFO.get(user_id)
+		socket.user = SQL_SELECT_USER_VIEW.get(user_id)
 
 	socket.ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
 	socket.title_id = req.query.title || "unknown"

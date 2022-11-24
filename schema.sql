@@ -79,6 +79,39 @@ create view user_profile_view as
 		natural left join user_last_seen
 	;
 
+drop view if exists user_dynamic_view;
+create view user_dynamic_view as
+	select
+		user_id,
+		name,
+		mail,
+		(
+			select
+				count(*)
+			from
+				messages
+			where
+				to_id = user_id
+				and is_read = 0
+				and is_deleted_from_inbox = 0
+		) as unread,
+		(
+			select
+				count(*)
+			from
+				players
+				join games using(game_id)
+				join game_state using(game_id)
+			where
+				status = 1
+				and players.user_id = users.user_id
+				and active in ( players.role, 'Both', 'All' )
+		) as active,
+		is_banned
+	from
+		users
+	;
+
 -- Friend and Block Lists --
 
 create table if not exists contacts (
