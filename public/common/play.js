@@ -20,6 +20,7 @@ let view = null
 let player = "Observer"
 let socket = null
 let chat = null
+let debug = 0
 
 function scroll_with_middle_mouse(panel_sel, multiplier) {
 	let panel = document.querySelector(panel_sel)
@@ -508,10 +509,16 @@ function on_update_log() {
 	while (to_delete-- > 0)
 		div.removeChild(div.lastChild)
 	for (let text of view.log) {
-		if (typeof on_log === 'function') {
-			div.appendChild(on_log(text))
+		let entry = null
+		if (params.mode === "debug" && text.startsWith("?")) {
+			entry = document.createElement("a")
+			entry.href = "#" + text.substring(1)
+			entry.textContent = "\xbb"
+			div.appendChild(entry)
+		} else if (typeof on_log === 'function') {
+			entry = div.appendChild(on_log(text))
 		} else {
-			let entry = document.createElement("div")
+			entry = document.createElement("div")
 			entry.textContent = text
 			div.appendChild(entry)
 		}
@@ -774,7 +781,7 @@ async function init_replay(debug) {
 	let p = 0
 	let s = {}
 
-	function eval_action(item) {
+	function eval_action(item, p) {
 		switch (item.action) {
 		case "setup":
 			s = rules.setup(item.arguments[0], item.arguments[1], item.arguments[2])
@@ -783,6 +790,8 @@ async function init_replay(debug) {
 			s = rules.resign(s, item.role)
 			break
 		default:
+			if (params.mode === "debug")
+				s.log.push("?" + p)
 			s = rules.action(s, item.role, item.action, item.arguments)
 			break
 		}
@@ -803,7 +812,7 @@ async function init_replay(debug) {
 		}
 
 		try {
-			eval_action(replay[p])
+			eval_action(replay[p], p)
 		} catch (err) {
 			console.log("ERROR IN REPLAY %d %s %s/%s/%s", p, s.state, replay[p].role, replay[p].action, replay[p].arguments)
 			console.log(err)
@@ -876,8 +885,10 @@ async function init_replay(debug) {
 		set_hash(np)
 		if (p > np)
 			p = 0, s = {}
-		while (p < np)
-			eval_action(replay[p++])
+		while (p < np) {
+			eval_action(replay[p], p)
+			++p;
+		}
 		update_replay_view()
 	}
 
