@@ -508,7 +508,17 @@ function on_update_log() {
 	while (to_delete-- > 0)
 		div.removeChild(div.lastChild)
 	for (let text of view.log) {
-		if (typeof on_log === 'function') {
+		if (params.mode === "debug" && typeof text === "object") {
+			let entry = document.createElement("a")
+			entry.href = "#" + text[0]
+			if (text[3] !== null)
+				entry.textContent = "\u25b6 " + text[1] + " " + text[2] + " " + text[3]
+			else
+				entry.textContent = "\u25b6 " + text[1] + " " + text[2]
+			entry.style.display = "block"
+			entry.style.textDecoration = "none"
+			div.appendChild(entry)
+		} else if (typeof on_log === "function") {
 			div.appendChild(on_log(text))
 		} else {
 			let entry = document.createElement("div")
@@ -754,7 +764,7 @@ async function require(path) {
 
 let replay = null
 
-async function init_replay(debug) {
+async function init_replay() {
 	remove_resign_menu()
 
 	document.getElementById("prompt").textContent = "Loading replay..."
@@ -763,7 +773,7 @@ async function init_replay(debug) {
 	let rules = await require("rules.js")
 
 	console.log("LOADING REPLAY")
-	let response = await fetch((debug ? "/debug/" : "/replay/") + params.game_id)
+	let response = await fetch((params.mode === "debug" ? "/replay-debug/" : "/replay/") + params.game_id)
 	let body = await response.json()
 	replay = body.replay
 
@@ -774,7 +784,7 @@ async function init_replay(debug) {
 	let p = 0
 	let s = {}
 
-	function eval_action(item) {
+	function eval_action(item, p) {
 		switch (item.action) {
 		case "restore":
 			s = JSON.parse(item.arguments)
@@ -783,9 +793,13 @@ async function init_replay(debug) {
 			s = rules.setup(item.arguments[0], item.arguments[1], item.arguments[2])
 			break
 		case "resign":
+			if (params.mode === "debug")
+				s.log.push([p, item.role.substring(0,2), item.action, null])
 			s = rules.resign(s, item.role)
 			break
 		default:
+			if (params.mode === "debug")
+				s.log.push([p, item.role.substring(0,2), item.action, item.arguments])
 			s = rules.action(s, item.role, item.action, item.arguments)
 			break
 		}
@@ -806,18 +820,18 @@ async function init_replay(debug) {
 		}
 
 		try {
-			eval_action(replay[p])
+			eval_action(replay[p], p)
 		} catch (err) {
 			console.log("ERROR IN REPLAY %d %s %s/%s/%s", p, s.state, replay[p].role, replay[p].action, replay[p].arguments)
 			console.log(err)
-			if (debug)
+			if (params.mode === "debug")
 				replay.length = p
 			else
 				replay.length = 0
 			break
 		}
 
-		if (!debug) {
+		if (params.mode !== "debug") {
 			replay[p].digest = adler32(JSON.stringify(s))
 			for (let k = p-1; k > 0; --k) {
 				if (replay[k].digest === replay[p].digest && !replay[k].is_undone) {
@@ -879,8 +893,10 @@ async function init_replay(debug) {
 		set_hash(np)
 		if (p > np)
 			p = 0, s = {}
-		while (p < np)
-			eval_action(replay[p++])
+		while (p < np) {
+			eval_action(replay[p], p)
+			++p;
+		}
 		update_replay_view()
 	}
 
@@ -900,7 +916,7 @@ async function init_replay(debug) {
 		body.classList.add(player.replace(/ /g, "_"))
 
 		view = rules.view(s, player)
-		if (!debug)
+		if (params.mode !== "debug")
 			view.actions = null
 
 		if (viewpoint === "Observer")
@@ -980,9 +996,9 @@ async function init_replay(debug) {
 window.addEventListener("load", function () {
 	zoom_map()
 	if (params.mode === "debug")
-		init_replay(true)
+		init_replay()
 	if (params.mode === "replay")
-		init_replay(false)
+		init_replay()
 	if (params.mode === "play")
 		connect_play()
 })

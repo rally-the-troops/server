@@ -1593,6 +1593,15 @@ app.get('/play/:game_id', function (req, res) {
 		res.redirect('/'+title+'/play:'+game_id)
 })
 
+app.get('/debug/:game_id', function (req, res) {
+	let game_id = req.params.game_id | 0
+	let user_id = req.user ? req.user.user_id : 0
+	let title = SQL_SELECT_GAME_TITLE.get(game_id)
+	if (!title)
+		return res.status(404).send("Invalid game ID.")
+	res.redirect('/'+title+'/debug:'+game_id)
+})
+
 app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, res) {
 	let user_id = req.user ? req.user.user_id : 0
 	let title_id = req.params.title_id
@@ -1649,7 +1658,7 @@ app.get('/replay/:game_id', function (req, res) {
 	return res.json({players, state, replay})
 })
 
-app.get('/debug/:game_id', function (req, res) {
+app.get('/replay-debug/:game_id', function (req, res) {
 	if (!req.user || req.user.user_id !== 1)
 		return res.status(401).send("Not authorized to debug.")
 	let game_id = req.params.game_id
