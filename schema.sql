@@ -54,6 +54,13 @@ create table if not exists last_notified (
 	primary key (game_id, user_id)
 ) without rowid;
 
+create table if not exists webhooks (
+	user_id integer primary key,
+	url text,
+	prefix text,
+	error text
+);
+
 drop view if exists user_view;
 create view user_view as
 	select
@@ -427,6 +434,7 @@ create trigger trigger_delete_on_users after delete on users
 begin
 	delete from logins where user_id = old.user_id;
 	delete from tokens where user_id = old.user_id;
+	delete from webhooks where user_id = old.user_id;
 	delete from user_last_seen where user_id = old.user_id;
 	delete from last_notified where user_id = old.user_id;
 	delete from read_threads where user_id = old.user_id;

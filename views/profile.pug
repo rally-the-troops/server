@@ -28,6 +28,17 @@ html
 				br
 				| <a href="/delete-account">Delete account</a>
 
+			if !user.webhook
+				p <a href="/webhook">Configure webhook</a>
+			else if user.webhook.error
+				dl
+					dt <a href="/webhook">Configure webhook</a>
+					dd.error ERROR: #{user.webhook.error}
+			else
+				dl
+					dt <a href="/webhook">Configure webhook</a>
+					dd= new URL(user.webhook.url).hostname
+
 			p <a href="/chat">Chat log</a>
 
 			p

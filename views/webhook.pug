@@ -1,0 +1,46 @@
+//- vim:ts=4:sw=4:
+doctype html
+html(lang="en")
+	head
+		include head
+		title Webhook
+	body
+		include header
+		article
+
+			h1 Webhook
+
+			- var url = webhook && webhook.url || ""
+			- var prefix = webhook && webhook.prefix || ""
+
+			form(action="/update-webhook" method="post")
+				if webhook && webhook.error
+					p.error ERROR: #{webhook.error}
+				p Webhook URL:
+					br
+					input#url(type="text" name="url" size=120 placeholder="https://discord.com/api/webhooks/..." value=url required)
+				p Message prefix:
+					br
+					input#prefix(type="text" name="prefix" size=40 placeholder="<@123456789>" value=prefix)
+
+				if webhook
+					button(type="submit") Update
+				else
+					button(type="submit") Create
+
+			if webhook
+				form(action="/delete-webhook" method="post")
+					button(type="submit") Delete
+
+			h2 Discord Notifications
+
+			p You can send notifications to a given channel on a Discord server.
+
+			ol
+				li Create your own server or use an existing server where you have administrator privileges.
+				li <a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks">Get the webhook URL</a> for the Discord channel where you want notifications to be sent. Enter it into the Webhook URL field.
+				li Find your <a href="https://support.playhive.com/discord-user-id/">Discord User ID</a>. Enter it into the Message prefix field as "&lt;@UserID&gt;"
+
+			h2 Custom Notifications
+
+			p You can integrate with any server that accepts inbound webhooks by setting the webhook URL to the appropriate endpoint. The webhook payload is a JSON object with a "content" property containing the notification message.
