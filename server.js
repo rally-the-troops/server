@@ -537,6 +537,7 @@ app.post('/change-password', must_be_logged_in, function (req, res) {
 		return res.render('change_password.pug', { user: req.user, flash: "Wrong password!" })
 	let salt = crypto.randomBytes(32).toString('hex')
 	let hash = hash_password(newpass, salt)
+	SQL_UPDATE_USER_PASSWORD.run(hash, salt, user.user_id)
 	return res.redirect('/profile')
 })
 
