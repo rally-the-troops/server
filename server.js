@@ -786,7 +786,7 @@ app.post('/message/send', must_be_logged_in, function (req, res) {
 })
 
 function quote_body(message) {
-	let when = new Date(message.time).toDateString()
+	let when = new Date(from_julianday(message.time)).toDateString()
 	let who = message.from_name
 	let what = message.body.split("\n").join("\n> ")
 	return "\n\n" + "On " + when + " " + who + " wrote:\n> " + what + "\n"
