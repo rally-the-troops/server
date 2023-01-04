@@ -47,8 +47,11 @@ try {
 			game = rules.setup(args[0], args[1], args[2])
 		else if (item.action === 'resign')
 			game = rules.resign(game, item.role)
-		else {
-			console.log("ACTION", i, game.seed, game.state, game.active, ">", item.role, item.action, item.arguments)
+		else if (item.action === 'restore') {
+			game = JSON.parse(args)
+			console.log("RESTORE", i, game.state, game.active)
+		} else {
+			console.log("ACTION", i, game.state, game.active, ">", item.role, item.action, item.arguments)
 			if (VERIFY) {
 				if (!is_valid_action(rules, game, item.role, item.action, args)) {
 					console.log(`invalid action: ${item.role} ${item.action} ${item.arguments}`)

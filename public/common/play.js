@@ -776,6 +776,9 @@ async function init_replay(debug) {
 
 	function eval_action(item) {
 		switch (item.action) {
+		case "restore":
+			s = JSON.parse(item.arguments)
+			break
 		case "setup":
 			s = rules.setup(item.arguments[0], item.arguments[1], item.arguments[2])
 			break
