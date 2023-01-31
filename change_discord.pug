@@ -1,0 +1,28 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Change Discord Integration Settings
+	body
+		include header
+		article
+			h1 Change Discord Integration Settings
+			if flash
+				p.error= flash
+
+			form(method="post" action="/change-discord")
+				p Name: #{user.name}
+				p Mail: #{user.mail}
+				p
+					a(href='https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks') Discord Webhooks
+				p
+					label Webhook URL:
+						br
+						input(type="text" name="webhook_url" value=`${user.webhook_url}` required)
+				p
+					label Webhook Id
+						br
+						input(type="text" name="webhook_id" value=`${user.webhook_id}` required) 
+				p
+					button(type="submit") Save

@@ -22,7 +22,9 @@ create table if not exists logins (
 create table if not exists users (
 	user_id integer primary key,
 	name text unique collate nocase,
-	mail text unique collate nocase,
+        mail text unique collate nocase,
+        webhook_id text,
+        webhook_url text,
 	notify boolean default 0,
 	is_banned boolean default 0,
 	ctime real default (julianday()),
@@ -57,7 +59,7 @@ create table if not exists last_notified (
 drop view if exists user_view;
 create view user_view as
 	select
-		user_id, name, mail, notify
+		user_id, name, mail, webhook_id, webhook_url, notify
 	from
 		users
 	;
@@ -73,7 +75,7 @@ create view user_login_view as
 drop view if exists user_profile_view;
 create view user_profile_view as
 	select
-		user_id, name, mail, notify, ctime, atime, about, is_banned
+		user_id, name, mail, webhook_id, webhook_url, notify, ctime, atime, about, is_banned
 	from
 		users
 		natural left join user_last_seen
@@ -107,6 +109,7 @@ create view user_dynamic_view as
 				and players.user_id = users.user_id
 				and active in ( players.role, 'Both', 'All' )
 		) as active,
+                webhook_id, webhook_url,
 		is_banned
 	from
 		users
@@ -383,7 +386,7 @@ create view opposed_games as
 drop view if exists your_turn_reminder;
 create view your_turn_reminder as
 	select
-		game_id, role, user_id, name, mail, notify
+		game_id, role, user_id, name, mail, webhook_id, webhook_url, notify
 	from
 		game_full_view
 		join players using(game_id)
