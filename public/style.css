@@ -81,6 +81,7 @@ p.warning::before { content: "\26a0"; }
 /* TABLES */
 
 table {
+	background-color: white;
 	min-width: min(50rem,100%);
 	border-collapse: collapse;
 	border: 1px solid black;
@@ -105,6 +106,7 @@ td.is_active { background-color: lemonchiffon; }
 /* FORUM AND MESSAGE POSTS */
 
 div.post {
+	background-color: white;
 	max-width: 50em;
 	margin-top: 24px;
 	border: 1px solid black;
@@ -194,3 +196,13 @@ article hr + p { font-style: italic; }
 .game_item.your_turn a:hover { color: #860 }
 
 .game_item.unread .game_head div::after { content: " \1f4dd  "; }
+
+/* DARK MODE */
+@media (prefers-color-scheme: dark) {
+	body { background-color: silver }
+	header { background-color: darkgray }
+	table, div.post { background-color: gainsboro }
+	thead, tfoot, div.post > div.head { background-color: darkgray }
+	input, textarea { background-color: gainsboro }
+	input:focus, textarea:focus { outline-color: cornflowerblue }
+}
