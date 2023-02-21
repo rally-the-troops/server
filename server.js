@@ -1107,14 +1107,15 @@ const SQL_INSERT_REMATCH = SQL(`
 
 const QUERY_LIST_PUBLIC_GAMES = SQL(`
 	SELECT * FROM game_view
-	WHERE is_private=0 AND status < 2
+	WHERE is_private=0 AND status = ?
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
 	ORDER BY mtime DESC, ctime DESC
+	LIMIT ?
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	SELECT * FROM game_view
-	WHERE is_private=0 AND title_id=? AND status>=? AND status<=?
+	WHERE is_private=0 AND title_id=? AND status=?
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
 	ORDER BY mtime DESC, ctime DESC
 	LIMIT ?
@@ -1296,14 +1297,17 @@ app.get('/games/finished/:who_name', function (req, res) {
 })
 
 app.get('/games/public', function (req, res) {
-	let games = QUERY_LIST_PUBLIC_GAMES.all()
+	let games0 = QUERY_LIST_PUBLIC_GAMES.all(0, 1000)
+	let games1 = QUERY_LIST_PUBLIC_GAMES.all(1, 48)
 	if (req.user) {
 		let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
-		annotate_games(games, req.user.user_id, unread)
+		annotate_games(games0, req.user.user_id, unread)
+		annotate_games(games1, req.user.user_id, unread)
 	} else {
-		annotate_games(games, 0, null)
+		annotate_games(games0, 0, null)
+		annotate_games(games1, 0, null)
 	}
-	res.render('games_public.pug', { user: req.user, games })
+	res.render('games_public.pug', { user: req.user, games0, games1 })
 })
 
 app.get('/info/:title_id', function (req, res) {
@@ -1317,15 +1321,17 @@ function get_title_page(req, res, title_id) {
 	let unread = null
 	if (req.user)
 		unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
-	let active_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1, 1000)
-	let finished_games = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 2, 50)
-	annotate_games(active_games, req.user ? req.user.user_id : 0, unread)
-	annotate_games(finished_games, req.user ? req.user.user_id : 0, unread)
+	let games0 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1000)
+	let games1 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 1, 1000)
+	let games2 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 24)
+	annotate_games(games0, req.user ? req.user.user_id : 0, unread)
+	annotate_games(games1, req.user ? req.user.user_id : 0, unread)
+	annotate_games(games2, req.user ? req.user.user_id : 0, unread)
 	res.render('info.pug', {
 		user: req.user,
 		title: title,
 		about_html: HTML_ABOUT[title_id],
-		games: active_games.concat(finished_games)
+		games0, games1, games2
 	})
 }
 
