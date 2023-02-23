@@ -387,7 +387,7 @@ function connect_play() {
 
 	let protocol = (window.location.protocol === "http:") ? "ws" : "wss"
 	let seen = document.getElementById("log").children.length
-	let url = `${protocol}://${window.location.host}/play-socket?title=${params.title_id}&game=${params.game_id}&role=${params.role}&seen=${seen}`
+	let url = `${protocol}://${window.location.host}/play-socket?title=${params.title_id}&game=${params.game_id}&role=${encodeURIComponent(params.role)}&seen=${seen}`
 
 	console.log("CONNECTING", url)
 	document.getElementById("prompt").textContent = "Connecting... "
