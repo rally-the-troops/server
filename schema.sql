@@ -322,6 +322,7 @@ create table if not exists players (
 	game_id integer,
 	role text,
 	user_id integer,
+	is_invite integer,
 	primary key (game_id, role)
 ) without rowid;
 

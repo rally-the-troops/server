@@ -1,9 +1,9 @@
 html, input, textarea {
-	font-family: "Source Serif", "Georgia", "Dingbats", "Noto Emoji", serif;
+	font-family: "Source Serif", "Georgia", "Noto Emoji", "Dingbats", serif;
 	font-size: 16px;
 }
 button, select {
-	font-family: "Source Sans", "Verdana", "Dingbats", "Noto Emoji", sans-serif;
+	font-family: "Source Sans", "Verdana", "Noto Emoji", "Dingbats", sans-serif;
 	font-size: 16px;
 }
 
@@ -156,6 +156,7 @@ article hr + p { font-style: italic; }
 .game_item a:not(:hover) { text-decoration: none; color: black; }
 .game_item a.command { text-decoration: underline; font-weight: bold }
 .game_info .is_active { text-decoration: underline }
+.game_info .is_invite { opacity: 0.5 }
 .game_info div {
 	text-indent: -20px;
 	padding-left: 20px;

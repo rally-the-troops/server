@@ -3,6 +3,7 @@
 let start_status = game.status
 let evtsrc = null
 let timer = 0
+let invite_role = null
 
 function confirm_delete() {
 	let warning = `Are you sure you want to DELETE this game?`
@@ -37,6 +38,25 @@ function kick(role) {
 	let warning = `Are you sure you want to KICK player ${player.name} (${role}) from this game?`
 	if (game.status === 0 || window.confirm(warning))
 		post(`/part/${game.game_id}/${encodeURIComponent(role)}`)
+}
+
+function accept(role) {
+	post(`/accept/${game.game_id}/${encodeURIComponent(role)}`)
+}
+
+function send_invite() {
+	let invite_user = document.getElementById("invite_user").value
+	post(`/invite/${game.game_id}/${encodeURIComponent(invite_role)}/${encodeURIComponent(invite_user)}`)
+	document.getElementById("invite").close()
+}
+
+function show_invite(role) {
+	invite_role = role
+	document.getElementById("invite").showModal()
+}
+
+function hide_invite() {
+	document.getElementById("invite").close()
 }
 
 let blink_title = document.title
@@ -115,6 +135,14 @@ function is_solo() {
 	return players.every(p => p.user_id === players[0].user_id)
 }
 
+function play_link(player) {
+	return `<a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(player.role)}">${player.name}</a>`
+}
+
+function action_link(player, action, color, text) {
+	return `<a class="${color}" href="javascript:${action}('${player.role}')">${text}</a>`
+}
+
 function update() {
 	for (let i = 0; i < roles.length; ++i) {
 		let role = roles[i]
@@ -125,29 +153,47 @@ function update() {
 		let player = players.find(p => p.role === role)
 		let element = document.getElementById(role_id)
 		if (player) {
+			element.classList.remove("is_invite")
 			switch (game.status) {
 			case 2:
 				if (player.user_id === user_id)
-					element.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(role)}">${player.name}</a>`
+					element.innerHTML = play_link(player)
 				else
 					element.innerHTML = player.name
 				break
 			case 1:
 				element.classList.toggle("is_active", is_active(player, role))
 				if (player.user_id === user_id)
-					element.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(role)}">${player.name}</a><a class="red" href="javascript:part('${role}')">\u274c</a>`
+					element.innerHTML = play_link(player) + action_link(player, "part", "red", "\u274c")
 				else if (game.owner_id === user_id)
-					element.innerHTML = `${player.name}<a class="red" href="javascript:kick('${role}')">\u274c</a>`
+					element.innerHTML = player.name + action_link(player, "kick", "red", "\u274c")
 				else
 					element.innerHTML = player.name
 				break
 			case 0:
-				if (player.user_id === user_id)
-					element.innerHTML = `${player.name}<a class="red" href="javascript:part('${role}')">\u274c</a>`
-				else if (game.owner_id === user_id)
-					element.innerHTML = `${player.name}<a class="red" href="javascript:kick('${role}')">\u274c</a>`
-				else
-					element.innerHTML = player.name
+				if (player.is_invite) {
+					element.classList.add("is_invite")
+					if (player.user_id === user_id)
+						element.innerHTML = player.name + " ?" +
+							action_link(player, "part", "red", "\u274c") +
+							action_link(player, "accept", "green", "\u2714")
+					else if (player.user_id === user_id)
+						element.innerHTML = player.name + " ?" + action_link(player, "part", "red", "\u274c")
+					else if (game.owner_id === user_id)
+						element.innerHTML = player.name + " ?" + action_link(player, "kick", "red", "\u274c")
+					else
+						element.innerHTML = player.name + " ?"
+				} else {
+					element.classList.remove("is_invite")
+					if (player.user_id === user_id && player.is_invite)
+						element.innerHTML = player.name + action_link(player, "part", "red", "\u274c")
+					else if (player.user_id === user_id)
+						element.innerHTML = player.name + action_link(player, "part", "red", "\u274c")
+					else if (game.owner_id === user_id)
+						element.innerHTML = player.name + action_link(player, "kick", "red", "\u274c")
+					else
+						element.innerHTML = player.name
+				}
 				break
 			}
 			element.classList.toggle("friend", is_friend(player))
@@ -157,13 +203,19 @@ function update() {
 			else
 				element.title = ""
 		} else {
+			element.classList.remove("is_invite")
 			switch (game.status) {
 			case 2:
 				element.innerHTML = `<i>Empty</i>`
 				break
 			case 1:
-			case 0:
 				element.innerHTML = `<a class="join" href="javascript:join('${role}')">Join</a>`
+				break
+			case 0:
+				if (game.owner_id === user_id)
+					element.innerHTML = `<a class="join" href="javascript:join('${role}')">Join</a><a class="green" href="javascript:show_invite('${role}')">\u{2795}</a>`
+				else
+					element.innerHTML = `<a class="join" href="javascript:join('${role}')">Join</a>`
 				break
 			}
 			element.classList.remove("friend")

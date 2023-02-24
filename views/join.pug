@@ -11,11 +11,13 @@ html
 			table { min-width: 0; }
 			th,td { border: 1px solid black; }
 			td a.red { text-decoration: none; color: brown; font-size: 15px; float: right; }
+			td a.green { text-decoration: none; color: green; font-size: 15px; float: right; }
 			td a { text-decoration: underline; color: blue; }
 			th { white-space: nowrap; background-color: gainsboro; }
 			td { width: 180px; background-color: white; }
 			#message { background-color: whitesmoke; }
 			.hide { display: none; }
+			td.is_invite { color: gray }
 			td.enemy { background-color: #f66 }
 			td.enemy::before { content: "\1f6ab    "; color: #000; font-size: 15px; }
 		script.
@@ -25,6 +27,7 @@ html
 			let user_id = !{ user.user_id }
 			let whitelist = !{ JSON.stringify(whitelist) }
 			let blacklist = !{ JSON.stringify(blacklist) }
+			let friends = !{ JSON.stringify(friends) }
 			let ready = !{ ready }
 		script(src="/join.js")
 	body
@@ -49,6 +52,18 @@ html
 			p= game.description || "No description."
 
 			br(clear="left")
+
+			dialog(id="invite")
+				| Invite a friend:
+				br
+				input(id="invite_user" type="text" list="friends" onchange="send_invite()")
+				datalist(id="friends")
+					if friends
+						each who in friends
+							option= who
+				br
+				button(onclick="send_invite()") Invite
+				button(onclick="hide_invite()") Cancel
 
 			p
 			table

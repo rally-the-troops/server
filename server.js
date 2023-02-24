@@ -267,6 +267,7 @@ const SQL_SELECT_LOGIN_BY_NAME = SQL("SELECT * FROM user_login_view WHERE name=?
 const SQL_SELECT_USER_PROFILE = SQL("SELECT * FROM user_profile_view WHERE name=?")
 const SQL_SELECT_USER_DYNAMIC = SQL("select * from user_dynamic_view where user_id=?")
 const SQL_SELECT_USER_NAME = SQL("SELECT name FROM users WHERE user_id=?").pluck()
+const SQL_SELECT_USER_ID = SQL("SELECT user_id FROM users WHERE name=?").pluck()
 
 const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND julianday() > atime + ?")
 
@@ -1054,6 +1055,9 @@ function get_game_roles(title_id, scenario, options) {
 }
 
 function is_game_ready(title_id, scenario, options, players) {
+	for (let p of players)
+		if (p.is_invite)
+			return false
 	return get_game_roles(title_id, scenario, options).length === players.length
 }
 
@@ -1093,11 +1097,12 @@ const SQL_SELECT_GAME_HAS_TITLE_AND_STATUS = SQL("SELECT 1 FROM games WHERE game
 
 const SQL_SELECT_PLAYERS_ID = SQL("SELECT DISTINCT user_id FROM players WHERE game_id=?").pluck()
 const SQL_SELECT_PLAYERS = SQL("SELECT * FROM players NATURAL JOIN user_view WHERE game_id=?")
-const SQL_SELECT_PLAYERS_JOIN = SQL("SELECT role, user_id, name FROM players NATURAL JOIN users WHERE game_id=?")
-const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
-const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id) VALUES (?,?,?)")
-const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
+const SQL_SELECT_PLAYERS_JOIN = SQL("SELECT role, user_id, name, is_invite FROM players NATURAL JOIN users WHERE game_id=?")
+const SQL_UPDATE_PLAYER_ACCEPT = SQL("UPDATE players SET is_invite=0 WHERE game_id=? AND role=? AND user_id=?")
 const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?")
+const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
+const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
+const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
 
 const SQL_AUTHORIZE_GAME_ROLE = SQL("SELECT 1 FROM players NATURAL JOIN games WHERE title_id=? AND game_id=? AND role=? AND user_id=?").pluck()
 
@@ -1109,12 +1114,14 @@ const SQL_INSERT_REMATCH = SQL(`
 	INSERT INTO games
 		(owner_id, title_id, scenario, options, is_private, is_random, description)
 	SELECT
-		$user_id, title_id, scenario, options, is_private, is_random, $magic
+		$user_id, title_id, scenario, options, is_private, 0, $magic
 	FROM games
 	WHERE game_id = $game_id AND NOT EXISTS (
 		SELECT * FROM games WHERE description=$magic
 	)
 `)
+
+const SQL_INSERT_REMATCH_PLAYERS = SQL("insert into players (game_id, user_id, role, is_invite) select ?, user_id, role, user_id!=? from players where game_id=?")
 
 const QUERY_LIST_PUBLIC_GAMES = SQL(`
 	SELECT * FROM game_view
@@ -1224,10 +1231,14 @@ function annotate_game(game, user_id, unread) {
 			your_count++
 			if ((p_is_active || p_is_owner) && game.is_ready)
 				game.your_turn = true
+			if (p.is_invite)
+				game.your_turn = true
 		}
 
 		let link
-		if (p_is_active || p_is_owner)
+		if (p.is_invite)
+			link = `<span class="is_invite"><a href="/user/${p.name}">${p.name}?</a></span>`
+		else if (p_is_active || p_is_owner)
 			link = `<span class="is_active"><a href="/user/${p.name}">${p.name}</a></span>`
 		else
 			link = `<a href="/user/${p.name}">${p.name}</a>`
@@ -1403,44 +1414,19 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 	res.redirect('/'+title_id)
 })
 
-function join_rematch(req, res, game_id, role) {
-	try {
-		let is_random = SQL_SELECT_GAME_RANDOM.get(game_id)
-		if (is_random) {
-			let role = SQL_SELECT_PLAYER_ROLE.get(game_id, req.user.user_id)
-			if (!role) {
-				for (let i = 1; i <= 6; ++i) {
-					let info = SQL_INSERT_PLAYER_ROLE.run(game_id, 'Random ' + i, req.user.user_id)
-					if (info.changes === 1) {
-						update_join_clients_players(game_id)
-						break
-					}
-				}
-			}
-		} else {
-			let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, req.user.user_id)
-			if (info.changes === 1)
-				update_join_clients_players(game_id)
-		}
-	} catch (err) {
-		console.log(err)
-	}
-	return res.redirect('/join/'+game_id)
-}
-
-app.get('/rematch/:old_game_id/:role', must_be_logged_in, function (req, res) {
+app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 	let old_game_id = req.params.old_game_id | 0
-	let role = req.params.role
 	let magic = "\u{1F503} " + old_game_id
 	let new_game_id = 0
+	console.log("FOO", old_game_id, magic)
 	let info = SQL_INSERT_REMATCH.run({user_id: req.user.user_id, game_id: old_game_id, magic: magic})
-	if (info.changes === 1)
+	if (info.changes === 1) {
 		new_game_id = info.lastInsertRowid
-	else
+		SQL_INSERT_REMATCH_PLAYERS.run(new_game_id, req.user.user_id, old_game_id)
+	} else {
 		new_game_id = SQL_SELECT_REMATCH.get(magic)
-	if (new_game_id)
-		return join_rematch(req, res, new_game_id, role)
-	return res.status(404).send("Can't create or find rematch game!")
+	}
+	return res.redirect('/join/'+new_game_id)
 })
 
 var join_clients = {}
@@ -1499,9 +1485,12 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
 	let whitelist = SQL_SELECT_CONTACT_WHITELIST.all(req.user.user_id)
 	let blacklist = SQL_SELECT_CONTACT_BLACKLIST.all(req.user.user_id)
+	let friends = null
+	if (game.owner_id === req.user.user_id)
+		friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
 	let ready = (game.status === 0) && is_game_ready(game.title_id, game.scenario, game.options, players)
 	res.render('join.pug', {
-		user: req.user, game, roles, players, ready, whitelist, blacklist
+		user: req.user, game, roles, players, ready, whitelist, blacklist, friends
 	})
 })
 
@@ -1539,9 +1528,7 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	res.write("data: " + JSON.stringify(players) + "\n\n")
 })
 
-app.post('/join/:game_id/:role', must_be_logged_in, function (req, res) {
-	let game_id = req.params.game_id | 0
-	let role = req.params.role
+function do_join(res, game_id, role, user_id, is_invite) {
 	let game = SQL_SELECT_GAME.get(game_id)
 	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	if (game.is_random && game.status === 0) {
@@ -1552,12 +1539,43 @@ app.post('/join/:game_id/:role', must_be_logged_in, function (req, res) {
 		if (!roles.includes(role))
 			return res.status(404).send("Invalid role.")
 	}
-	let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, req.user.user_id)
+	let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, user_id, is_invite)
 	if (info.changes === 1) {
 		update_join_clients_players(game_id)
 		res.send("SUCCESS")
 	} else {
-		res.send("Could not join game.")
+		if (is_invite)
+			res.send("Could not invite.")
+		else
+			res.send("Could not join game.")
+	}
+}
+
+app.post('/join/:game_id/:role', must_be_logged_in, function (req, res) {
+	let game_id = req.params.game_id | 0
+	let role = req.params.role
+	do_join(res, game_id, role, req.user.user_id, 0)
+})
+
+app.post('/invite/:game_id/:role/:user', must_be_logged_in, function (req, res) {
+	let game_id = req.params.game_id | 0
+	let role = req.params.role
+	let user_id = SQL_SELECT_USER_ID.get(req.params.user)
+	if (user_id)
+		do_join(res, game_id, role, user_id, 1)
+	else
+		res.send("User not found.")
+})
+
+app.post('/accept/:game_id/:role', must_be_logged_in, function (req, res) {
+	let game_id = req.params.game_id | 0
+	let role = req.params.role
+	let info = SQL_UPDATE_PLAYER_ACCEPT.run(game_id, role, req.user.user_id)
+	if (info.changes === 1) {
+		update_join_clients_players(game_id)
+		res.send("SUCCESS")
+	} else {
+		res.send("Could not accept invite.")
 	}
 })
 

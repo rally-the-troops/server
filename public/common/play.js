@@ -343,7 +343,7 @@ function remove_resign_menu() {
 }
 
 function goto_rematch() {
-	window.location = "/rematch/" + params.game_id + "/" + params.role
+	window.location = "/rematch/" + params.game_id
 }
 
 function goto_replay() {
