@@ -1,18 +1,27 @@
 "use strict"
 
-/* URL: /$title_id/(re)play:$game_id:$role */
-
-if (!/\/[\w-]+\/(replay|play|debug):\d+(:[\w-]+)?/.test(window.location.pathname)) {
-	document.getElementById("prompt").textContent = "Invalid game ID."
-	throw Error("Invalid game ID.")
-}
-
 let params = {
-	mode: window.location.pathname.split("/")[2].split(":")[0],
+	mode: "play",
 	title_id: window.location.pathname.split("/")[1],
-	game_id: decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[1] | 0,
-	role: decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[2] || "Observer",
+	game_id: 0,
+	role: "Observer",
 }
+
+function init_params() {
+	// Support old format during transition
+	if (/\/[\w-]+\/(replay|play|debug):\d+(:[\w-]+)?/.test(window.location.pathname)) {
+		params.mode = window.location.pathname.split("/")[2].split(":")[0]
+		params.game_id = decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[1] | 0
+		params.role = decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[2] || "Observer"
+		return
+	}
+	let search = new URLSearchParams(window.location.search)
+	params.game_id = search.get("game")
+	params.role = search.get("role") || "Observer"
+	params.mode = search.get("mode") || "play"
+}
+
+init_params()
 
 let roles = Array.from(document.querySelectorAll(".role")).map(x=>({id:x.id,role:x.id.replace(/^role_/,"").replace(/_/g," ")}))
 
@@ -338,7 +347,10 @@ function goto_rematch() {
 }
 
 function goto_replay() {
-	window.location = "/" + params.title_id + "/replay:" + params.game_id
+	let search = new URLSearchParams(window.location.search)
+	search.delete("role")
+	search.set("mode", "replay")
+	window.location.search = search
 }
 
 function on_game_over() {
@@ -847,7 +859,7 @@ async function init_replay() {
 	replay = replay.filter(x => !x.is_undone)
 
 	function set_hash(n) {
-		history.replaceState(null, "", window.location.pathname + "#" + n)
+		history.replaceState(null, "", window.location.pathname + window.location.search + "#" + n)
 	}
 
 	let timer = 0
