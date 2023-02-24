@@ -1809,8 +1809,8 @@ function mail_game_info(game) {
 	return desc + "\n"
 }
 
-function mail_game_link(game_id, user) {
-	return SITE_URL + "/play/" + game_id + "/" + encodeURI(user.role) + "\n"
+function mail_game_link(game, user) {
+	return SITE_URL + "/" + game.title_id + "/play.html?game=" + game.game_id + "&role=" + encodeURIComponent(user.role) + "\n"
 }
 
 function mail_password_reset_token(user, token) {
@@ -1843,7 +1843,7 @@ function mail_game_started_notification(user, game_id) {
 		let subject = `${game.title_name} #${game_id} (${user.role}) - Started!`
 		let body = mail_game_info(game) +
 			"The game has started!\n\n" +
-			mail_game_link(game_id, user) +
+			mail_game_link(game, user) +
 			MAIL_FOOTER
 		console.log("SENT MAIL:", mail_addr(user), subject)
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
@@ -1856,7 +1856,7 @@ function mail_game_over_notification(user, game_id, result, victory) {
 		let subject = `${game.title_name} #${game_id} (${user.role}) - Finished!`
 		let body = mail_game_info(game) +
 			victory + "\n\n" +
-			mail_game_link(game_id, user) +
+			mail_game_link(game, user) +
 			MAIL_FOOTER
 		console.log("SENT MAIL:", mail_addr(user), subject)
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
@@ -1872,7 +1872,7 @@ function mail_your_turn_notification(user, game_id, interval) {
 			let subject = `${game.title_name} #${game_id} (${user.role}) - Your turn!`
 			let body = mail_game_info(game) +
 				"It's your turn.\n\n" +
-				mail_game_link(game_id, user) +
+				mail_game_link(game, user) +
 				MAIL_FOOTER
 			console.log("SENT MAIL:", mail_addr(user), subject)
 			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
