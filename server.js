@@ -1126,7 +1126,7 @@ const SQL_INSERT_REMATCH_PLAYERS = SQL("insert into players (game_id, user_id, r
 const QUERY_LIST_PUBLIC_GAMES = SQL(`
 	SELECT * FROM game_view
 	WHERE is_private=0 AND status = ?
-	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
+	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND players.user_id = game_view.owner_id )
 	ORDER BY mtime DESC, ctime DESC
 	LIMIT ?
 	`)
@@ -1134,7 +1134,7 @@ const QUERY_LIST_PUBLIC_GAMES = SQL(`
 const QUERY_LIST_GAMES_OF_TITLE = SQL(`
 	SELECT * FROM game_view
 	WHERE is_private=0 AND title_id=? AND status=?
-	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id )
+	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND players.user_id = game_view.owner_id )
 	ORDER BY mtime DESC, ctime DESC
 	LIMIT ?
 	`)
