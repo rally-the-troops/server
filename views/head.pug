@@ -55,13 +55,10 @@ mixin gamelist(list,hide_title=0)
 					div.game_head
 						if item.scenario.length <= 2
 							div
-								| <a href="/join/#{item.game_id}">#{item.game_id}</a> &#x2013;
-								| <a href="/#{item.title_id}">#{item.title_name}</a>
-								| (#{item.scenario})
+								| <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name} (#{item.scenario})</a>
 						else
 							div
-								| <a href="/join/#{item.game_id}">#{item.game_id}</a> &#x2013;
-								| <a href="/#{item.title_id}">#{item.title_name}</a>
+								| <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name}</a>
 
 						case item.status
 							when 0
@@ -72,19 +69,19 @@ mixin gamelist(list,hide_title=0)
 							when 1
 								if item.is_yours
 									if item.your_role
-										a(class="command" href=`/${item.title_id}/play:${item.game_id}:${item.your_role}`) Play
+										a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=${encodeURIComponent(item.your_role)}`) Play
 									else
 										a(class="command" href="/join/"+item.game_id) Play
 								else
-									a(class="command" href=`/${item.title_id}/play:${item.game_id}`) View
+									a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=Observer`) View
 							when 2
 								if item.is_yours
 									if item.your_role
-										a(class="command" href=`/${item.title_id}/play:${item.game_id}:${item.your_role}`) Review
+										a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=${encodeURIComponent(item.your_role)}`) Review
 									else
 										a(class="command" href="/join/"+item.game_id) Review
 								else
-									a(class="command" href=`/${item.title_id}/play:${item.game_id}`) Review
+									a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=Observer`) Review
 
 					div.game_main
 						div.game_info

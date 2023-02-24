@@ -166,6 +166,17 @@ http_server.listen(HTTP_PORT, HTTP_HOST, () => console.log(`Listening to HTTP on
  * MISC FUNCTIONS
  */
 
+function play_url(title_id, game_id, role, mode) {
+	if (mode && mode)
+		return `/${title_id}/play.html?mode=${mode}&game=${game_id}&role=${encodeURIComponent(role)}`
+	else if (mode)
+		return `/${title_id}/play.html?mode=${mode}&game=${game_id}`
+	else if (role)
+		return `/${title_id}/play.html?game=${game_id}&role=${encodeURIComponent(role)}`
+	else
+		return `/${title_id}/play.html?mode=${mode}`
+}
+
 function random_seed() {
 	return crypto.randomInt(1, 2**35-31)
 }
@@ -1265,7 +1276,7 @@ function sort_your_turn(a, b) {
 app.get('/games/next', must_be_logged_in, function (req, res) {
 	let next = QUERY_NEXT_GAME_OF_USER.get(req.user.user_id)
 	if (next !== undefined)
-		res.redirect(`/${next.title_id}/play:${next.game_id}:${next.role}`)
+		res.redirect(play_url(next.title_id, next.game_id, next.role))
 	else
 		res.redirect(`/games/active`)
 })
@@ -1613,7 +1624,7 @@ app.get('/play/:game_id/:role', function (req, res) {
 	let title = SQL_SELECT_GAME_TITLE.get(game_id)
 	if (!title)
 		return res.status(404).send("Invalid game ID.")
-	res.redirect('/'+title+'/play:'+game_id+':'+role)
+	res.redirect(play_url(title, game_id, role))
 })
 
 app.get('/play/:game_id', function (req, res) {
@@ -1624,18 +1635,9 @@ app.get('/play/:game_id', function (req, res) {
 		return res.status(404).send("Invalid game ID.")
 	let role = SQL_SELECT_PLAYER_ROLE.get(game_id, user_id)
 	if (role)
-		res.redirect('/'+title+'/play:'+game_id+':'+role)
+		res.redirect(play_url(title, game_id, role))
 	else
-		res.redirect('/'+title+'/play:'+game_id)
-})
-
-app.get('/debug/:game_id', function (req, res) {
-	let game_id = req.params.game_id | 0
-	let user_id = req.user ? req.user.user_id : 0
-	let title = SQL_SELECT_GAME_TITLE.get(game_id)
-	if (!title)
-		return res.status(404).send("Invalid game ID.")
-	res.redirect('/'+title+'/debug:'+game_id)
+		res.redirect(play_url(title, game_id, "Observer"))
 })
 
 app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, res) {
@@ -1643,31 +1645,19 @@ app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, re
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id
 	let role = req.params.role
-	if (!SQL_AUTHORIZE_GAME_ROLE.get(title_id, game_id, role, user_id))
-		return res.status(404).send("Invalid game ID.")
-	return res.sendFile(__dirname + '/public/' + title_id + '/play.html')
+	return res.redirect(play_url(title_id, game_id, role))
 })
 
 app.get('/:title_id/play\::game_id', function (req, res) {
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id
-	let a_title = SQL_SELECT_GAME_TITLE.get(game_id)
-	if (a_title !== title_id)
-		return res.status(404).send("Invalid game ID.")
-	return res.sendFile(__dirname + '/public/' + title_id + '/play.html')
+	return res.redirect(play_url(title_id, game_id, "Observer"))
 })
 
 app.get('/:title_id/replay\::game_id', function (req, res) {
 	let title_id = req.params.title_id
 	let game_id = req.params.game_id
-	let game = SQL_SELECT_GAME.get(game_id)
-	if (!game)
-		return res.status(404).send("Invalid game ID.")
-	if (game.title_id !== title_id)
-		return res.status(404).send("Invalid game ID.")
-	if (game.status < 2)
-		return res.status(404).send("Invalid game ID.")
-	return res.sendFile(__dirname + '/public/' + title_id + '/play.html')
+	return res.redirect(play_url(title_id, game_id, "Observer", "replay"))
 })
 
 app.get('/api/replay/:game_id', function (req, res) {
@@ -1729,8 +1719,8 @@ function send_webhook(user_id, webhook, message) {
 
 function webhook_game_link(game, user) {
 	if (user.role)
-		return `${SITE_URL}/${game.title_id}/play:${game.game_id}:${encodeURI(user.role)}`
-	return `${SITE_URL}/join/${game.game_id}`
+		return SITE_URL + play_url(game.title_id, game.game_id, user.role)
+	return SITE_URL + "/join/" + game.game_id
 }
 
 function webhook_ready_to_start(user, game_id) {

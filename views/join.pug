@@ -38,9 +38,9 @@ html
 
 			div
 				if game.is_private
-					| Owner: #{game.owner_name} (private)
+					| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a> (private)
 				else
-					| Owner: #{game.owner_name}
+					| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a>
 			div Scenario: #{game.scenario}
 			div Options: #{game.human_options}
 			if game.status === 2

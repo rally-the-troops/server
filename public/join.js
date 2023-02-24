@@ -23,20 +23,20 @@ function start() {
 }
 
 function join(role) {
-	post(`/join/${game.game_id}/${role}`)
+	post(`/join/${game.game_id}/${encodeURIComponent(role)}`)
 }
 
 function part(role) {
 	let warning = "Are you sure you want to LEAVE this game?"
 	if (game.status === 0 || window.confirm(warning))
-		post(`/part/${game.game_id}/${role}`)
+		post(`/part/${game.game_id}/${encodeURIComponent(role)}`)
 }
 
 function kick(role) {
 	let player = players.find(p => p.role === role)
 	let warning = `Are you sure you want to KICK player ${player.name} (${role}) from this game?`
 	if (game.status === 0 || window.confirm(warning))
-		post(`/part/${game.game_id}/${role}`)
+		post(`/part/${game.game_id}/${encodeURIComponent(role)}`)
 }
 
 let blink_title = document.title
@@ -128,14 +128,14 @@ function update() {
 			switch (game.status) {
 			case 2:
 				if (player.user_id === user_id)
-					element.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}:${role}">${player.name}</a>`
+					element.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(role)}">${player.name}</a>`
 				else
 					element.innerHTML = player.name
 				break
 			case 1:
 				element.classList.toggle("is_active", is_active(player, role))
 				if (player.user_id === user_id)
-					element.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}:${role}">${player.name}</a><a class="red" href="javascript:part('${role}')">\u274c</a>`
+					element.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(role)}">${player.name}</a><a class="red" href="javascript:part('${role}')">\u274c</a>`
 				else if (game.owner_id === user_id)
 					element.innerHTML = `${player.name}<a class="red" href="javascript:kick('${role}')">\u274c</a>`
 				else
@@ -181,11 +181,11 @@ function update() {
 		else
 			message.innerHTML = "Waiting for players to join..."
 	} else if (game.status === 1) {
-		message.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}">Observe</a>`
+		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Observe</a>`
 	} else if (game.status === 2) {
-		message.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}">Review</a>`
+		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Review</a>`
 	} else {
-		message.innerHTML = `<a href="/${game.title_id}/play:${game.game_id}">Enter</a>`
+		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Enter</a>`
 	}
 
 	if (game.owner_id === user_id) {
