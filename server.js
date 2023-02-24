@@ -1070,7 +1070,7 @@ const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,st
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?")
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
 const SQL_INSERT_REPLAY = SQL("INSERT INTO game_replay (game_id,role,action,arguments) VALUES (?,?,?,?)")
-const SQL_SELECT_REPLAY = SQL("SELECT role,action,arguments FROM game_replay WHERE game_id=?")
+const SQL_SELECT_REPLAY = SQL("SELECT role,action,arguments FROM game_replay WHERE game_id=?").raw()
 
 const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?")
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?")
@@ -1670,34 +1670,13 @@ app.get('/:title_id/replay\::game_id', function (req, res) {
 	return res.sendFile(__dirname + '/public/' + title_id + '/play.html')
 })
 
-app.get('/:title_id/debug\::game_id', function (req, res) {
-	if (!req.user || req.user.user_id !== 1)
-		return res.status(401).send("Not authorized to debug.")
-	let title_id = req.params.title_id
+app.get('/api/replay/:game_id', function (req, res) {
 	let game_id = req.params.game_id
 	let game = SQL_SELECT_GAME.get(game_id)
 	if (!game)
 		return res.status(404).send("Invalid game ID.")
-	if (game.title_id !== title_id)
-		return res.status(404).send("Invalid game ID.")
-	return res.sendFile(__dirname + '/public/' + title_id + '/play.html')
-})
-
-app.get('/replay/:game_id', function (req, res) {
-	let game_id = req.params.game_id
-	let game = SQL_SELECT_GAME.get(game_id)
-	if (game.status < 2)
-		return res.status(404).send("Invalid game ID.")
-	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
-	let state = SQL_SELECT_GAME_STATE.get(game_id)
-	let replay = SQL_SELECT_REPLAY.all(game_id)
-	return res.json({players, state, replay})
-})
-
-app.get('/replay-debug/:game_id', function (req, res) {
-	if (!req.user || req.user.user_id !== 1)
+	if (game.status < 2 && (!req.user || req.user.user_id !== 1))
 		return res.status(401).send("Not authorized to debug.")
-	let game_id = req.params.game_id
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
 	let state = SQL_SELECT_GAME_STATE.get(game_id)
 	let replay = SQL_SELECT_REPLAY.all(game_id)

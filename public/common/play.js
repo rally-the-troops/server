@@ -785,7 +785,13 @@ async function init_replay() {
 	let rules = await require("rules.js")
 
 	console.log("LOADING REPLAY")
-	let response = await fetch((params.mode === "debug" ? "/replay-debug/" : "/replay/") + params.game_id)
+	let response = await fetch("/api/replay/" + params.game_id)
+	if (!response.ok) {
+		let text = await response.text()
+		document.getElementById("prompt").textContent = "ERROR " + response.status + ": " + text
+		return
+	}
+
 	let body = await response.json()
 	replay = body.replay
 
@@ -797,22 +803,23 @@ async function init_replay() {
 	let s = {}
 
 	function eval_action(item, p) {
-		switch (item.action) {
+		let [ item_role, item_action, item_arguments ] = item
+		switch (item_action) {
 		case "restore":
-			s = JSON.parse(item.arguments)
+			s = JSON.parse(item_arguments)
 			break
 		case "setup":
-			s = rules.setup(item.arguments[0], item.arguments[1], item.arguments[2])
+			s = rules.setup(item_arguments[0], item_arguments[1], item_arguments[2])
 			break
 		case "resign":
 			if (params.mode === "debug")
-				s.log.push([p, item.role.substring(0,2), item.action, null])
-			s = rules.resign(s, item.role)
+				s.log.push([p, item_role.substring(0,2), item_action, null])
+			s = rules.resign(s, item_role)
 			break
 		default:
 			if (params.mode === "debug")
-				s.log.push([p, item.role.substring(0,2), item.action, item.arguments])
-			s = rules.action(s, item.role, item.action, item.arguments)
+				s.log.push([p, item_role.substring(0,2), item_action, item_arguments])
+			s = rules.action(s, item_role, item_action, item_arguments)
 			break
 		}
 	}
@@ -824,7 +831,7 @@ async function init_replay() {
 
 	let ss
 	for (p = 0; p < replay.length; ++p) {
-		replay[p].arguments = JSON.parse(replay[p].arguments)
+		replay[p][2] = JSON.parse(replay[p][2])
 
 		if (rules.is_checkpoint) {
 			replay[p].is_checkpoint = p > 1 && rules.is_checkpoint(ss, s)
@@ -834,7 +841,7 @@ async function init_replay() {
 		try {
 			eval_action(replay[p], p)
 		} catch (err) {
-			console.log("ERROR IN REPLAY %d %s %s/%s/%s", p, s.state, replay[p].role, replay[p].action, replay[p].arguments)
+			console.log("ERROR IN REPLAY %d %s %s/%s/%s", p, s.state, replay[p][0], replay[p][1], replay[p][2])
 			console.log(err)
 			if (params.mode === "debug")
 				replay.length = p
