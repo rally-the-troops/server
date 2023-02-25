@@ -375,9 +375,8 @@ function on_game_over() {
 
 function init_player_names(players) {
 	for (let i = 0; i < roles.length; ++i) {
-		let sel = "#" + roles[i].id + " .role_user"
 		let p = players.find(p => p.role === roles[i].role)
-		document.querySelector(sel).textContent = p ? p.name : "NONE"
+		document.getElementById(roles[i].id).querySelector(".role_user").textContent = p ? p.name : "NONE"
 	}
 }
 
@@ -460,12 +459,10 @@ function connect_play() {
 			break
 
 		case 'presence':
+			let list = Array.isArray(arg) ? arg : Object.keys(arg)
 			for (let i = 0; i < roles.length; ++i) {
 				let elt = document.getElementById(roles[i].id)
-				if (roles[i].role in arg)
-					elt.classList.add("present")
-				else
-					elt.classList.remove("present")
+				elt.classList.toggle("present", list.includes(roles[i].role))
 			}
 			break
 
