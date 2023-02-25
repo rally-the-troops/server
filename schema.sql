@@ -113,6 +113,14 @@ create view user_dynamic_view as
 				status = 1
 				and players.user_id = users.user_id
 				and active in ( players.role, 'Both', 'All' )
+		) + (
+			select
+				count(*)
+			from
+				players
+			where
+				players.user_id = users.user_id
+				and players.is_invite
 		) as active,
 		is_banned
 	from
