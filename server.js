@@ -2222,9 +2222,10 @@ function on_restore(socket, state_text) {
 }
 
 function broadcast_presence(game_id) {
-	let presence = {}
+	let presence = []
 	for (let socket of game_clients[game_id])
-		presence[socket.role] = true
+		if (!presence.includes(socket.role))
+			presence.push(socket.role)
 	for (let socket of game_clients[game_id])
 		send_message(socket, 'presence', presence)
 }
