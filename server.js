@@ -1440,6 +1440,7 @@ function update_join_clients_deleted(game_id) {
 			res.write("data: The game doesn't exist.\n\n")
 		}
 	}
+	delete join_clients[game_id]
 }
 
 function update_join_clients_game(game_id) {
