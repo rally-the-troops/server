@@ -944,7 +944,7 @@ async function init_replay() {
 			if (document.querySelector("body").classList.contains("shift")) {
 				view.prompt = `[${p}/${replay.length}] ${s.active} / ${s.state}`
 				if (p < replay.length)
-					view.prompt += ` / ${replay[p].action} ${replay[p].arguments}`
+					view.prompt += ` / ${replay[p][1]} ${replay[p][2]}`
 			} else {
 				view.prompt = "[" + p + "/" + replay.length + "] " + view.prompt
 			}
@@ -1013,10 +1013,12 @@ window.addEventListener("load", function () {
 	zoom_map()
 	if (params.mode === "debug")
 		init_replay()
-	if (params.mode === "replay")
+	else if (params.mode === "replay")
 		init_replay()
-	if (params.mode === "play")
+	else if (params.mode === "play")
 		connect_play()
+	else
+		document.getElementById("prompt").textContent = "Invalid mode: " + params.mode
 })
 
 function init_main_menu() {
