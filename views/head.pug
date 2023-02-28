@@ -104,4 +104,5 @@ mixin gamelist(list,hide_title=0)
 									div Finished: #{item.mtime}
 									div Result: !{item.result}
 						unless hide_title
-							img(src=`/${item.title_id}/thumbnail.jpg`)
+							a(href=`/${item.title_id}`)
+								img(src=`/${item.title_id}/thumbnail.jpg`)
