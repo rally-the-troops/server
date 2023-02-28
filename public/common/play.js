@@ -974,12 +974,20 @@ async function init_replay() {
 		update_replay_view()
 	}
 
+	function short_role(name) {
+		return name.split(" ").map(n => n[0]).join("")
+	}
+
 	let div = document.createElement("div")
 	div.className = "replay"
 	if (replay.length > 0)
 		text_button(div, "Active", () => set_viewpoint("Active"))
-	for (let r of roles)
-		text_button(div, r.role, () => set_viewpoint(r.role))
+	if (roles.length > 2)
+		for (let r of roles)
+			text_button(div, short_role(r.role), () => set_viewpoint(r.role))
+	else
+		for (let r of roles)
+			text_button(div, r.role, () => set_viewpoint(r.role))
 	text_button(div, "Observer", () => set_viewpoint("Observer"))
 	document.querySelector("header").appendChild(div)
 
