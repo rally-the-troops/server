@@ -1,8 +1,8 @@
 //- vim:ts=4:sw=4:
-- let open_games = games0.filter(game => game.status === 0 && !game.is_ready)
-- let ready_games = games0.filter(game => game.status === 0 && game.is_ready)
-- let replacement_games = games0.filter(game => game.status === 1 && !game.is_ready)
-- let active_games = games1.filter(game => game.status === 1 && game.is_ready)
+- let open_games = games0.filter(game => game.status === 0 && !game.is_full)
+- let ready_games = games0.filter(game => game.status === 0 && game.is_full)
+- let replacement_games = games0.filter(game => game.status === 1 && !game.is_full)
+- let active_games = games1.filter(game => game.status === 1 && game.is_full)
 doctype html
 html
 	head
@@ -29,7 +29,7 @@ html
 				+gamelist(replacement_games)
 
 			if ready_games.length > 0
-				h2 Ready to start
+				h2 Ready
 				+gamelist(ready_games)
 
 			if active_games.length > 0

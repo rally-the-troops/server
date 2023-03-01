@@ -45,10 +45,10 @@ mixin gamelist(list,hide_title=0)
 					let className = "game_item"
 					if (item.your_turn) className += " your_turn"
 					if (item.is_unread) className += " unread"
-					if (item.status === 0 && !item.is_ready) className += " open"
-					else if (item.status === 0 && item.is_ready) className += " ready"
-					else if (item.status === 1 && !item.is_ready) className += " replacement"
-					else if (item.status === 1 && item.is_ready) className += " active"
+					if (item.status === 0 && !item.is_full) className += " open"
+					else if (item.status === 0 && item.is_full) className += " ready"
+					else if (item.status === 1 && !item.is_full) className += " replacement"
+					else if (item.status === 1 && item.is_full) className += " active"
 					else if (item.status === 2) className += " finished"
 
 				div(class=className)

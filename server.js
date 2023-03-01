@@ -1054,11 +1054,15 @@ function get_game_roles(title_id, scenario, options) {
 	return roles
 }
 
+function is_game_full(title_id, scenario, options, players) {
+	return get_game_roles(title_id, scenario, options).length === players.length
+}
+
 function is_game_ready(title_id, scenario, options, players) {
 	for (let p of players)
 		if (p.is_invite)
 			return false
-	return get_game_roles(title_id, scenario, options).length === players.length
+	return is_game_full(title_id, scenario, options, players)
 }
 
 load_rules()
@@ -1209,6 +1213,7 @@ function annotate_game(game, user_id, unread) {
 		players[i].index = roles.indexOf(players[i].role)
 	players.sort((a, b) => a.index - b.index)
 
+	game.is_full = is_game_full(game.title_id, game.scenario, options, players)
 	game.is_ready = is_game_ready(game.title_id, game.scenario, options, players)
 	game.is_unread = set_has(unread, game.game_id)
 
