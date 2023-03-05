@@ -433,6 +433,7 @@ begin
 	delete from game_state where game_id = old.game_id;
 	delete from game_chat where game_id = old.game_id;
 	delete from game_replay where game_id = old.game_id;
+	delete from game_notes where game_id = old.game_id;
 	delete from last_notified where game_id = old.game_id;
 	delete from unread_chats where game_id = old.game_id;
 	delete from players where game_id = old.game_id;
@@ -477,7 +478,7 @@ begin
 end;
 
 create table if not exists deleted_users (
-	user_id integer primary key,
+	user_id integer,
 	name text collate nocase,
 	mail text collate nocase,
 	time real default (julianday())
