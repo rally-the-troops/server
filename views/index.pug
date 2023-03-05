@@ -10,22 +10,23 @@ html
 			div.list {
 				display: flex;
 				flex-wrap: wrap;
-				gap: 8px 0;
+				gap: 12px;
 			}
-			div.item {
-				display: flex;
-				flex-direction: column;
-				justify-content: space-between;
-				align-items: center;
+			div.i {
+				width: 170px;
+				height: 200px;
+				text-align: center;
+				margin-bottom: 6px;
 			}
-			div.item a:not(:hover) {
+			div.t {
+				text-align: center;
+			}
+			div.t a:not(:hover) {
 				color: black;
 				text-decoration: none;
 			}
-			div.item img {
-				display: block;
+			div.i img {
 				box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5);
-				margin: 6px 16px;
 			}
 	body
 		include header
@@ -40,9 +41,9 @@ html
 				each title in titles
 					unless title.is_hidden
 						div.item
-							div
+							div.i
 								+gamecover(title.title_id)
-							div
+							div.t
 								a(href="/"+title.title_id)= title.title_name
 
 			p!= process.env.SITE_INVITE
