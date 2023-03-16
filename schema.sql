@@ -259,6 +259,13 @@ create view post_view as
 
 create index if not exists posts_thread_idx on posts(thread_id);
 
+-- Forum Search (FTS5) --
+
+drop table if exists forum_search;
+create virtual table forum_search using fts5(thread_id, post_id, text, tokenize='porter unicode61');
+insert into forum_search(thread_id,post_id,text) select thread_id, 0, subject from threads;
+insert into forum_search(thread_id,post_id,text) select thread_id, post_id, body from posts;
+
 -- Games --
 
 create table if not exists games (
@@ -488,4 +495,44 @@ create table if not exists deleted_users (
 drop trigger if exists trigger_log_deleted_users;
 create trigger trigger_log_deleted_users before delete on users begin
 	insert into deleted_users (user_id, name, mail) values (old.user_id, old.name, old.mail);
+end;
+
+-- Triggers to keep FTS search index up to date
+
+drop trigger if exists trigger_search_insert_thread;
+create trigger trigger_search_insert_thread after insert on threads
+begin
+	insert into forum_search(thread_id, post_id, text) values(new.thread_id, 0, new.subject);
+end;
+
+drop trigger if exists trigger_search_update_thread;
+create trigger trigger_search_update_thread after update on threads
+begin
+	delete from forum_search where thread_id=old.thread_id and post_id=0;
+	insert into forum_search(thread_id, post_id, text) values(new.thread_id, 0, new.subject);
+end;
+
+drop trigger if exists trigger_search_delete_thread;
+create trigger trigger_search_delete_thread after delete on threads
+begin
+	delete from forum_search where thread_id=old.thread_id and post_id=0;
+end;
+
+drop trigger if exists trigger_search_insert_post;
+create trigger trigger_search_insert_post after insert on posts
+begin
+	insert into forum_search(thread_id, post_id, text) values(new.thread_id, new.post_id, new.body);
+end;
+
+drop trigger if exists trigger_search_update_post;
+create trigger trigger_search_update_post after update on posts
+begin
+	delete from forum_search where post_id=old.post_id;
+	insert into forum_search(thread_id, post_id, text) values(new.thread_id, new.post_id, new.body);
+end;
+
+drop trigger if exists trigger_search_delete_post;
+create trigger trigger_search_delete_post after delete on posts
+begin
+	delete from forum_search where post_id=old.post_id;
 end;

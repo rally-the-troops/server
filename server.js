@@ -883,6 +883,26 @@ const FORUM_DELETE_THREAD_POSTS = SQL("delete from posts where thread_id=?")
 const FORUM_DELETE_THREAD = SQL("delete from threads where thread_id=?")
 const FORUM_DELETE_POST = SQL("delete from posts where post_id=?")
 
+const FORUM_SEARCH = SQL(`
+	select
+		forum_search.thread_id,
+		forum_search.post_id,
+		threads.subject,
+		coalesce(pusers.name, tusers.name) as author,
+		snippet(forum_search, -1, '', '', '...', 18) as snippet
+	from
+		forum_search
+		join threads on threads.thread_id = forum_search.thread_id
+		left join posts on posts.post_id = forum_search.post_id
+		left join users as pusers on pusers.user_id = posts.author_id
+		left join users as tusers on tusers.user_id = threads.author_id
+	where
+		forum_search match ?
+	order by
+		forum_search.thread_id desc,
+		forum_search.post_id desc
+`)
+
 function show_forum_page(req, res, page) {
 	let thread_count = FORUM_COUNT_THREADS.get()
 	let page_count = Math.ceil(thread_count / FORUM_PAGE_SIZE)
@@ -1017,6 +1037,14 @@ app.post('/forum/reply/:thread_id', must_be_logged_in, function (req, res) {
 	let body = req.body.body
 	FORUM_NEW_POST.run(thread_id, user_id, body)
 	res.redirect('/forum/thread/'+thread_id)
+})
+
+app.get('/forum/search', must_be_logged_in, function (req, res) {
+	let search = req.query.q
+	let results = []
+	if (search)
+		results = FORUM_SEARCH.all(search)
+	res.render('forum_search.pug', { user: req.user, search, results })
 })
 
 /*

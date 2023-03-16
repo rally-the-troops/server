@@ -43,4 +43,9 @@ html
 								| #[a(href="/forum/page/"+(current_page+1)) &#x2192;]
 
 			if user
-				p: a(href="/forum/post") New thread
+				p
+					form(method="get" action="/forum/search")
+						input(type="text" name="q" size=40 maxlength=80 placeholder="Search..." required)
+			if user
+				p
+					a(href="/forum/post") New thread

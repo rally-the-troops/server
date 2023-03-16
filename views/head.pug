@@ -19,7 +19,7 @@ mixin gamecover(title_id)
 		img(src=`/${title_id}/cover.1x.jpg` srcset=`/${title_id}/cover.2x.jpg 2x`)
 
 mixin forumpost(row,show_buttons)
-	.post
+	.post(id=row.post_id)
 		.head
 			.from: a(href="/user/"+row.author_name)= row.author_name
 			.time= row.ctime

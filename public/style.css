@@ -51,6 +51,7 @@ input[type="text"], input[type="password"], input[type="email"], textarea {
 	padding: 5px;
 	margin: 5px 0;
 	border: 1px solid black;
+	vertical-align: middle;
 }
 input:focus, textarea:focus {
 	outline: 2px solid lightsteelblue;
@@ -59,7 +60,7 @@ button, select {
 	margin: 5px 10px 5px 0;
 	padding: 1px 10px;
 	background-color: gainsboro;
-	vertical-align: top;
+	vertical-align: middle;
 	border: 2px solid;
 	border-color: white darkgray darkgray white;
 	outline: 1px solid black;
