@@ -57,6 +57,7 @@ create table if not exists last_notified (
 create table if not exists webhooks (
 	user_id integer primary key,
 	url text,
+	format text,
 	prefix text,
 	error text
 );

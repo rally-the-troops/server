@@ -281,8 +281,8 @@ const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (us
 const SQL_UPDATE_USER_IS_BANNED = SQL("update users set is_banned=? where name=?")
 
 const SQL_SELECT_WEBHOOK = SQL("SELECT * FROM webhooks WHERE user_id=?")
-const SQL_SELECT_WEBHOOK_SEND = SQL("SELECT url, prefix FROM webhooks WHERE user_id=? AND error is null")
-const SQL_UPDATE_WEBHOOK = SQL("INSERT OR REPLACE INTO webhooks (user_id, url, prefix, error) VALUES (?,?,?,null)")
+const SQL_SELECT_WEBHOOK_SEND = SQL("SELECT url, format, prefix FROM webhooks WHERE user_id=? AND error is null")
+const SQL_UPDATE_WEBHOOK = SQL("INSERT OR REPLACE INTO webhooks (user_id, url, format, prefix, error) VALUES (?,?,?,?,null)")
 const SQL_UPDATE_WEBHOOK_ERROR = SQL("UPDATE webhooks SET error=? WHERE user_id=?")
 const SQL_DELETE_WEBHOOK = SQL("DELETE FROM webhooks WHERE user_id=?")
 
@@ -585,7 +585,8 @@ app.post("/delete-webhook", must_be_logged_in, function (req, res) {
 app.post("/update-webhook", must_be_logged_in, function (req, res) {
 	let url = req.body.url
 	let prefix = req.body.prefix
-	SQL_UPDATE_WEBHOOK.run(req.user.user_id, url, prefix)
+	let format = req.body.format
+	SQL_UPDATE_WEBHOOK.run(req.user.user_id, url, format, prefix)
 	const webhook = SQL_SELECT_WEBHOOK_SEND.get(req.user.user_id)
 	if (webhook)
 		send_webhook(req.user.user_id, webhook, "Test message!")
@@ -1423,7 +1424,6 @@ app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 	let old_game_id = req.params.old_game_id | 0
 	let magic = "\u{1F503} " + old_game_id
 	let new_game_id = 0
-	console.log("FOO", old_game_id, magic)
 	let info = SQL_INSERT_REMATCH.run({user_id: req.user.user_id, game_id: old_game_id, magic: magic})
 	if (info.changes === 1) {
 		new_game_id = info.lastInsertRowid
@@ -1701,11 +1701,19 @@ app.get('/api/replay/:game_id', function (req, res) {
  * WEBHOOK NOTIFICATIONS
  */
 
-const webhook_options = {
+const webhook_json_options = {
 	method: "POST",
 	timeout: 6000,
 	headers: {
 		"Content-Type": "application/json"
+	}
+}
+
+const webhook_text_options = {
+	method: "POST",
+	timeout: 6000,
+	headers: {
+		"Content-Type": "text/plain"
 	}
 }
 
@@ -1720,8 +1728,10 @@ function on_webhook_error(user_id, error) {
 
 function send_webhook(user_id, webhook, message) {
 	try {
-		const data = JSON.stringify({ content: webhook.prefix + " " + message })
-		const req = https.request(webhook.url, webhook_options, res => {
+		const text = webhook.prefix + " " + message
+		const data = webhook.format ? JSON.stringify({ [webhook.format]: text }) : text
+		const options = webhook.format ? webhook_json_options : webhook_text_options
+		const req = https.request(webhook.url, options, res => {
 			if (res.statusCode === 200 || res.statusCode === 204)
 				on_webhook_success(user_id)
 			else

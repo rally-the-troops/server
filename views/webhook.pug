@@ -11,6 +11,7 @@ html(lang="en")
 			h1 Webhook
 
 			- var url = webhook && webhook.url || ""
+			- var format = webhook && webhook.format || ""
 			- var prefix = webhook && webhook.prefix || ""
 
 			form(action="/update-webhook" method="post")
@@ -19,6 +20,10 @@ html(lang="en")
 				p Webhook URL:
 					br
 					input#url(type="text" name="url" size=120 placeholder="https://discord.com/api/webhooks/..." value=url required)
+				p Webhook format:
+					br
+					input#format(type="text" name="format" size=40 placeholder="content" value=format)
+
 				p Message prefix:
 					br
 					input#prefix(type="text" name="prefix" size=40 placeholder="<@123456789>" value=prefix)
@@ -38,9 +43,26 @@ html(lang="en")
 
 			ol
 				li Create your own server or use an existing server where you have administrator privileges.
-				li <a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks">Get the webhook URL</a> for the Discord channel where you want notifications to be sent. Enter it into the Webhook URL field.
-				li Find your <a href="https://support.playhive.com/discord-user-id/">Discord User ID</a>. Enter it into the Message prefix field as "&lt;@UserID&gt;"
+				li <a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks">Get the webhook URL</a> for the Discord channel and enter it into the Webhook URL field.
+				li Enter "content" into the Webhook format field.
+				li Find your <a href="https://support.playhive.com/discord-user-id/">Discord User ID</a>. This is not your username, it is a number.
+				li Enter your Discord User ID into the Message prefix field as "&lt;@12345&gt;".
+
+			h2 Slack Notifications
+
+			p You can send notifications to a Slack workspace.
+
+			ol
+				li Join or set up a Slack workspace with a webhook integration.
+				li Find the Webhook URL and enter it into the Webhook URL field.
+				li Enter "text" into the Webhook format field.
+				li Find your <a href="">Slack User ID</a>. This is a number with "U" in front of it.
+				li Enter your Slack User ID into the Message prefix field as "&lt;@U12345&gt;".
 
 			h2 Custom Notifications
 
-			p You can integrate with any server that accepts inbound webhooks by setting the webhook URL to the appropriate endpoint. The webhook payload is a JSON object with a "content" property containing the notification message.
+			p.
+				You can integrate with any server that accepts inbound webhooks by setting the webhook URL to the appropriate endpoint.
+				If the format field is blank, the payload is sent as plain text.
+				Otherwise, the payload is a JSON object where the format field specifies which JSON property holds the message.
+				Use "content" for Discord and "text" for Slack.
