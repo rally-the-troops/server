@@ -203,6 +203,9 @@ a.menu_item {
 	text-decoration: none;
 	color: black;
 }
+.menu_item.disabled {
+	color: gray;
+}
 
 /* TOOL BAR */
 
