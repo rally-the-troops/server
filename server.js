@@ -2222,7 +2222,7 @@ function on_restore(socket, state_text) {
 		state_text = JSON.stringify(state)
 		SQL_UPDATE_GAME_RESULT.run(1, null, socket.game_id)
 		SQL_UPDATE_GAME_STATE.run(socket.game_id, state_text, state.active)
-		put_replay(socket.game_id, null, 'restore', state_text)
+		put_replay(socket.game_id, null, 'debug-restore', state_text)
 		for (let other of game_clients[socket.game_id])
 			send_state(other, state)
 	} catch (err) {

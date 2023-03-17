@@ -802,9 +802,6 @@ async function init_replay() {
 	function eval_action(item, p) {
 		let [ item_role, item_action, item_arguments ] = item
 		switch (item_action) {
-		case "restore":
-			s = JSON.parse(item_arguments)
-			break
 		case "setup":
 			s = rules.setup(item_arguments[0], item_arguments[1], item_arguments[2])
 			break
