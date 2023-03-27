@@ -1757,15 +1757,6 @@ function webhook_game_link(game, user) {
 	return SITE_URL + "/join/" + game.game_id
 }
 
-function webhook_ready_to_start(user, game_id) {
-	let webhook = SQL_SELECT_WEBHOOK_SEND.get(user.user_id)
-	if (webhook) {
-		let game = SQL_SELECT_GAME_VIEW.get(game_id)
-		let message = webhook_game_link(game, user) + " - Ready to start!"
-		send_webhook(user.user_id, webhook, message)
-	}
-}
-
 function webhook_game_started(user, game_id) {
 	let webhook = SQL_SELECT_WEBHOOK_SEND.get(user.user_id)
 	if (webhook) {
@@ -1978,7 +1969,6 @@ function notify_ready_to_start_reminder() {
 			if (owner) {
 				if (owner.notify)
 					mail_ready_to_start_notification(owner, game.game_id, 25 * HOURS)
-				webhook_ready_to_start(owner, game.game_id)
 			}
 		}
 	}
