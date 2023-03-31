@@ -85,8 +85,8 @@ mixin gamelist(list,hide_title=0)
 
 					div.game_main
 						div.game_info
-							if item.description
-								i= item.description
+							if item.notice
+								i= item.notice
 							if item.scenario !== "Standard" && item.scenario !== "Historical" && item.scenario.length > 2
 								div Scenario: #{item.scenario}
 							unless item.human_options === "None"

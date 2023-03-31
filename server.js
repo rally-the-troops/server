@@ -1075,7 +1075,7 @@ function is_game_ready(title_id, scenario, options, players) {
 
 load_rules()
 
-const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,is_private,is_random,description) VALUES (?,?,?,?,?,?,?)")
+const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,is_private,is_random,notice) VALUES (?,?,?,?,?,?,?)")
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
 
 const SQL_SELECT_UNREAD_CHAT_GAMES = SQL("select game_id from unread_chats where user_id = ?").pluck()
@@ -1147,15 +1147,15 @@ const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role
 const SQL_SELECT_OPEN_GAMES = SQL("SELECT * FROM games WHERE status=0")
 const SQL_COUNT_OPEN_GAMES = SQL("SELECT COUNT(*) FROM games WHERE owner_id=? AND status=0").pluck()
 
-const SQL_SELECT_REMATCH = SQL("SELECT game_id FROM games WHERE status < 3 AND description=?").pluck()
+const SQL_SELECT_REMATCH = SQL("SELECT game_id FROM games WHERE status < 3 AND notice=?").pluck()
 const SQL_INSERT_REMATCH = SQL(`
 	INSERT INTO games
-		(owner_id, title_id, scenario, options, is_private, is_random, description)
+		(owner_id, title_id, scenario, options, is_private, is_random, notice)
 	SELECT
 		$user_id, title_id, scenario, options, is_private, 0, $magic
 	FROM games
 	WHERE game_id = $game_id AND NOT EXISTS (
-		SELECT * FROM games WHERE description=$magic
+		SELECT * FROM games WHERE notice=$magic
 	)
 `)
 
@@ -1402,7 +1402,7 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 
 function options_json_replacer(key, value) {
 	if (key === 'scenario') return undefined
-	if (key === 'description') return undefined
+	if (key === 'notice') return undefined
 	if (key === 'is_random') return undefined
 	if (key === 'is_private') return undefined
 	if (value === 'true') return true
@@ -1411,14 +1411,15 @@ function options_json_replacer(key, value) {
 	return value
 }
 
-app.post('/create/:title_id', must_be_logged_in, function (req, res) {
+app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 	let title_id = req.params.title_id
-	let descr = req.body.description
-	let priv = req.body.is_private === 'true'
-	let rand = req.body.is_random === 'true'
+	let priv = req.body.is_private === "true"
+	let rand = req.body.is_random === "true"
 	let user_id = req.user.user_id
 	let scenario = req.body.scenario
 	let options = JSON.stringify(req.body, options_json_replacer)
+	let notice = req.body.notice
+
 	let count = SQL_COUNT_OPEN_GAMES.get(user_id)
 	if (count >= 5)
 		return res.send("You have too many open games!")
@@ -1426,8 +1427,9 @@ app.post('/create/:title_id', must_be_logged_in, function (req, res) {
 		return res.send("Invalid title.")
 	if (!RULES[title_id].scenarios.includes(scenario))
 		return res.send("Invalid scenario.")
-	let info = SQL_INSERT_GAME.run(user_id, title_id, scenario, options, priv ? 1 : 0, rand ? 1 : 0, descr)
-	res.redirect('/join/'+info.lastInsertRowid)
+
+	let info = SQL_INSERT_GAME.run(user_id, title_id, scenario, options, priv ? 1 : 0, rand ? 1 : 0, notice)
+	res.redirect("/join/" + info.lastInsertRowid)
 })
 
 app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
@@ -1516,6 +1518,8 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	if (game.owner_id === req.user.user_id)
 		friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
 	let ready = (game.status === 0) && is_game_ready(game.title_id, game.scenario, game.options, players)
+	game.ctime = human_date(game.ctime)
+	game.mtime = human_date(game.mtime)
 	res.render('join.pug', {
 		user: req.user, game, roles, players, ready, whitelist, blacklist, friends
 	})
@@ -1807,8 +1811,9 @@ function mail_game_info(game) {
 	let desc = `Game: ${game.title_name}\n`
 	desc += `Scenario: ${game.scenario}\n`
 	desc += `Players: ${game.player_names}\n`
-	if (game.description.length > 0)
-		desc += `Description: ${game.description}\n`
+	desc += "\n"
+	if (game.notice && game.notice.length > 0)
+		desc += game.notice + "\n"
 	return desc + "\n"
 }
 

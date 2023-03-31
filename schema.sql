@@ -277,7 +277,7 @@ create table if not exists games (
 	ctime datetime default current_timestamp,
 	is_private boolean default 0,
 	is_random boolean default 0,
-	description text,
+	notice text,
 	status integer default 0,
 	result text
 );

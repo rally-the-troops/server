@@ -39,17 +39,27 @@ html
 			div.logo
 				+gamecover(game.title_id)
 
+			div Scenario: #{game.scenario}
+
+			unless game.human_options === "None"
+				div Options: #{game.human_options}
 			div
 				if game.is_private
 					| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a> (private)
 				else
 					| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a>
-			div Scenario: #{game.scenario}
-			div Options: #{game.human_options}
-			if game.status === 2
-				div Result: !{game.result}
 
-			p= game.description || "No description."
+			div Created: #{game.ctime}
+			unless game.mtime === "never"
+				div Changed: #{game.mtime}
+
+			if game.status === 2
+				div Result: #{game.result}
+
+			if game.notice
+				br
+				div
+					i= game.notice
 
 			br(clear="left")
 

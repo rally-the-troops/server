@@ -44,7 +44,7 @@ div.logo img {
 	box-shadow: 1px 2px 4px 0px rgba(0,0,0,0.3);
 }
 
-input[type="checkbox"] {
+input[type="checkbox"], input[type="radio"] {
 	margin-right: 7px;
 }
 input[type="text"], input[type="password"], input[type="email"], textarea {
