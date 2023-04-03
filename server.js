@@ -1117,8 +1117,42 @@ const SQL_SELECT_GAME_STATE = SQL("SELECT state FROM game_state WHERE game_id=?"
 const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,state,active,mtime) VALUES (?,?,?,julianday())")
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?")
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
+
 const SQL_INSERT_REPLAY = SQL("INSERT INTO game_replay (game_id,role,action,arguments) VALUES (?,?,?,?)")
-const SQL_SELECT_REPLAY = SQL("SELECT role,action,arguments FROM game_replay WHERE game_id=?").raw()
+
+const SQL_SELECT_REPLAY = SQL(`
+	select json_object(
+			'title', title_id,
+			'scenario', scenario,
+			'options', json(options),
+			'players',
+				(select json_group_array(
+						json_object('role', role, 'name', name)
+					)
+					from players
+					natural join users
+					where game_id = :game_id
+				),
+			'state',
+				(select json(state)
+					from game_state
+					where game_id = :game_id
+				),
+			'replay',
+				(select json_group_array(
+						case when arguments is null then
+							json_array(role, action)
+						else
+							json_array(role, action, json(arguments))
+						end
+					)
+					from game_replay
+					where game_id = :game_id
+				)
+	)
+	from games
+	where game_id = :game_id
+`).pluck()
 
 const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?")
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?")
@@ -1713,16 +1747,13 @@ app.get('/:title_id/replay\::game_id', function (req, res) {
 })
 
 app.get('/api/replay/:game_id', function (req, res) {
-	let game_id = req.params.game_id
+	let game_id = req.params.game_id | 0
 	let game = SQL_SELECT_GAME.get(game_id)
 	if (!game)
 		return res.status(404).send("Invalid game ID.")
 	if (game.status < 2 && (!req.user || req.user.user_id !== 1))
 		return res.status(401).send("Not authorized to debug.")
-	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
-	let state = SQL_SELECT_GAME_STATE.get(game_id)
-	let replay = SQL_SELECT_REPLAY.all(game_id)
-	return res.json({players, state, replay})
+	return res.send(SQL_SELECT_REPLAY.get({game_id}))
 })
 
 /*

@@ -825,8 +825,6 @@ async function init_replay() {
 
 	let ss
 	for (p = 0; p < replay.length; ++p) {
-		replay[p][2] = JSON.parse(replay[p][2])
-
 		if (rules.is_checkpoint) {
 			replay[p].is_checkpoint = p > 1 && rules.is_checkpoint(ss, s)
 			ss = object_copy(s)
@@ -1009,7 +1007,7 @@ async function init_replay() {
 		window.addEventListener("hashchange", on_hash_change)
 	} else {
 		console.log("REPLAY NOT AVAILABLE")
-		s = JSON.parse(body.state)
+		s = body.state
 		update_replay_view()
 	}
 }
