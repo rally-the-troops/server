@@ -2368,7 +2368,7 @@ wss.on('connection', (socket, req, client) => {
 		}
 
 		if (socket.seen === 0)
-			send_message(socket, 'players', [socket.role, players])
+			send_message(socket, 'players', [socket.role, players.map(p => ({ name: p.name, role: p.role }))])
 
 		if (game_clients[socket.game_id])
 			game_clients[socket.game_id].push(socket)
