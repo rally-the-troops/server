@@ -16,7 +16,7 @@ create table if not exists titles (
 create table if not exists logins (
 	sid integer primary key,
 	user_id integer,
-	expires real
+	expires real -- julianday
 );
 
 create table if not exists users (
@@ -25,7 +25,7 @@ create table if not exists users (
 	mail text unique collate nocase,
 	notify boolean default 0,
 	is_banned boolean default 0,
-	ctime real default (julianday()),
+	ctime datetime default current_timestamp,
 	password text,
 	salt text,
 	about text
@@ -38,19 +38,19 @@ insert or ignore into
 
 create table if not exists user_last_seen (
 	user_id integer primary key,
-	atime real
+	atime datetime
 );
 
 create table if not exists tokens (
 	user_id integer primary key,
 	token text,
-	time real
+	time datetime
 );
 
 create table if not exists last_notified (
 	game_id integer,
 	user_id integer,
-	time real,
+	time datetime,
 	primary key (game_id, user_id)
 ) without rowid;
 
@@ -161,7 +161,7 @@ create table if not exists messages (
 	is_deleted_from_outbox boolean default 0,
 	from_id integer,
 	to_id integer,
-	time real default (julianday()),
+	time datetime default current_timestamp,
 	is_read boolean default 0,
 	subject text,
 	body text
@@ -208,8 +208,8 @@ create table if not exists posts (
 	post_id integer primary key,
 	thread_id integer,
 	author_id integer,
-	ctime real default (julianday()),
-	mtime real default (julianday()),
+	ctime datetime default current_timestamp,
+	mtime datetime default current_timestamp,
 	body text
 );
 
@@ -274,7 +274,7 @@ create table if not exists games (
 	scenario text,
 	options text,
 	owner_id integer,
-	ctime real default (julianday()),
+	ctime datetime default current_timestamp,
 	is_private boolean default 0,
 	is_random boolean default 0,
 	description text,
@@ -287,7 +287,7 @@ create index if not exists games_status_idx on games(status);
 
 create table if not exists game_state (
 	game_id integer primary key,
-	mtime real,
+	mtime datetime,
 	active text,
 	state text
 );
@@ -295,7 +295,7 @@ create table if not exists game_state (
 create table if not exists game_chat (
 	chat_id integer primary key,
 	game_id integer,
-	time real default (julianday()),
+	time datetime default current_timestamp,
 	user_id integer,
 	message text
 );
@@ -417,7 +417,7 @@ create view your_turn_reminder as
 		and active in ('All', 'Both', role)
 		and is_solo = 0
 		and notify = 1
-		and julianday() > mtime + 0.04
+		and julianday() > julianday(mtime, '+1 hour')
 	;
 
 drop view if exists your_turn;
@@ -481,6 +481,7 @@ end;
 
 drop trigger if exists trigger_mark_threads_as_unread2;
 create trigger trigger_mark_threads_as_unread2 after update on posts
+	when new.body != old.body
 begin
 	delete from read_threads where user_id != new.author_id and thread_id = new.thread_id;
 end;
@@ -489,7 +490,7 @@ create table if not exists deleted_users (
 	user_id integer,
 	name text collate nocase,
 	mail text collate nocase,
-	time real default (julianday())
+	time datetime default current_timestamp
 );
 
 drop trigger if exists trigger_log_deleted_users;
