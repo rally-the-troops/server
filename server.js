@@ -657,16 +657,6 @@ app.get('/users', function (req, res) {
 	res.render('user_list.pug', { user: req.user, user_list: rows })
 })
 
-app.get('/chat', must_be_logged_in, function (req, res) {
-	let chat = SQL_SELECT_USER_CHAT_N.all(req.user.user_id, 12*20)
-	res.render('chat.pug', { user: req.user, chat: chat, page_size: 12 })
-})
-
-app.get('/chat/all', must_be_logged_in, function (req, res) {
-	let chat = SQL_SELECT_USER_CHAT.all(req.user.user_id)
-	res.render('chat.pug', { user: req.user, chat: chat, page_size: 0 })
-})
-
 /*
  * CONTACTS
  */
@@ -1098,9 +1088,6 @@ load_rules()
 
 const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,is_private,is_random,description) VALUES (?,?,?,?,?,?,?)")
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
-
-const SQL_SELECT_USER_CHAT = SQL("SELECT game_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC").raw()
-const SQL_SELECT_USER_CHAT_N = SQL("SELECT game_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id IN ( SELECT DISTINCT game_id FROM players WHERE user_id=? ) ORDER BY chat_id DESC LIMIT ?").raw()
 
 const SQL_SELECT_UNREAD_CHAT_GAMES = SQL("select game_id from unread_chats where user_id = ?").pluck()
 const SQL_INSERT_UNREAD_CHAT = SQL("insert or ignore into unread_chats (user_id,game_id) values (?,?)")
