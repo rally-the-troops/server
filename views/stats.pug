@@ -22,9 +22,7 @@ html
 							th
 								a(href="/"+row.title_id)= row.title_name
 								unless row.scenario === "Standard"
-									| , #{row.scenario}
-								unless row.options === "None"
-									| , #{row.options}
+									|  &#x2013; #{row.scenario}
 							th= row.total
 					tbody
 						- for (let i=0; i<row.result_role.length; ++i)

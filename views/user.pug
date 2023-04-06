@@ -31,9 +31,9 @@ html
 					a(href="/message/send/"+who.name) Send message
 					br
 					if relation > 0
-						a(href="/contact/remove-user/"+who.name) Remove from friends
+						a(href="/contact/remove/"+who.name) Remove from friends
 					else if relation < 0
-						a(href="/contact/remove-user/"+who.name) Remove from blacklist
+						a(href="/contact/remove/"+who.name) Remove from blacklist
 					else
 						a(href="/contact/add-friend/"+who.name) Add to friends
 						br

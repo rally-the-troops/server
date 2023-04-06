@@ -19,6 +19,9 @@ const HTTP_PORT = process.env.HTTP_PORT || 8080
 const SITE_NAME = process.env.SITE_NAME || "Localhost"
 const SITE_URL = process.env.SITE_URL || "http://" + HTTP_HOST + ":" + HTTP_PORT
 
+const REGEX_MAIL = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
+const REGEX_NAME = /^[\p{Alpha}\p{Number}'_-]+( [\p{Alpha}\p{Number}'_-]+)*$/u
+
 function LOG_STATS() {
 	// Count clients connected to join page events
 	let num_joins = 0
@@ -163,7 +166,7 @@ http_server.listen(HTTP_PORT, HTTP_HOST, () => console.log(`Listening to HTTP on
  */
 
 function play_url(title_id, game_id, role, mode) {
-	if (mode && mode)
+	if (mode && role)
 		return `/${title_id}/play.html?mode=${mode}&game=${game_id}&role=${encodeURIComponent(role)}`
 	else if (mode)
 		return `/${title_id}/play.html?mode=${mode}&game=${game_id}`
@@ -229,8 +232,8 @@ function human_date(date) {
 	return new Date(epoch_from_julianday(date)).toISOString().substring(0,10)
 }
 
-function is_email(email) {
-	return email.match(/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/)
+function is_valid_email(email) {
+	return REGEX_MAIL.test(email)
 }
 
 function clean_user_name(name) {
@@ -240,14 +243,12 @@ function clean_user_name(name) {
 	return name
 }
 
-const USER_NAME_RE = /^[\p{Alpha}\p{Number}'_-]+( [\p{Alpha}\p{Number}'_-]+)*$/u
-
 function is_valid_user_name(name) {
 	if (name.length < 2)
 		return false
 	if (name.length > 50)
 		return false
-	return USER_NAME_RE.test(name)
+	return REGEX_NAME.test(name)
 }
 
 function hash_password(password, salt) {
@@ -287,7 +288,7 @@ const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?")
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?")
 const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?")
 const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?")
-const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,julianday())")
+const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,datetime())")
 const SQL_UPDATE_USER_IS_BANNED = SQL("update users set is_banned=? where name=?")
 
 const SQL_SELECT_WEBHOOK = SQL("SELECT * FROM webhooks WHERE user_id=?")
@@ -297,7 +298,7 @@ const SQL_UPDATE_WEBHOOK_ERROR = SQL("UPDATE webhooks SET error=? WHERE user_id=
 const SQL_DELETE_WEBHOOK = SQL("DELETE FROM webhooks WHERE user_id=?")
 
 const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND julianday('now') < julianday(time, '+5 minutes')").pluck()
-const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), julianday()) RETURNING token").pluck()
+const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime()) RETURNING token").pluck()
 const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id=? AND julianday('now') < julianday(time, '+20 minutes') AND token=? )").pluck()
 
 function is_blacklisted(mail) {
@@ -409,7 +410,7 @@ app.post('/login', function (req, res) {
 	let name_or_mail = req.body.username
 	let password = req.body.password
 	let redirect = req.body.redirect
-	if (!is_email(name_or_mail))
+	if (!is_valid_email(name_or_mail))
 		name_or_mail = clean_user_name(name_or_mail)
 	let user = SQL_SELECT_LOGIN_BY_NAME.get(name_or_mail)
 	if (!user)
@@ -439,7 +440,7 @@ app.post('/signup', function (req, res) {
 		return err("Invalid user name!")
 	if (SQL_EXISTS_USER_NAME.get(name))
 		return err("That name is already taken.")
-	if (!is_email(mail) || is_blacklisted(mail))
+	if (!is_valid_email(mail) || is_blacklisted(mail))
 		return err("Invalid mail address!")
 	if (SQL_EXISTS_USER_MAIL.get(mail))
 		return err("That mail is already taken.")
@@ -658,15 +659,6 @@ app.get('/user/:who_name', function (req, res) {
 	}
 })
 
-app.get('/users', function (req, res) {
-	let rows = SQL("SELECT * FROM user_profile_view ORDER BY atime DESC").all()
-	rows.forEach(row => {
-		row.ctime = human_date(row.ctime)
-		row.atime = human_date(row.atime)
-	})
-	res.render('user_list.pug', { user: req.user, user_list: rows })
-})
-
 /*
  * CONTACTS
  */
@@ -710,14 +702,6 @@ app.get("/contact/add-enemy/:who_name", must_be_logged_in, function (req, res) {
 	if (!who)
 		return res.status(404).send("User not found.")
 	SQL_INSERT_CONTACT.run(req.user.user_id, who.user_id, -1)
-	return res.redirect("/user/" + who.name)
-})
-
-app.get("/contact/remove-user/:who_name", must_be_logged_in, function (req, res) {
-	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
-	if (!who)
-		return res.status(404).send("User not found.")
-	SQL_DELETE_CONTACT.run(req.user.user_id, who.user_id)
 	return res.redirect("/user/" + who.name)
 })
 
@@ -876,7 +860,7 @@ const FORUM_LIST_POSTS = SQL("SELECT * FROM post_view WHERE thread_id=?")
 const FORUM_GET_POST = SQL("SELECT * FROM post_view WHERE post_id=?")
 const FORUM_NEW_THREAD = SQL("INSERT INTO threads (author_id,subject) VALUES (?,?)")
 const FORUM_NEW_POST = SQL("INSERT INTO posts (thread_id,author_id,body) VALUES (?,?,?)")
-const FORUM_EDIT_POST = SQL("UPDATE posts SET body=?, mtime=julianday() WHERE post_id=? AND author_id=? RETURNING thread_id").pluck()
+const FORUM_EDIT_POST = SQL("UPDATE posts SET body=?, mtime=datetime() WHERE post_id=? AND author_id=? RETURNING thread_id").pluck()
 const FORUM_MARK_READ = SQL("insert or ignore into read_threads (user_id,thread_id) values (?,?)")
 
 const FORUM_DELETE_THREAD_POSTS = SQL("delete from posts where thread_id=?")
@@ -1111,7 +1095,7 @@ const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,rol
 const SQL_DELETE_GAME_NOTE = SQL("DELETE FROM game_notes WHERE game_id=? AND role=?")
 
 const SQL_SELECT_GAME_STATE = SQL("SELECT state FROM game_state WHERE game_id=?").pluck()
-const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,state,active,mtime) VALUES (?,?,?,julianday())")
+const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,state,active,mtime) VALUES (?,?,?,datetime())")
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?")
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
 
@@ -1848,7 +1832,7 @@ const MAIL_FROM = process.env.MAIL_FROM || "user@localhost"
 const MAIL_FOOTER = "\n--\nYou can unsubscribe from notifications on your profile page:\n" + SITE_URL + "/profile\n"
 
 const SQL_SELECT_NOTIFIED = SQL("SELECT julianday() < julianday(time, ?) FROM last_notified WHERE game_id=? AND user_id=?").pluck()
-const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,julianday())")
+const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,datetime())")
 const SQL_DELETE_NOTIFIED = SQL("DELETE FROM last_notified WHERE game_id=? AND user_id=?")
 const SQL_DELETE_NOTIFIED_ALL = SQL("DELETE FROM last_notified WHERE game_id=?")
 
@@ -2438,14 +2422,15 @@ wss.on('connection', (socket, req, client) => {
 
 const SQL_GAME_STATS = SQL(`
 	select
-		title_id, scenario, options,
-		group_concat(result) as result_role,
-		group_concat(n) as result_count,
+		title_id, scenario,
+		group_concat(result, '%') as result_role,
+		group_concat(n, '%') as result_count,
 		sum(n) as total
 	from
 		(
 			select
-				title_id, scenario, options,
+				title_id,
+				scenario,
 				result,
 				count(1) as n
 			from
@@ -2453,14 +2438,14 @@ const SQL_GAME_STATS = SQL(`
 				natural join game_state
 			where
 				status=2
+				and title_id != 'pax-pamir'
 			group by
 				title_id,
 				scenario,
-				options,
 				result
 		)
 	group by
-		title_id, scenario, options
+		title_id, scenario
 	having
 		total > 12
 	`)
@@ -2469,9 +2454,8 @@ app.get('/stats', function (req, res) {
 	let stats = SQL_GAME_STATS.all()
 	stats.forEach(row => {
 		row.title_name = TITLES[row.title_id].title_name
-		row.options = format_options(JSON.parse(row.options))
-		row.result_role = row.result_role.split(",")
-		row.result_count = row.result_count.split(",").map(Number)
+		row.result_role = row.result_role.split("%")
+		row.result_count = row.result_count.split("%").map(Number)
 	})
 	res.render('stats.pug', {
 		user: req.user,
