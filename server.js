@@ -1,5 +1,7 @@
 "use strict"
 
+/* global process, __dirname */
+
 const fs = require('fs')
 const crypto = require('crypto')
 const http = require('http')
@@ -194,12 +196,6 @@ function epoch_from_time(x) {
 	return epoch_from_julianday(x)
 }
 
-function julianday_from_time(x) {
-	if (typeof x === "string")
-		return julianday_from_epoch(Date.parse(x))
-	return x
-}
-
 function SLOG(socket, ...msg) {
 	let time = new Date().toISOString().substring(11,19)
 	let name = (socket.user ? socket.user.name : "guest").padEnd(20)
@@ -277,7 +273,6 @@ const SQL_SELECT_LOGIN_BY_MAIL = SQL("SELECT * FROM user_login_view WHERE mail=?
 const SQL_SELECT_LOGIN_BY_NAME = SQL("SELECT * FROM user_login_view WHERE name=?")
 const SQL_SELECT_USER_PROFILE = SQL("SELECT * FROM user_profile_view WHERE name=?")
 const SQL_SELECT_USER_DYNAMIC = SQL("select * from user_dynamic_view where user_id=?")
-const SQL_SELECT_USER_NAME = SQL("SELECT name FROM users WHERE user_id=?").pluck()
 const SQL_SELECT_USER_ID = SQL("SELECT user_id FROM users WHERE name=?").pluck()
 
 const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND julianday() > julianday(atime, ?)")
@@ -501,7 +496,7 @@ app.post('/reset-password', function (req, res) {
 	let token = req.body.token
 	let password = req.body.password
 	function err(msg) {
-		res.render('reset_password.pug', { mail: mail, token: token })
+		res.render('reset_password.pug', { mail: mail, token: token, flash: msg })
 	}
 	let user = SQL_SELECT_LOGIN_BY_MAIL.get(mail)
 	if (!user)
@@ -625,7 +620,7 @@ app.get('/change-mail', must_be_logged_in, function (req, res) {
 
 app.post('/change-mail', must_be_logged_in, function (req, res) {
 	let newmail = req.body.newmail
-	if (!is_email(newmail))
+	if (!is_valid_email(newmail))
 		return res.render('change_mail.pug', { user: req.user, flash: "Invalid mail address!" })
 	if (SQL_EXISTS_USER_MAIL.get(newmail))
 		return res.render('change_mail.pug', { user: req.user, flash: "That mail address is already taken!" })
@@ -1139,9 +1134,6 @@ const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?")
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?")
 const SQL_SELECT_GAME_FULL_VIEW = SQL("SELECT * FROM game_full_view WHERE game_id=?")
 const SQL_SELECT_GAME_TITLE = SQL("SELECT title_id FROM games WHERE game_id=?").pluck()
-const SQL_SELECT_GAME_RANDOM = SQL("SELECT is_random FROM games WHERE game_id=?").pluck()
-
-const SQL_SELECT_GAME_HAS_TITLE_AND_STATUS = SQL("SELECT 1 FROM games WHERE game_id=? AND title_id=? AND status=?")
 
 const SQL_SELECT_PLAYERS_ID = SQL("SELECT DISTINCT user_id FROM players WHERE game_id=?").pluck()
 const SQL_SELECT_PLAYERS = SQL("SELECT * FROM players NATURAL JOIN user_view WHERE game_id=?")
@@ -1151,8 +1143,6 @@ const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AN
 const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
 const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
-
-const SQL_AUTHORIZE_GAME_ROLE = SQL("SELECT 1 FROM players NATURAL JOIN games WHERE title_id=? AND game_id=? AND role=? AND user_id=?").pluck()
 
 const SQL_SELECT_OPEN_GAMES = SQL("SELECT * FROM games WHERE status=0")
 const SQL_COUNT_OPEN_GAMES = SQL("SELECT COUNT(*) FROM games WHERE owner_id=? AND status=0").pluck()
@@ -1217,18 +1207,6 @@ const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
 		status = 2
 	order by status asc, mtime desc
 	`)
-
-function is_active(game, players, user_id) {
-	if (game.status !== 1 || user_id === 0)
-		return false
-	let active = game.active
-	for (let i = 0; i < players.length; ++i) {
-		let p = players[i]
-		if ((p.user_id === user_id) && (active === 'All' || active === 'Both' || active === p.role))
-			return true
-	}
-	return false
-}
 
 function is_solo(players) {
 	return players.every(p => p.user_id === players[0].user_id)
@@ -1652,7 +1630,13 @@ function assign_random_roles(game, players) {
 	}
 }
 
-function start_game(game_id, game) {
+app.post('/start/:game_id', must_be_logged_in, function (req, res) {
+	let game_id = req.params.game_id | 0
+	let game = SQL_SELECT_GAME.get(game_id)
+	if (game.owner_id !== req.user.user_id)
+		return res.send("Not authorized to start that game ID.")
+	if (game.status !== 0)
+		return res.send("The game is already started.")
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	if (!is_game_ready(game.title_id, game.scenario, game.options, players))
 		return res.send("Invalid scenario/options/player configuration!")
@@ -1670,18 +1654,8 @@ function start_game(game_id, game) {
 	if (is_solo(players))
 		SQL_UPDATE_GAME_PRIVATE.run(game_id)
 	update_join_clients_game(game_id)
-	mail_game_started_notification_to_offline_users(game_id, game.owner_id)
+	mail_game_started_notification_to_offline_users(game_id)
 	mail_your_turn_notification_to_offline_users(game_id, null, state.active)
-}
-
-app.post('/start/:game_id', must_be_logged_in, function (req, res) {
-	let game_id = req.params.game_id | 0
-	let game = SQL_SELECT_GAME.get(game_id)
-	if (game.owner_id !== req.user.user_id)
-		return res.send("Not authorized to start that game ID.")
-	if (game.status !== 0)
-		return res.send("The game is already started.")
-	start_game(game_id, game)
 	res.send("SUCCESS")
 })
 
@@ -1705,26 +1679,6 @@ app.get('/play/:game_id', function (req, res) {
 		res.redirect(play_url(title, game_id, role))
 	else
 		res.redirect(play_url(title, game_id, "Observer"))
-})
-
-app.get('/:title_id/play\::game_id\::role', must_be_logged_in, function (req, res) {
-	let user_id = req.user ? req.user.user_id : 0
-	let title_id = req.params.title_id
-	let game_id = req.params.game_id
-	let role = req.params.role
-	return res.redirect(play_url(title_id, game_id, role))
-})
-
-app.get('/:title_id/play\::game_id', function (req, res) {
-	let title_id = req.params.title_id
-	let game_id = req.params.game_id
-	return res.redirect(play_url(title_id, game_id, "Observer"))
-})
-
-app.get('/:title_id/replay\::game_id', function (req, res) {
-	let title_id = req.params.title_id
-	let game_id = req.params.game_id
-	return res.redirect(play_url(title_id, game_id, "Observer", "replay"))
 })
 
 app.get('/api/replay/:game_id', function (req, res) {
@@ -1838,7 +1792,7 @@ const SQL_DELETE_NOTIFIED_ALL = SQL("DELETE FROM last_notified WHERE game_id=?")
 
 const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
 
-function mail_callback(err, info) {
+function mail_callback(err) {
 	if (err)
 		console.log("MAIL ERROR", err)
 }
@@ -1973,7 +1927,7 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 	}
 }
 
-function mail_game_started_notification_to_offline_users(game_id, owner_id) {
+function mail_game_started_notification_to_offline_users(game_id) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
 		if (!is_online(game_id, p.user_id)) {
@@ -2212,21 +2166,6 @@ function on_chat(socket, message) {
 	}
 }
 
-function on_debug(socket) {
-	if (!DEBUG)
-		send_message(socket, 'error', "Debugging is not enabled on this server.")
-	SLOG(socket, "DEBUG")
-	try {
-		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id)
-		if (!game_state)
-			return send_message(socket, 'error', "No game with that ID.")
-		send_message(socket, 'debug', game_state)
-	} catch (err) {
-		console.log(err)
-		return send_message(socket, 'error', err.toString())
-	}
-}
-
 function on_save(socket) {
 	if (!DEBUG)
 		send_message(socket, 'error', "Debugging is not enabled on this server.")
@@ -2314,9 +2253,6 @@ function handle_player_message(socket, cmd, arg) {
 	case "chat":
 		on_chat(socket, arg)
 		break
-	case "debug":
-		on_debug(socket)
-		break
 	case "save":
 		on_save(socket)
 		break
@@ -2337,7 +2273,7 @@ function handle_observer_message(socket, cmd, arg) {
 	}
 }
 
-wss.on('connection', (socket, req, client) => {
+wss.on('connection', (socket, req) => {
 	let u = url.parse(req.url, true)
 	if (u.pathname !== '/play-socket')
 		return setTimeout(() => socket.close(1000, "Invalid request."), 30000)
@@ -2387,7 +2323,7 @@ wss.on('connection', (socket, req, client) => {
 		else
 			game_clients[socket.game_id] = [ socket ]
 
-		socket.on('close', (code, reason) => {
+		socket.on('close', (code) => {
 			SLOG(socket, "CLOSE " + code)
 			game_clients[socket.game_id].splice(game_clients[socket.game_id].indexOf(socket), 1)
 			if (game_clients[socket.game_id].length > 0)
