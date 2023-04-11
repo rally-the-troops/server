@@ -1760,7 +1760,7 @@ function webhook_game_started(user, game_id) {
 	}
 }
 
-function webhook_game_over(user, game_id) {
+function webhook_game_finished(user, game_id) {
 	let webhook = SQL_SELECT_WEBHOOK_SEND.get(user.user_id)
 	if (webhook) {
 		let game = SQL_SELECT_GAME_VIEW.get(game_id)
@@ -1851,12 +1851,12 @@ function mail_game_started_notification(user, game_id) {
 	}
 }
 
-function mail_game_over_notification(user, game_id, result, victory) {
+function mail_game_finished_notification(user, game_id, result) {
 	if (mailer) {
 		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id)
 		let subject = `${game.title_name} #${game_id} (${user.role}) - Finished!`
 		let body = mail_game_info(game) +
-			victory + "\n\n" +
+			"Result: " + result + "\n\n" +
 			mail_game_link(game, user) +
 			MAIL_FOOTER
 		console.log("SENT MAIL:", mail_addr(user), subject)
@@ -1912,7 +1912,7 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 		let p_was_active = (old_active === p.role || old_active === 'Both' || old_active === 'All')
 		let p_is_active = (active === p.role || active === 'Both' || active === 'All')
 		if (!p_was_active && p_is_active) {
-			if (is_online(game_id, p.user_id)) {
+			if (is_player_online(game_id, p.user_id)) {
 				if (p.notify)
 					reset_your_turn_notification(p, game_id)
 			} else {
@@ -1930,7 +1930,7 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 function mail_game_started_notification_to_offline_users(game_id) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		if (!is_online(game_id, p.user_id)) {
+		if (!is_player_online(game_id, p.user_id)) {
 			if (p.notify)
 				mail_game_started_notification(p, game_id)
 			webhook_game_started(p, game_id)
@@ -1938,13 +1938,13 @@ function mail_game_started_notification_to_offline_users(game_id) {
 	}
 }
 
-function mail_game_over_notification_to_offline_users(game_id, result, victory) {
+function mail_game_finished_notification_to_offline_users(game_id, result) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		if (!is_online(game_id, p.user_id)) {
+		if (!is_player_online(game_id, p.user_id)) {
 			if (p.notify)
-				mail_game_over_notification(p, game_id, result, victory)
-			webhook_game_over(p, game_id)
+				mail_game_finished_notification(p, game_id, result)
+			webhook_game_finished(p, game_id)
 		}
 	}
 }
@@ -1980,7 +1980,7 @@ setInterval(notify_ready_to_start_reminder, 5 * 60 * 1000)
 
 var game_clients = {}
 
-function is_online(game_id, user_id) {
+function is_player_online(game_id, user_id) {
 	if (game_clients[game_id])
 		for (let other of game_clients[game_id])
 			if (other.user && other.user.user_id === user_id)
@@ -2026,10 +2026,10 @@ function get_game_state(game_id) {
 }
 
 function put_game_state(game_id, state, old_active) {
-	if (state.state === 'game_over') {
+	if (state.state === "game_over") {
 		SQL_UPDATE_GAME_RESULT.run(2, state.result, game_id)
 		SQL_DELETE_NOTIFIED_ALL.run(game_id)
-		mail_game_over_notification_to_offline_users(game_id, state.result, state.victory)
+		mail_game_finished_notification_to_offline_users(game_id, state.result)
 	}
 	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)
 	for (let other of game_clients[game_id])
