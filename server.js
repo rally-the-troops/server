@@ -1056,6 +1056,8 @@ function load_rules() {
 }
 
 function get_game_roles(title_id, scenario, options) {
+	if (typeof options === "string")
+		options = JSON.parse(options)
 	let roles = RULES[title_id].roles
 	if (typeof roles === 'function')
 		return roles(scenario, options)
@@ -1218,7 +1220,13 @@ function format_options(options) {
 		if (k === false) return 'no'
 		return k.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase())
 	}
-	return Object.entries(options||{}).map(([k,v]) => (v === true || v === 1) ? to_english(k) : `${to_english(k)}=${to_english(v)}`).join(", ")
+	return Object.entries(options||{}).map(([k,v]) => {
+		if (v === true || v === 1)
+			return to_english(k)
+		if (k === "players")
+			return v + " Player"
+		return to_english(k) + "=" + to_english(v)
+	}).join(", ")
 }
 
 function annotate_game(game, user_id, unread) {
@@ -1407,7 +1415,10 @@ function options_json_replacer(key, value) {
 	if (key === 'is_private') return undefined
 	if (value === 'true') return true
 	if (value === 'false') return false
-	if (value === '') return undefined
+	if (value === '')
+		return undefined
+	if (typeof value === "string" && String(parseInt(value)) === value)
+		return parseInt(value)
 	return value
 }
 
