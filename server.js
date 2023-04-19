@@ -1543,9 +1543,11 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 
 	res.on('close', () => {
 		let list = join_clients[game_id]
-		let i = list.findIndex(item => item.res === res)
-		if (i >= 0)
-			list.splice(i, 1)
+		if (list) {
+			let i = list.findIndex(item => item.res === res)
+			if (i >= 0)
+				list.splice(i, 1)
+		}
 	})
 
 	res.write("retry: 15000\n\n")
