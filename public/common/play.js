@@ -589,8 +589,9 @@ function zoom_map() {
 window.addEventListener("resize", zoom_map)
 
 window.addEventListener("keydown", (evt) => {
-	if (evt.key === "Shift")
-		document.querySelector("body").classList.add("shift")
+	if (document.activeElement === document.querySelector("body"))
+		if (evt.key === "Shift")
+			document.querySelector("body").classList.add("shift")
 })
 
 window.addEventListener("keyup", (evt) => {
