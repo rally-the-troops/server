@@ -1221,10 +1221,10 @@ function format_options(options) {
 		return k.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase())
 	}
 	return Object.entries(options||{}).map(([k,v]) => {
-		if (v === true || v === 1)
-			return to_english(k)
 		if (k === "players")
 			return v + " Player"
+		if (v === true || v === 1)
+			return to_english(k)
 		return to_english(k) + "=" + to_english(v)
 	}).join(", ")
 }
