@@ -23,6 +23,8 @@ let player = "Observer"
 let socket = null
 let chat = null
 
+let game_log = []
+
 function scroll_with_middle_mouse(panel_sel, multiplier) {
 	let panel = document.querySelector(panel_sel)
 	let down_x, down_y, scroll_x, scroll_y
@@ -461,10 +463,15 @@ function connect_play() {
 
 		case 'state':
 			view = arg
+
+			game_log.length = view.log_start
+			for (let line of view.log)
+				game_log.push(line)
+
 			on_update_header()
 			if (typeof on_update === 'function')
 				on_update()
-			on_update_log()
+			on_update_log(view.log_start, game_log.length)
 			if (view.game_over)
 				on_game_over()
 			break
@@ -504,12 +511,15 @@ function on_update_header() {
 
 /* LOG */
 
-function on_update_log() {
+function on_update_log(change_start, end) {
 	let div = document.getElementById("log")
-	let to_delete = div.children.length - view.log_start
+
+	let to_delete = div.children.length - change_start
 	while (to_delete-- > 0)
 		div.removeChild(div.lastChild)
-	for (let text of view.log) {
+
+	for (let i = div.children.length; i < end; ++i) {
+		let text = game_log[i]
 		if (params.mode === "debug" && typeof text === "object") {
 			let entry = document.createElement("a")
 			entry.href = "#" + text[0]
@@ -582,9 +592,12 @@ function zoom_map() {
 window.addEventListener("resize", zoom_map)
 
 window.addEventListener("keydown", (evt) => {
-	if (document.activeElement === document.querySelector("body"))
-		if (evt.key === "Shift")
-			document.querySelector("body").classList.add("shift")
+	if (document.activeElement === document.getElementById("chat_input"))
+		return
+	if (document.activeElement === document.getElementById("notepad_input"))
+		return
+	if (evt.key === "Shift")
+		document.querySelector("body").classList.add("shift")
 })
 
 window.addEventListener("keyup", (evt) => {
@@ -789,7 +802,6 @@ async function init_replay() {
 	init_player_names(body.players)
 
 	let viewpoint = "Observer"
-	let log_length = 0
 	let p = 0
 	let s = {}
 
@@ -938,16 +950,16 @@ async function init_replay() {
 				view.prompt = "[" + p + "/" + replay.length + "] " + view.prompt
 			}
 		}
-		if (log_length < view.log.length)
-			view.log_start = log_length
-		else
-			view.log_start = view.log.length
-		log_length = view.log.length
-		view.log = view.log.slice(view.log_start)
+
+		if (game_log.length > view.log.length)
+			game_log.length = view.log.length
+		let log_start = game_log.length
+		for (let i = log_start; i < view.log.length; ++i)
+			game_log.push(view.log[i])
 
 		on_update_header()
 		on_update()
-		on_update_log()
+		on_update_log(log_start, game_log.length)
 	}
 
 	function text_button(div, txt, fn) {
