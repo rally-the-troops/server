@@ -8,13 +8,6 @@ let params = {
 }
 
 function init_params() {
-	// Support old format during transition
-	if (/\/[\w-]+\/(replay|play|debug):\d+(:[\w-]+)?/.test(window.location.pathname)) {
-		params.mode = window.location.pathname.split("/")[2].split(":")[0]
-		params.game_id = decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[1] | 0
-		params.role = decodeURIComponent(window.location.pathname.split("/")[2]).split(":")[2] || "Observer"
-		return
-	}
 	let search = new URLSearchParams(window.location.search)
 	params.game_id = search.get("game")
 	params.role = search.get("role") || "Observer"
