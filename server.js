@@ -1096,7 +1096,8 @@ const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,st
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?")
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
 
-const SQL_INSERT_REPLAY = SQL("INSERT INTO game_replay (game_id,role,action,arguments) VALUES (?,?,?,?)")
+const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select count(1) + 1 from game_replay where game_id=?), ?,?,?)")
+const SQL_DELETE_REPLAY = SQL("delete from game_replay where game_id=?")
 
 const SQL_SELECT_REPLAY = SQL(`
 	select json_object(
@@ -2059,7 +2060,7 @@ function put_game_state(game_id, state, old_active) {
 function put_replay(game_id, role, action, args) {
 	if (args !== undefined && args !== null)
 		args = JSON.stringify(args)
-	SQL_INSERT_REPLAY.run(game_id, role, action, args)
+	SQL_INSERT_REPLAY.run(game_id, game_id, role, action, args)
 }
 
 function on_action(socket, action, arg) {
@@ -2210,8 +2211,10 @@ function on_restore(socket, state_text) {
 		SQL_UPDATE_GAME_RESULT.run(1, null, socket.game_id)
 		SQL_UPDATE_GAME_STATE.run(socket.game_id, state_text, state.active)
 		put_replay(socket.game_id, null, 'debug-restore', state_text)
-		for (let other of game_clients[socket.game_id])
+		for (let other of game_clients[socket.game_id]) {
+			other.seen = 0
 			send_state(other, state)
+		}
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, 'error', err.toString())

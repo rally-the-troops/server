@@ -318,14 +318,13 @@ create view game_chat_view as
 create index if not exists game_chat_idx on game_chat(game_id);
 
 create table if not exists game_replay (
-	replay_id integer primary key,
 	game_id integer,
+	replay_id integer,
 	role text,
 	action text,
-	arguments json -- numeric affinity is more compact for numbers
-);
-
-create index if not exists game_replay_idx on game_replay(game_id);
+	arguments json, -- numeric affinity is more compact for numbers
+	primary key (game_id, replay_id)
+) without rowid;
 
 create table if not exists game_notes (
 	game_id integer,
