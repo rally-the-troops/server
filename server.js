@@ -302,43 +302,7 @@ function is_blacklisted(mail) {
 	return false
 }
 
-function parse_user_agent(req) {
-	let user_agent = req.headers["user-agent"]
-	if (!user_agent)
-		return "Browser"
-	let agent = user_agent
-	if (user_agent.indexOf("Firefox/") >= 0)
-		agent = "Firefox"
-	else if (user_agent.indexOf("Chrome/") >= 0)
-		agent = "Chrome"
-	else if (user_agent.indexOf("Safari/") >= 0)
-		agent = "Safari"
-	else if (user_agent.indexOf("Edg/") >= 0)
-		agent = "Edge"
-	else if (user_agent.indexOf("OPR/") >= 0)
-		agent = "Opera"
-	else if (user_agent.indexOf("Opera") >= 0)
-		agent = "Opera"
-	else if (user_agent.indexOf("Googlebot") >= 0)
-		agent = "Googlebot"
-	else if (user_agent.indexOf("bingbot") >= 0)
-		agent = "Bingbot"
-	else if (user_agent.indexOf("; MSIE") >= 0)
-		agent = "MSIE"
-	else if (user_agent.indexOf("Trident/") >= 0)
-		agent = "MSIE"
-	else if (user_agent.indexOf("AppleWebKit/") >= 0)
-		agent = "AppleWebKit"
-	if (user_agent.indexOf("Mobile") >= 0)
-		return agent + "/M"
-	return agent
-}
-
 app.use(function (req, res, next) {
-	req.user_agent = parse_user_agent(req)
-	if (req.user_agent === "MSIE")
-		return res.redirect("/msie.html")
-
 	let ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
 
 	res.setHeader('Cache-Control', 'no-store')
@@ -357,9 +321,8 @@ app.use(function (req, res, next) {
 	// Log non-static accesses.
 	let time = new Date().toISOString().substring(11,19)
 	let name = (req.user ? req.user.name : "guest").padEnd(20)
-	let ua = req.user_agent.padEnd(10)
 	ip = String(ip).padEnd(15)
-	console.log(time, ip, ua, name, req.method, req.url)
+	console.log(time, ip, name, req.method, req.url)
 
 	return next()
 })
