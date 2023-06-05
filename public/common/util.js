@@ -99,6 +99,13 @@ function array_remove(array, index) {
 	array.length = n - 1
 }
 
+function array_remove_item(array, item) {
+	let n = array.length
+	for (let i = 0; i < n; ++i)
+		if (array[i] === item)
+			return array_remove(array, i)
+}
+
 function array_insert(array, index, item) {
 	for (let i = array.length; i > index; --i)
 		array[i] = array[i - 1]
