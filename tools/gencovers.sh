@@ -28,14 +28,14 @@ do
 	fi
 
 	convert -colorspace RGB -resize $SIZE_1X -colorspace sRGB $F $B.1x.png
-	mozjpeg -q 95 -outfile $B.1x.jpg $B.1x.png
+	pngtopnm $B.1x.png | cjpeg -progressive -optimize -sample 1x1 -quality 95 > $B.1x.jpg
 	rm -f $B.1x.png
 
 	convert -colorspace RGB -resize $SIZE_2X $F -colorspace sRGB $B.2x.png
-	mozjpeg -q 95 -outfile $B.2x.jpg $B.2x.png
+	pngtopnm $B.2x.png | cjpeg -progressive -optimize -sample 1x1 -quality 95 > $B.2x.jpg
 	rm -f $B.2x.png
 
 	convert -colorspace RGB -resize $SIZE_TH $F -colorspace sRGB $D/thumbnail.png
-	mozjpeg -q 95 -outfile $D/thumbnail.jpg $D/thumbnail.png
+	pngtopnm $D/thumbnail.png | cjpeg -progressive -optimize -sample 1x1 -quality 95 > $D/thumbnail.jpg
 	rm -f $D/thumbnail.png
 done
