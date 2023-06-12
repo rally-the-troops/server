@@ -21,3 +21,8 @@
 @font-face{font-family:'Gentium Basic';font-style:italic;src:url('GentiumBasic-Italic.woff2')format('woff2')}
 @font-face{font-family:'Gentium Basic';font-weight:bold;src:url('GentiumBasic-Bold.woff2')format('woff2')}
 @font-face{font-family:'Gentium Basic';font-weight:bold;font-style:italic;src:url('GentiumBasic-BoldItalic.woff2')format('woff2')}
+
+@font-face{font-family:'Tinos';font-weight:bold;src:url('Tinos-Bold.woff2')format('woff2')}
+@font-face{font-family:'Tinos';font-weight:bold;font-style:italic;src:url('Tinos-BoldItalic.woff2')format('woff2')}
+@font-face{font-family:'Tinos';font-style:italic;src:url('Tinos-Italic.woff2')format('woff2')}
+@font-face{font-family:'Tinos';src:url('Tinos-Regular.woff2')format('woff2')}
