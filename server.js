@@ -2267,8 +2267,10 @@ wss.on('connection', (socket, req) => {
 	let sid = login_cookie(req)
 	if (sid)
 		user_id = login_sql_select.get(sid)
-	if (user_id)
+	if (user_id) {
 		socket.user = SQL_SELECT_USER_VIEW.get(user_id)
+		SQL_UPDATE_USER_LAST_SEEN.run(user_id)
+	}
 
 	socket.ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
 	socket.title_id = req.query.title || "unknown"
