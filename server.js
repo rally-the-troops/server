@@ -210,7 +210,7 @@ function SLOG(socket, ...msg) {
 
 function human_date(date) {
 	if (typeof date === 'string')
-		date = julianday_from_epoch(Date.parse(date))
+		date = julianday_from_epoch(Date.parse(date + "Z"))
 	if (typeof date !== 'number')
 		return "never"
 	var days = julianday_from_epoch(Date.now()) - date
