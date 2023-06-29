@@ -1,32 +1,37 @@
 // === COMMON LIBRARY ===
 
 function clear_undo() {
-	if (game.undo.length > 0)
-		game.undo = []
+	if (game.undo) {
+		game.undo.length = 0
+	}
 }
 
 function push_undo() {
-	let copy = {}
-	for (let k in game) {
-		let v = game[k]
-		if (k === "undo")
-			continue
-		else if (k === "log")
-			v = v.length
-		else if (typeof v === "object" && v !== null)
-			v = object_copy(v)
-		copy[k] = v
+	if (game.undo) {
+		let copy = {}
+		for (let k in game) {
+			let v = game[k]
+			if (k === "undo")
+				continue
+			else if (k === "log")
+				v = v.length
+			else if (typeof v === "object" && v !== null)
+				v = object_copy(v)
+			copy[k] = v
+		}
+		game.undo.push(copy)
 	}
-	game.undo.push(copy)
 }
 
 function pop_undo() {
-	let save_log = game.log
-	let save_undo = game.undo
-	game = save_undo.pop()
-	save_log.length = game.log
-	game.log = save_log
-	game.undo = save_undo
+	if (game.undo) {
+		let save_log = game.log
+		let save_undo = game.undo
+		game = save_undo.pop()
+		save_log.length = game.log
+		game.log = save_log
+		game.undo = save_undo
+	}
 }
 
 function random(range) {
