@@ -322,9 +322,16 @@ create table if not exists game_replay (
 	replay_id integer,
 	role text,
 	action text,
-	arguments json, -- numeric affinity is more compact for numbers
+	arguments json,
 	primary key (game_id, replay_id)
 ) without rowid;
+
+create table if not exists game_snap (
+	game_id integer,
+	snap_id integer,
+	state text,
+	primary key (game_id, snap_id)
+);
 
 create table if not exists game_notes (
 	game_id integer,
@@ -440,6 +447,7 @@ begin
 	delete from game_state where game_id = old.game_id;
 	delete from game_chat where game_id = old.game_id;
 	delete from game_replay where game_id = old.game_id;
+	delete from game_snap where game_id = old.game_id;
 	delete from game_notes where game_id = old.game_id;
 	delete from last_notified where game_id = old.game_id;
 	delete from unread_chats where game_id = old.game_id;

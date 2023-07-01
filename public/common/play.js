@@ -25,6 +25,12 @@ let chat = null
 
 let game_log = []
 
+let snap_active = []
+let snap_cache = []
+let snap_count = 0
+let snap_this = 0
+let snap_view = null
+
 function scroll_with_middle_mouse(panel_sel, multiplier) {
 	let panel = document.querySelector(panel_sel)
 	let down_x, down_y, scroll_x, scroll_y
@@ -331,6 +337,20 @@ function toggle_notepad() {
 		show_notepad()
 }
 
+function add_icon_button(parent, id, img, title, fn) {
+	let button = document.getElementById(id)
+	if (!button) {
+		button = document.createElement("div")
+		button.id = id
+		button.title = title
+		button.className = "icon_button"
+		button.innerHTML = '<img src="/images/' + img + '.svg">'
+		button.addEventListener("click", fn)
+		parent.appendChild(button)
+	}
+	return button
+}
+
 /* REMATCH BUTTON */
 
 function remove_resign_menu() {
@@ -349,20 +369,9 @@ function goto_replay() {
 }
 
 function on_game_over() {
-	function icon_button(id, img, title, fn) {
-		if (!document.getElementById(id)) {
-			let button = document.createElement("div")
-			button.id = id
-			button.title = title
-			button.className = "icon_button"
-			button.innerHTML = '<img src="/images/' + img + '.svg">'
-			button.addEventListener("click", fn)
-			document.querySelector("header").appendChild(button)
-		}
-	}
-	icon_button("replay_button", "sherlock-holmes-mirror", "Watch replay", goto_replay)
+	add_icon_button(document.querySelector("header"), "replay_button", "sherlock-holmes-mirror", "Watch replay", goto_replay)
 	if (player !== "Observer")
-		icon_button("rematch_button", "cycle", "Propose a rematch!", goto_rematch)
+		add_icon_button(document.querySelector("header"), "rematch_button", "cycle", "Propose a rematch!", goto_rematch)
 	remove_resign_menu()
 }
 
@@ -376,7 +385,7 @@ function init_player_names(players) {
 }
 
 function send_message(cmd, arg) {
-	let data = JSON.stringify([cmd, arg])
+	let data = JSON.stringify([ cmd, arg ])
 	console.log("SEND %s %s", cmd, arg)
 	socket.send(data)
 }
@@ -400,7 +409,7 @@ function connect_play() {
 
 	socket = new WebSocket(url)
 
-	window.addEventListener('beforeunload', function () {
+	window.addEventListener("beforeunload", function () {
 		socket.close(1000)
 	})
 
@@ -429,19 +438,19 @@ function connect_play() {
 		let [ cmd, arg ] = JSON.parse(evt.data)
 		console.log("MESSAGE %s", cmd)
 		switch (cmd) {
-		case 'error':
+		case "error":
 			document.getElementById("prompt").textContent = arg
 			break
 
-		case 'chat':
+		case "chat":
 			update_chat(arg[0], arg[1], arg[2], arg[3])
 			break
 
-		case 'note':
+		case "note":
 			update_notepad(arg)
 			break
 
-		case 'players':
+		case "players":
 			player = arg[0]
 			document.querySelector("body").classList.add(player.replace(/ /g, "_"))
 			if (player !== "Observer") {
@@ -453,15 +462,20 @@ function connect_play() {
 			init_player_names(arg[1])
 			break
 
-		case 'presence':
-			let list = Array.isArray(arg) ? arg : Object.keys(arg)
-			for (let i = 0; i < roles.length; ++i) {
-				let elt = document.getElementById(roles[i].id)
-				elt.classList.toggle("present", list.includes(roles[i].role))
+		case "presence":
+			{
+				let list = Array.isArray(arg) ? arg : Object.keys(arg)
+				for (let i = 0; i < roles.length; ++i) {
+					let elt = document.getElementById(roles[i].id)
+					elt.classList.toggle("present", list.includes(roles[i].role))
+				}
 			}
 			break
 
-		case 'state':
+		case "state":
+			if (snap_view)
+				on_snap_stop()
+
 			view = arg
 
 			game_log.length = view.log_start
@@ -469,19 +483,35 @@ function connect_play() {
 				game_log.push(line)
 
 			on_update_header()
-			if (typeof on_update === 'function')
+			if (typeof on_update === "function")
 				on_update()
 			on_update_log(view.log_start, game_log.length)
 			if (view.game_over)
 				on_game_over()
 			break
 
-		case 'reply':
-			if (typeof on_reply === 'function')
+		case "snapsize":
+			snap_count = arg
+			if (snap_count === 0)
+				replay_panel.remove()
+			else
+				document.querySelector("aside").appendChild(replay_panel)
+			console.log("SNAPSIZE", snap_count)
+			break
+
+		case "snap":
+			console.log("SNAP", arg[0])
+			snap_active[arg[0]] = arg[1]
+			snap_cache[arg[0]] = arg[2]
+			show_snap(arg[0])
+			break
+
+		case "reply":
+			if (typeof on_reply === "function")
 				on_reply(arg[0], arg[1])
 			break
 
-		case 'save':
+		case "save":
 			window.localStorage[params.title_id + "/save"] = arg
 			break
 		}
@@ -497,6 +527,10 @@ function on_update_header() {
 	document.getElementById("prompt").textContent = view.prompt
 	if (params.mode === "replay")
 		return
+	if (snap_view)
+		document.querySelector("header").classList.add("replay")
+	else
+		document.querySelector("header").classList.remove("replay")
 	if (view.actions) {
 		document.querySelector("header").classList.add("your_turn")
 		if (!is_your_turn || old_active !== view.active)
@@ -649,13 +683,13 @@ function send_action(verb, noun) {
 		let realnoun = Array.isArray(noun) ? noun[0] : noun
 		if (view.actions && view.actions[verb] && view.actions[verb].includes(realnoun)) {
 			view.actions = null
-			send_message("action", [verb, noun])
+			send_message("action", [ verb, noun ])
 			return true
 		}
 	} else {
 		if (view.actions && view.actions[verb]) {
 			view.actions = null
-			send_message("action", [verb])
+			send_message("action", [ verb ])
 			return true
 		}
 	}
@@ -667,25 +701,26 @@ function confirm_action(message, verb, noun) {
 		send_action(verb, noun)
 }
 
-let replay_query = null
-
 function send_query(q, param) {
-	if (param !== undefined) {
-		if (replay_query)
-			replay_query(q, param)
-		else
-			send_message("query", [q, param])
-	} else {
-		if (replay_query)
-			replay_query(q, undefined)
-		else
-			send_message("query", q)
-	}
+	if (typeof replay_query === "function")
+		replay_query(q, param)
+	else if (snap_view)
+		send_message("querysnap", [ snap_this, q, param ])
+	else
+		send_message("query", [ q, param ])
 }
 
 function confirm_resign() {
 	if (window.confirm("Are you sure that you want to resign?"))
 		send_message("resign")
+}
+
+function send_save() {
+	send_message("save")
+}
+
+function send_restore() {
+	send_message("restore", window.localStorage[params.title_id + "/save"])
 }
 
 /* MOBILE PHONE LAYOUT */
@@ -706,316 +741,12 @@ window.addEventListener("scroll", function scroll_mobile_fix (evt) {
 	}
 })
 
-/* DEBUGGING */
-
-function send_save() {
-	send_message("save")
-}
-
-function send_restore() {
-	send_message("restore", window.localStorage[params.title_id + "/save"])
-}
-
-function send_restart(scenario) {
-	send_message("restart", scenario)
-}
-
 /* REPLAY */
 
-function object_copy(original) {
-	if (Array.isArray(original)) {
-		let n = original.length
-		let copy = new Array(n)
-		for (let i = 0; i < n; ++i) {
-			let v = original[i]
-			if (typeof v === "object" && v !== null)
-				copy[i] = object_copy(v)
-			else
-				copy[i] = v
-		}
-		return copy
-	} else {
-		let copy = {}
-		for (let i in original) {
-			let v = original[i]
-			if (typeof v === "object" && v !== null)
-				copy[i] = object_copy(v)
-			else
-				copy[i] = v
-		}
-		return copy
-	}
-}
-
-function adler32(data) {
-	let a = 1, b = 0
-	for (let i = 0, n = data.length; i < n; ++i) {
-		a = (a + data.charCodeAt(i)) % 65521
-		b = (b + a) % 65521
-	}
-	return (b << 16) | a
-}
-
-async function require(path) {
-	let cache = {}
-
-	if (!path.endsWith(".js"))
-		path = path + ".js"
-	if (path.startsWith("./"))
-		path = path.substring(2)
-
-	console.log("REQUIRE", path)
-
-	let response = await fetch(path)
-	let source = await response.text()
-
-	for (let [_, subpath] of source.matchAll(/require\(['"]([^)]*)['"]\)/g))
-		if (cache[subpath] === undefined)
-			cache[subpath] = await require(subpath)
-
-	let module = { exports: {} }
-	Function("module", "exports", "require", source)(module, module.exports, path => cache[path])
-	return module.exports
-}
-
-let replay = null
-
-async function init_replay() {
-	remove_resign_menu()
-
-	document.getElementById("prompt").textContent = "Loading replay..."
-
-	console.log("LOADING RULES")
-	let rules = await require("rules.js")
-
-	console.log("LOADING REPLAY")
-	let response = await fetch("/api/replay/" + params.game_id)
-	if (!response.ok) {
-		let text = await response.text()
-		document.getElementById("prompt").textContent = "ERROR " + response.status + ": " + text
-		return
-	}
-
-	let body = await response.json()
-	replay = body.replay
-
-	init_player_names(body.players)
-
-	let viewpoint = "Observer"
-	let p = 0
-	let s = {}
-
-	function eval_action(item, p) {
-		let [ item_role, item_action, item_arguments ] = item
-		switch (item_action) {
-		case "setup":
-			s = rules.setup(item_arguments[0], item_arguments[1], item_arguments[2])
-			break
-		case "resign":
-			if (params.mode === "debug")
-				s.log.push([p, item_role.substring(0,2), item_action, null])
-			s = rules.resign(s, item_role)
-			break
-		default:
-			if (params.mode === "debug")
-				s.log.push([p, item_role.substring(0,2), item_action, item_arguments])
-			s = rules.action(s, item_role, item_action, item_arguments)
-			break
-		}
-	}
-
-	replay_query = function (query, params) {
-		let reply = rules.query(s, player, query, params)
-		on_reply(query, reply)
-	}
-
-	let ss
-	for (p = 0; p < replay.length; ++p) {
-		if (rules.is_checkpoint) {
-			replay[p].is_checkpoint = p > 1 && rules.is_checkpoint(ss, s)
-			ss = object_copy(s)
-		}
-
-		try {
-			eval_action(replay[p], p)
-		} catch (err) {
-			console.log("ERROR IN REPLAY %d %s %s/%s/%s", p, s.state, replay[p][0], replay[p][1], replay[p][2])
-			console.log(err)
-			if (params.mode === "debug")
-				replay.length = p
-			else
-				replay.length = 0
-			break
-		}
-
-		if (params.mode !== "debug") {
-			replay[p].digest = adler32(JSON.stringify(s))
-			for (let k = p-1; k > 0; --k) {
-				if (replay[k].digest === replay[p].digest && !replay[k].is_undone) {
-					for (let a = k+1; a <= p; ++a)
-						if (!replay[a].is_undone)
-							replay[a].is_undone = true
-					break
-				}
-			}
-		}
-	}
-
-	replay = replay.filter(x => !x.is_undone)
-
-	function set_hash(n) {
-		history.replaceState(null, "", window.location.pathname + window.location.search + "#" + n)
-	}
-
-	let timer = 0
-	function play_pause_replay(evt) {
-		if (timer === 0) {
-			evt.target.textContent = "Stop"
-			timer = setInterval(() => {
-				if (p < replay.length)
-					goto_replay(p+1)
-				else
-					play_pause_replay(evt)
-			}, 1000)
-		} else {
-			evt.target.textContent = "Run"
-			clearInterval(timer)
-			timer = 0
-		}
-	}
-
-	function prev() {
-		for (let i = p - 1; i > 1; --i)
-			if (replay[i].is_checkpoint)
-				return i
-		return 1
-	}
-
-	function next() {
-		for (let i = p + 1; i < replay.length; ++i)
-			if (replay[i].is_checkpoint)
-				return i
-		return replay.length
-	}
-
-	function on_hash_change() {
-		goto_replay(parseInt(window.location.hash.slice(1)) || 1)
-	}
-
-	function goto_replay(np) {
-		if (np < 1)
-			np = 1
-		if (np > replay.length)
-			np = replay.length
-		set_hash(np)
-		if (p > np)
-			p = 0, s = {}
-		while (p < np) {
-			eval_action(replay[p], p)
-			++p;
-		}
-		update_replay_view()
-	}
-
-	function update_replay_view() {
-		player = viewpoint
-
-		if (viewpoint === "Active") {
-			player = s.active
-			if (player === "All" || player === "Both" || player === "None" || !player)
-				player = "Observer"
-		}
-
-		let body = document.querySelector("body")
-		body.classList.remove("Observer")
-		for (let i = 0; i < roles.length; ++i)
-			body.classList.remove(roles[i].role.replace(/ /g, "_"))
-		body.classList.add(player.replace(/ /g, "_"))
-
-		view = rules.view(s, player)
-		if (params.mode !== "debug")
-			view.actions = null
-
-		if (viewpoint === "Observer")
-			view.game_over = 1
-		if (s.state === "game_over")
-			view.game_over = 1
-
-		if (replay.length > 0) {
-			if (document.querySelector("body").classList.contains("shift")) {
-				view.prompt = `[${p}/${replay.length}] ${s.active} / ${s.state}`
-				if (p < replay.length)
-					view.prompt += ` / ${replay[p][1]} ${replay[p][2]}`
-			} else {
-				view.prompt = "[" + p + "/" + replay.length + "] " + view.prompt
-			}
-		}
-
-		if (game_log.length > view.log.length)
-			game_log.length = view.log.length
-		let log_start = game_log.length
-		for (let i = log_start; i < view.log.length; ++i)
-			game_log.push(view.log[i])
-
-		on_update_header()
-		on_update()
-		on_update_log(log_start, game_log.length)
-	}
-
-	function text_button(div, txt, fn) {
-		let button = document.createElement("button")
-		button.addEventListener("click", fn)
-		button.textContent = txt
-		div.appendChild(button)
-		return button
-	}
-
-	function set_viewpoint(vp) {
-		viewpoint = vp
-		update_replay_view()
-	}
-
-	function short_role(name) {
-		return name.split(" ").map(n => n[0]).join("")
-	}
-
-	let div = document.createElement("div")
-	div.className = "replay"
-	if (replay.length > 0)
-		text_button(div, "Active", () => set_viewpoint("Active"))
-	if (roles.length > 2)
-		for (let r of roles)
-			text_button(div, short_role(r.role), () => set_viewpoint(r.role))
-	else
-		for (let r of roles)
-			text_button(div, r.role, () => set_viewpoint(r.role))
-	text_button(div, "Observer", () => set_viewpoint("Observer"))
-	document.querySelector("header").appendChild(div)
-
-	if (replay.length > 0) {
-		console.log("REPLAY READY")
-
-		div = document.createElement("div")
-		div.className = "replay"
-		text_button(div, "<<<", () => goto_replay(1))
-		text_button(div, "<<", () => goto_replay(prev()))
-		text_button(div, "<\xa0", () => goto_replay(p-1))
-		text_button(div, "\xa0>", () => goto_replay(p+1))
-		text_button(div, ">>", () => goto_replay(next()))
-		text_button(div, "Run", play_pause_replay).style.width = "65px"
-		document.querySelector("header").appendChild(div)
-
-		if (window.location.hash === "")
-			set_hash(replay.length)
-
-		on_hash_change()
-
-		window.addEventListener("hashchange", on_hash_change)
-	} else {
-		console.log("REPLAY NOT AVAILABLE")
-		s = body.state
-		update_replay_view()
-	}
+function init_replay() {
+	let script = document.createElement("script")
+	script.src = "/common/replay.js"
+	document.body.appendChild(script)
 }
 
 window.addEventListener("load", function () {
@@ -1029,6 +760,8 @@ window.addEventListener("load", function () {
 	else
 		document.getElementById("prompt").textContent = "Invalid mode: " + params.mode
 })
+
+/* MAIN MENU */
 
 function init_main_menu() {
 	let popup = document.querySelector(".menu_popup")
@@ -1064,4 +797,82 @@ if (params.mode === "play" && params.role !== "Observer") {
 	add_main_menu_item_link("Go to next game", "/games/next")
 } else {
 	add_main_menu_item_link("Go home", "/")
+}
+
+/* SNAPSHOT VIEW */
+
+var replay_panel = null
+
+function add_replay_button(parent, id, callback) {
+	let button = document.createElement("div")
+	button.className = "replay_button"
+	button.id = id
+	button.onclick = callback
+	parent.appendChild(button)
+	return button
+}
+
+function init_snap() {
+	replay_panel = document.createElement("div")
+	replay_panel.id = "replay_panel"
+	add_replay_button(replay_panel, "replay_first", on_snap_first)
+	add_replay_button(replay_panel, "replay_prev", on_snap_prev)
+	add_replay_button(replay_panel, "replay_step_prev", null).classList.add("hide")
+	add_replay_button(replay_panel, "replay_step_next", null).classList.add("hide")
+	add_replay_button(replay_panel, "replay_next", on_snap_next)
+	add_replay_button(replay_panel, "replay_last", null).classList.add("hide")
+	add_replay_button(replay_panel, "replay_play", on_snap_stop)
+	add_replay_button(replay_panel, "replay_stop", null).classList.add("hide")
+}
+
+init_snap()
+
+function request_snap(snap_id) {
+	if (snap_id >= 1 && snap_id <= snap_count) {
+		snap_this = snap_id
+		if (snap_cache[snap_id])
+			show_snap(snap_id)
+		else
+			send_message("getsnap", snap_id)
+	}
+}
+
+function show_snap(snap_id) {
+	if (snap_view === null)
+		snap_view = view
+	view = snap_cache[snap_id]
+	view.prompt = "Replay " + snap_id + " / " + snap_count + " \u2013 " + snap_active[snap_id]
+	on_update_header()
+	on_update()
+	on_update_log(view.log, view.log)
+}
+
+function on_snap_first() {
+	request_snap(1)
+}
+
+function on_snap_prev() {
+	if (!snap_view)
+		request_snap(snap_count)
+	else if (snap_this > 1)
+		request_snap(snap_this - 1)
+}
+
+function on_snap_next() {
+	if (!snap_view)
+		on_snap_stop()
+	else if (snap_this < snap_count)
+		request_snap(snap_this + 1)
+	else
+		on_snap_stop()
+}
+
+function on_snap_stop() {
+	if (snap_view) {
+		view = snap_view
+		snap_view = null
+		on_update_header()
+		on_update()
+		on_update_log(game_log.length, game_log.length)
+	}
 }

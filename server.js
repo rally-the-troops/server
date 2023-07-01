@@ -1059,8 +1059,11 @@ const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,st
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=? WHERE game_id=?")
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
 
-const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select count(1) + 1 from game_replay where game_id=?), ?,?,?)")
-const SQL_DELETE_REPLAY = SQL("delete from game_replay where game_id=?")
+const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?) returning replay_id").pluck()
+
+const SQL_INSERT_SNAP = SQL("insert into game_snap (game_id,snap_id,state) values (?, (select coalesce(max(snap_id), 0) + 1 from game_snap where game_id=?), ?) returning snap_id").pluck()
+const SQL_SELECT_SNAP = SQL("select state from game_snap where game_id = ? and snap_id = ?").pluck()
+const SQL_SELECT_SNAP_COUNT = SQL("select max(snap_id) from game_snap where game_id=?").pluck()
 
 const SQL_SELECT_REPLAY = SQL(`
 	select json_object(
@@ -1629,14 +1632,14 @@ app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 	let options = game.options ? JSON.parse(game.options) : {}
 	let seed = random_seed()
 	let state = RULES[game.title_id].setup(seed, game.scenario, options)
-	put_replay(game_id, null, 'setup', [seed, game.scenario, options])
+
 	SQL_UPDATE_GAME_RESULT.run(1, null, game_id)
-	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)
 	if (is_solo(players))
 		SQL_UPDATE_GAME_PRIVATE.run(game_id)
-	update_join_clients_game(game_id)
 	mail_game_started_notification_to_offline_users(game_id)
-	mail_your_turn_notification_to_offline_users(game_id, null, state.active)
+
+	put_new_state(game_id, state, null, null, ".setup", [seed, game.scenario, options])
+
 	res.send("SUCCESS")
 })
 
@@ -2007,52 +2010,121 @@ function get_game_state(game_id) {
 	return JSON.parse(game_state)
 }
 
+function snap_from_state(state) {
+	// return JSON of game state without undo and with log replaced by log length
+	let save_undo = state.undo
+	let save_log = state.log
+	state.undo = undefined
+	state.log = save_log.length
+	let snap = JSON.stringify(state)
+	state.undo = save_undo
+	state.log = save_log
+	return snap
+}
+
+function put_replay(game_id, role, action, args) {
+	if (args !== undefined && args !== null && typeof args !== "number")
+		args = JSON.stringify(args)
+	return SQL_INSERT_REPLAY.get(game_id, game_id, role, action, args)
+}
+
+function put_snap(game_id, state) {
+	let snap_id = SQL_INSERT_SNAP.get(game_id, game_id, snap_from_state(state))
+	if (game_clients[game_id])
+		for (let other of game_clients[game_id])
+			send_message(other, "snapsize", snap_id)
+}
+
 function put_game_state(game_id, state, old_active) {
+	// TODO: separate state, undo, and log entries to reuse "snap" json stringifaction?
 	if (state.state === "game_over") {
 		SQL_UPDATE_GAME_RESULT.run(2, state.result, game_id)
 		SQL_DELETE_NOTIFIED_ALL.run(game_id)
 		mail_game_finished_notification_to_offline_users(game_id, state.result)
 	}
 	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)
-	for (let other of game_clients[game_id])
-		send_state(other, state)
+	if (game_clients[game_id])
+		for (let other of game_clients[game_id])
+			send_state(other, state)
 	update_join_clients_game(game_id)
 	mail_your_turn_notification_to_offline_users(game_id, old_active, state.active)
 }
 
-function put_replay(game_id, role, action, args) {
-	if (args !== undefined && args !== null)
-		args = JSON.stringify(args)
-	SQL_INSERT_REPLAY.run(game_id, game_id, role, action, args)
+function put_new_state(game_id, state, old_active, role, action, args) {
+	let replay_id = put_replay(game_id, role, action, args)
+	if (state.active !== old_active)
+		put_snap(game_id, state)
+	put_game_state(game_id, state, old_active)
 }
 
-function on_action(socket, action, arg) {
-	if (arg !== undefined)
-		SLOG(socket, "ACTION", action, JSON.stringify(arg))
+function on_action(socket, action, args) {
+	if (args !== undefined)
+		SLOG(socket, "ACTION", action, JSON.stringify(args))
 	else
 		SLOG(socket, "ACTION", action)
 	try {
 		let state = get_game_state(socket.game_id)
 		let old_active = state.active
-		state = socket.rules.action(state, socket.role, action, arg)
-		put_game_state(socket.game_id, state, old_active)
-		put_replay(socket.game_id, socket.role, action, arg)
+		state = socket.rules.action(state, socket.role, action, args)
+		put_new_state(socket.game_id, state, old_active, socket.role, action, args)
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, 'error', err.toString())
 	}
 }
 
-function on_query(socket, q) {
-	let params = undefined
-	if (Array.isArray(q)) {
-		params = q[1]
-		q = q[0]
+function on_resign(socket) {
+	SLOG(socket, "RESIGN")
+	try {
+		// TODO: shared "resign" function
+		let state = get_game_state(socket.game_id)
+		let old_active = state.active
+		state = socket.rules.resign(state, socket.role)
+		put_new_state(socket.game_id, state, old_active, socket.role, ".resign", null)
+	} catch (err) {
+		console.log(err)
+		return send_message(socket, 'error', err.toString())
 	}
-	if (params !== undefined)
-		SLOG(socket, "QUERY", q, JSON.stringify(params))
-	else
-		SLOG(socket, "QUERY", q)
+}
+
+function on_restore(socket, state_text) {
+	if (!DEBUG)
+		send_message(socket, 'error', "Debugging is not enabled on this server.")
+	SLOG(socket, "RESTORE")
+	try {
+		let state = JSON.parse(state_text)
+
+		// reseed!
+		state.seed = random_seed()
+
+		// resend full log!
+		for (let other of game_clients[socket.game_id])
+			other.seen = 0
+
+		put_new_state(socket.game_id, state, null, null, "$restore", state)
+	} catch (err) {
+		console.log(err)
+		return send_message(socket, 'error', err.toString())
+	}
+}
+
+function on_save(socket) {
+	if (!DEBUG)
+		send_message(socket, 'error', "Debugging is not enabled on this server.")
+	SLOG(socket, "SAVE")
+	try {
+		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id)
+		if (!game_state)
+			return send_message(socket, 'error', "No game with that ID.")
+		send_message(socket, 'save', game_state)
+	} catch (err) {
+		console.log(err)
+		return send_message(socket, 'error', err.toString())
+	}
+}
+
+function on_query(socket, q, params) {
+	SLOG(socket, "QUERY", q, JSON.stringify(params))
 	try {
 		if (socket.rules.query) {
 			let state = get_game_state(socket.game_id)
@@ -2065,15 +2137,14 @@ function on_query(socket, q) {
 	}
 }
 
-function on_resign(socket) {
-	SLOG(socket, "RESIGN")
+function on_query_snap(socket, snap_id, q, params) {
+	SLOG(socket, "QUERYSNAP", snap_id, JSON.stringify(params))
 	try {
-		let state = get_game_state(socket.game_id)
-		let old_active = state.active
-		// TODO: shared "resign" function
-		state = socket.rules.resign(state, socket.role)
-		put_game_state(socket.game_id, state, old_active)
-		put_replay(socket.game_id, socket.role, 'resign', null)
+		if (socket.rules.query) {
+			let state = JSON.parse(SQL_SELECT_SNAP.get(socket.game_id, snap_id))
+			let reply = socket.rules.query(state, socket.role, q, params)
+			send_message(socket, 'reply', [q, reply])
+		}
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, 'error', err.toString())
@@ -2148,35 +2219,17 @@ function on_chat(socket, message) {
 	}
 }
 
-function on_save(socket) {
-	if (!DEBUG)
-		send_message(socket, 'error', "Debugging is not enabled on this server.")
-	SLOG(socket, "SAVE")
+function on_snap(socket, snap_id) {
+	SLOG(socket, "SNAP", snap_id)
 	try {
-		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id)
-		if (!game_state)
-			return send_message(socket, 'error', "No game with that ID.")
-		send_message(socket, 'save', game_state)
-	} catch (err) {
-		console.log(err)
-		return send_message(socket, 'error', err.toString())
-	}
-}
-
-function on_restore(socket, state_text) {
-	if (!DEBUG)
-		send_message(socket, 'error', "Debugging is not enabled on this server.")
-	SLOG(socket, "RESTORE")
-	try {
-		let state = JSON.parse(state_text)
-		state.seed = random_seed() // reseed!
-		state_text = JSON.stringify(state)
-		SQL_UPDATE_GAME_RESULT.run(1, null, socket.game_id)
-		SQL_UPDATE_GAME_STATE.run(socket.game_id, state_text, state.active)
-		put_replay(socket.game_id, null, 'debug-restore', state_text)
-		for (let other of game_clients[socket.game_id]) {
-			other.seen = 0
-			send_state(other, state)
+		let snap_state = SQL_SELECT_SNAP.get(socket.game_id, snap_id)
+		if (snap_state) {
+			let state = JSON.parse(snap_state)
+			let view = socket.rules.view(state, socket.role)
+			view.prompt = undefined
+			view.actions = undefined
+			view.log = state.log
+			send_message(socket, "snap", [snap_id, state.active, view])
 		}
 	} catch (err) {
 		console.log(err)
@@ -2193,34 +2246,13 @@ function broadcast_presence(game_id) {
 		send_message(socket, 'presence', presence)
 }
 
-function on_restart(socket, scenario) {
-	if (!DEBUG)
-		send_message(socket, 'error', "Debugging is not enabled on this server.")
-	try {
-		let seed = random_seed()
-		let options = JSON.parse(SQL_SELECT_GAME.get(socket.game_id).options)
-		let state = socket.rules.setup(seed, scenario, options)
-		put_replay(socket.game_id, null, 'setup', [seed, scenario, options])
-		for (let other of game_clients[socket.game_id]) {
-			other.seen = 0
-			send_state(other, state)
-		}
-		let state_text = JSON.stringify(state)
-		SQL_UPDATE_GAME_RESULT.run(1, null, socket.game_id)
-		SQL_UPDATE_GAME_STATE.run(socket.game_id, state_text, state.active)
-	} catch (err) {
-		console.log(err)
-		return send_message(socket, 'error', err.toString())
-	}
-}
-
 function handle_player_message(socket, cmd, arg) {
 	switch (cmd) {
 	case "action":
 		on_action(socket, arg[0], arg[1])
 		break
 	case "query":
-		on_query(socket, arg)
+		on_query(socket, arg[0], arg[1])
 		break
 	case "resign":
 		on_resign(socket)
@@ -2237,22 +2269,31 @@ function handle_player_message(socket, cmd, arg) {
 	case "chat":
 		on_chat(socket, arg)
 		break
+	case "getsnap":
+		on_snap(socket, arg | 0)
+		break
+	case "querysnap":
+		on_query_snap(socket, arg[0], arg[1], arg[2])
+		break
 	case "save":
 		on_save(socket)
 		break
 	case "restore":
 		on_restore(socket, arg)
 		break
-	case "restart":
-		on_restart(socket, arg)
-		break
 	}
 }
 
 function handle_observer_message(socket, cmd, arg) {
 	switch (cmd) {
+	case "getsnap":
+		on_snap(socket, arg)
+		break
+	case "querysnap":
+		on_query_snap(socket, arg[0], arg[1], arg[2])
+		break
 	case 'query':
-		on_query(socket, arg)
+		on_query(socket, arg[0], arg[1])
 		break
 	}
 }
@@ -2331,6 +2372,11 @@ wss.on('connection', (socket, req) => {
 		})
 
 		broadcast_presence(socket.game_id)
+
+		let snapsize = SQL_SELECT_SNAP_COUNT.get(socket.game_id)
+		if (snapsize > 0)
+			send_message(socket, "snapsize", snapsize)
+
 		send_state(socket, get_game_state(socket.game_id))
 	} catch (err) {
 		console.log(err)

@@ -77,7 +77,6 @@ header {
 	align-items: center;
 	border-bottom: 1px solid black;
 	background-color: gainsboro;
-	padding-right: 8px;
 }
 
 #toolbar {
@@ -93,6 +92,10 @@ header.your_turn {
 	background-color: orange;
 }
 
+header.replay {
+	background-image: repeating-linear-gradient(45deg, gainsboro, gainsboro 40px, silver 40px, silver 80px);
+}
+
 main {
 	grid-column: 1;
 	grid-row: 2;
@@ -105,7 +108,7 @@ aside {
 	grid-row: 2;
 	display: grid;
 	overflow: clip;
-	grid-template-rows: auto minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr) auto;
 	width: 212px;
 	border-left: 1px solid black;
 }
@@ -230,20 +233,29 @@ header #actions {
 	flex-wrap: wrap;
 	justify-content: end;
 	gap: 8px;
-	padding-left: 8px;
+	padding: 0 8px;
 	margin: 4px 0;
 }
 
-header .replay {
+header #viewpoint_panel {
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: end;
-	padding-left: 8px;
+	padding: 0 8px;
 	margin: 4px 0;
 }
 
-header .replay button {
+header .viewpoint_button {
 	margin-right: 0;
+}
+
+header .viewpoint_button.selected {
+	background-color: hsl(51,100%,60%);
+	border-color: hsl(51,100%,80%) hsl(51,100%,40%) hsl(51,100%,40%) hsl(51,100%,80%);
+}
+
+header .viewpoint_button.selected:active:hover {
+	border-color: hsl(51,100%,40%) hsl(51,100%,80%) hsl(51,100%,80%) hsl(51,100%,40%);
 }
 
 #prompt {
@@ -254,6 +266,35 @@ header .replay button {
 	white-space: nowrap;
 	overflow: hidden;
 }
+
+#replay_panel {
+	display: flex;
+	height: 24px;
+	border-top: 1px solid black;
+	background-color: darkgray;
+}
+
+.replay_button {
+	height: 24px;
+	flex-grow: 1;
+	background-repeat: no-repeat;
+	background-size: 16px 16px;
+	background-position: center;
+	opacity: 60%;
+}
+
+.replay_button:hover {
+	background-color: lightgray;
+}
+
+#replay_first { background-image: url(/images/gui_arrow_up.svg) }
+#replay_prev { background-image: url(/images/gui_arrow_left.svg) }
+#replay_step_prev { background-image: url(/images/gui_chevron_left.svg) }
+#replay_step_next { background-image: url(/images/gui_chevron_right.svg) }
+#replay_next { background-image: url(/images/gui_arrow_right.svg) }
+#replay_last { background-image: url(/images/gui_arrow_down.svg) }
+#replay_play { background-image: url(/images/gui_play.svg) }
+#replay_stop { background-image: url(/images/gui_stop.svg) }
 
 /* ROLES */
 
@@ -431,6 +472,13 @@ header .replay button {
 		white-space: normal;
 	}
 
+	#replay_panel {
+		position: fixed;
+		z-index: 500;
+		bottom: 0;
+		width: 100%;
+	}
+
 	#chat_window, #notepad_window {
 		position: static;
 		grid-column: 1;
@@ -456,6 +504,7 @@ header .replay button {
 		width: auto !important;
 		border-left: none;
 		border-top: 1px solid black;
+		margin-bottom: 25px; /* space for replay panel */
 	}
 	#log {
 		height: 50vh;
