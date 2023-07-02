@@ -271,7 +271,7 @@ header .viewpoint_button.selected:active:hover {
 	display: flex;
 	height: 24px;
 	border-top: 1px solid black;
-	background-color: darkgray;
+	background-color: silver;
 }
 
 .replay_button {
@@ -284,7 +284,11 @@ header .viewpoint_button.selected:active:hover {
 }
 
 .replay_button:hover {
-	background-color: lightgray;
+	background-color: #fffc;
+}
+
+.replay_button:hover:active {
+	background-color: #fff8;
 }
 
 #replay_first { background-image: url(/images/gui_arrow_up.svg) }
