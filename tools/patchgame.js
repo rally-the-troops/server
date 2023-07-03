@@ -86,7 +86,7 @@ function is_valid_action(rules, state, role, action, arg) {
 	return false
 }
 
-function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_undo=true, delete_invalid=false}, verbose) {
+function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_undo=false, delete_invalid=false}, verbose) {
 	let game = select_game.get(game_id)
 	if (!game) {
 		console.error("game not found:", game_id)
@@ -203,7 +203,7 @@ if (process.argv.length < 3) {
 	process.stderr.write("usage: ./tools/patchgame.js <game_id> '{options}'\n")
 	process.stderr.write("   or: ./tools/patchgame.js <title_id> '{options}'\n")
 	process.stderr.write("   or: ./tools/patchgame.js all '{options}'\n")
-	process.stderr.write('options: { "validate_actions":true, "delete_invalid":false, "save_snaps":true, "delete_undo":true }\n')
+	process.stderr.write('options: { "validate_actions":true, "delete_invalid":false, "save_snaps":true, "delete_undo":false }\n')
 	process.exit(1)
 }
 
