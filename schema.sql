@@ -279,7 +279,8 @@ create table if not exists games (
 	is_random boolean default 0,
 	notice text,
 	status integer default 0,
-	result text
+	result text,
+	xtime datetime
 );
 
 create index if not exists games_title_idx on games(title_id);
@@ -356,7 +357,7 @@ create view game_view as
 		games.*,
 		titles.title_name,
 		owner.name as owner_name,
-		game_state.mtime,
+		coalesce(game_state.mtime, xtime) as mtime,
 		game_state.active
 	from
 		games
