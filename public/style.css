@@ -193,6 +193,10 @@ article hr + p { font-style: italic; }
 .game_item.finished .game_main { background-color: gainsboro }
 .game_item.finished a:hover { color: mediumblue }
 
+.game_item.archived .game_head { background-color: silver }
+.game_item.archived .game_main { background-color: gainsboro }
+.game_item.archived a:hover { color: mediumblue }
+
 .game_item.your_turn .game_head { background-color: gold }
 .game_item.your_turn .game_main { background-color: lightyellow }
 .game_item.your_turn a:hover { color: #860 }

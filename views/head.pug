@@ -50,6 +50,7 @@ mixin gamelist(list,hide_title=0)
 					else if (item.status === 1 && !item.is_full) className += " replacement"
 					else if (item.status === 1 && item.is_full) className += " active"
 					else if (item.status === 2) className += " finished"
+					else if (item.status === 3) className += " archived"
 
 				div(class=className)
 					div.game_head
@@ -82,6 +83,8 @@ mixin gamelist(list,hide_title=0)
 										a(class="command" href="/join/"+item.game_id) Review
 								else
 									a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=Observer`) Review
+							when 3
+								| Archived
 
 					div.game_main
 						div.game_info
@@ -101,6 +104,9 @@ mixin gamelist(list,hide_title=0)
 								when 1
 									div Changed: #{item.mtime}
 								when 2
+									div Finished: #{item.mtime}
+									div Result: !{item.result}
+								when 3
 									div Finished: #{item.mtime}
 									div Result: !{item.result}
 						unless hide_title

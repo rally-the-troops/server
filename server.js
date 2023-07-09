@@ -998,6 +998,11 @@ let RULES = {}
 let HTML_ABOUT = {}
 let HTML_CREATE = {}
 
+const STATUS_OPEN = 0
+const STATUS_ACTIVE = 1
+const STATUS_FINISHED = 2
+const STATUS_ARCHIVED = 3
+
 function load_rules() {
 	const SQL_SELECT_TITLES = SQL("SELECT * FROM titles")
 	for (let title of SQL_SELECT_TITLES.all()) {
@@ -1113,10 +1118,10 @@ const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND
 const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
 
-const SQL_SELECT_OPEN_GAMES = SQL("SELECT * FROM games WHERE status=0")
-const SQL_COUNT_OPEN_GAMES = SQL("SELECT COUNT(*) FROM games WHERE owner_id=? AND status=0").pluck()
+const SQL_SELECT_OPEN_GAMES = SQL(`SELECT * FROM games WHERE status=${STATUS_OPEN}`)
+const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN}`).pluck()
 
-const SQL_SELECT_REMATCH = SQL("SELECT game_id FROM games WHERE status < 3 AND notice=?").pluck()
+const SQL_SELECT_REMATCH = SQL(`SELECT game_id FROM games WHERE status = ${STATUS_FINISHED} AND notice=?`).pluck()
 const SQL_INSERT_REMATCH = SQL(`
 	INSERT INTO games
 		(owner_id, title_id, scenario, options, is_private, is_random, notice)
@@ -1132,7 +1137,7 @@ const SQL_INSERT_REMATCH_PLAYERS = SQL("insert into players (game_id, user_id, r
 
 const QUERY_LIST_PUBLIC_GAMES = SQL(`
 	SELECT * FROM game_view
-	WHERE is_private=0 AND status = ?
+	WHERE is_private=0 AND status=?
 	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND players.user_id = game_view.owner_id )
 	ORDER BY mtime DESC, ctime DESC
 	LIMIT ?
@@ -1152,7 +1157,7 @@ const QUERY_NEXT_GAME_OF_USER = SQL(`
 	join game_state using(game_id)
 	join players using(game_id)
 	where
-		status = 1
+		status = ${STATUS_ACTIVE}
 		and active in ('All', 'Both', role)
 		and user_id = ?
 	order by mtime
@@ -1164,7 +1169,7 @@ const QUERY_LIST_ACTIVE_GAMES_OF_USER = SQL(`
 	where
 		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
 		and
-		( status < 2 or julianday(mtime) > julianday('now', '-7 days') )
+		( status <= ${STATUS_FINISHED} )
 	order by status asc, mtime desc
 	`)
 
@@ -1173,7 +1178,7 @@ const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
 	where
 		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
 		and
-		status = 2
+		( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
 	order by status asc, mtime desc
 	`)
 
@@ -1221,11 +1226,11 @@ function annotate_game(game, user_id, unread) {
 		let p = players[i]
 
 		let p_is_owner = false
-		if (game.status === 0 && (game.owner_id === p.user_id))
+		if (game.status === STATUS_OPEN && (game.owner_id === p.user_id))
 			p_is_owner = true
 
 		let p_is_active = false
-		if (game.status === 1 && (game.active === p.role || game.active === "Both" || game.active === "All"))
+		if (game.status === STATUS_ACTIVE && (game.active === p.role || game.active === "Both" || game.active === "All"))
 			p_is_active = true
 
 		if (p.user_id === user_id) {
@@ -1321,8 +1326,8 @@ app.get('/games/finished/:who_name', function (req, res) {
 })
 
 app.get('/games/public', function (req, res) {
-	let games0 = QUERY_LIST_PUBLIC_GAMES.all(0, 1000)
-	let games1 = QUERY_LIST_PUBLIC_GAMES.all(1, 48)
+	let games0 = QUERY_LIST_PUBLIC_GAMES.all(STATUS_OPEN, 1000)
+	let games1 = QUERY_LIST_PUBLIC_GAMES.all(STATUS_ACTIVE, 48)
 	if (req.user) {
 		let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
 		annotate_games(games0, req.user.user_id, unread)
@@ -1345,9 +1350,9 @@ function get_title_page(req, res, title_id) {
 	let unread = null
 	if (req.user)
 		unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
-	let games0 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 0, 1000)
-	let games1 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 1, 1000)
-	let games2 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, 2, 24)
+	let games0 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, STATUS_OPEN, 1000)
+	let games1 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, STATUS_ACTIVE, 1000)
+	let games2 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, STATUS_FINISHED, 24)
 	annotate_games(games0, req.user ? req.user.user_id : 0, unread)
 	annotate_games(games1, req.user ? req.user.user_id : 0, unread)
 	annotate_games(games2, req.user ? req.user.user_id : 0, unread)
@@ -1495,7 +1500,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	let friends = null
 	if (game.owner_id === req.user.user_id)
 		friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
-	let ready = (game.status === 0) && is_game_ready(game.title_id, game.scenario, game.options, players)
+	let ready = (game.status === STATUS_OPEN) && is_game_ready(game.title_id, game.scenario, game.options, players)
 	game.ctime = human_date(game.ctime)
 	game.mtime = human_date(game.mtime)
 	res.render('join.pug', {
@@ -1542,7 +1547,7 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 function do_join(res, game_id, role, user_id, is_invite) {
 	let game = SQL_SELECT_GAME.get(game_id)
 	let roles = get_game_roles(game.title_id, game.scenario, game.options)
-	if (game.is_random && game.status === 0) {
+	if (game.is_random && game.status === STATUS_OPEN) {
 		let m = role.match(/^Random (\d+)$/)
 		if (!m || Number(m[1]) < 1 || Number(m[1]) > roles.length)
 			return res.status(404).send("Invalid role.")
@@ -1619,7 +1624,7 @@ app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 	let game = SQL_SELECT_GAME.get(game_id)
 	if (game.owner_id !== req.user.user_id)
 		return res.send("Not authorized to start that game ID.")
-	if (game.status !== 0)
+	if (game.status !== STATUS_OPEN)
 		return res.send("The game is already started.")
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	if (!is_game_ready(game.title_id, game.scenario, game.options, players))
@@ -1670,7 +1675,7 @@ app.get('/api/replay/:game_id', function (req, res) {
 	let game = SQL_SELECT_GAME.get(game_id)
 	if (!game)
 		return res.status(404).send("Invalid game ID.")
-	if (game.status < 2 && (!req.user || req.user.user_id !== 1))
+	if (game.status < STATUS_FINISHED && (!req.user || req.user.user_id !== 1))
 		return res.status(401).send("Not authorized to debug.")
 	return res.send(SQL_SELECT_REPLAY.get({game_id}))
 })
@@ -2403,10 +2408,10 @@ const SQL_GAME_STATS = SQL(`
 				count(1) as n
 			from
 				opposed_games
-				natural join game_state
 			where
-				status=2
-				and title_id != 'pax-pamir'
+				( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
+				and
+				( title_id not in ( 'andean-abyss', 'pax-pamir', 'time-of-crisis' ) )
 			group by
 				title_id,
 				scenario,
@@ -2444,7 +2449,7 @@ const SQL_USER_STATS = SQL(`
 		natural join titles
 	where
 		user_id = ?
-		and status = 2
+		and ( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
 		and game_id in (select game_id from opposed_games)
 	group by
 		title_name,

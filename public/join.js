@@ -155,6 +155,9 @@ function update() {
 		if (player) {
 			element.classList.remove("is_invite")
 			switch (game.status) {
+			case 3:
+				element.innerHTML = player.name
+				break
 			case 2:
 				if (player.user_id === user_id)
 					element.innerHTML = play_link(player)
@@ -236,8 +239,8 @@ function update() {
 		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Observe</a>`
 	} else if (game.status === 2) {
 		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Review</a>`
-	} else {
-		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Enter</a>`
+	} else if (game.status === 3) {
+		message.innerHTML = "Archived"
 	}
 
 	if (game.owner_id === user_id) {
