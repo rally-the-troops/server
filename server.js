@@ -1053,7 +1053,7 @@ const SQL_INSERT_UNREAD_CHAT = SQL("insert or ignore into unread_chats (user_id,
 const SQL_DELETE_UNREAD_CHAT = SQL("delete from unread_chats where user_id = ? and game_id = ?")
 
 const SQL_SELECT_GAME_CHAT = SQL("SELECT chat_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id=? AND chat_id>?").raw()
-const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,user_id,message) VALUES (?,?,?) RETURNING chat_id,unixepoch(time),NULL,message").raw()
+const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,chat_id,user_id,message) VALUES (?, (select coalesce(max(chat_id), 0) + 1 from game_chat where game_id=?), ?,?) RETURNING chat_id,unixepoch(time),NULL,message").raw()
 
 const SQL_SELECT_GAME_NOTE = SQL("SELECT note FROM game_notes WHERE game_id=? AND role=?").pluck()
 const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,role,note) VALUES (?,?,?)")
@@ -2202,7 +2202,7 @@ function on_getchat(socket, seen) {
 function on_chat(socket, message) {
 	message = message.substring(0,4000)
 	try {
-		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.user.user_id, message)
+		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.game_id, socket.user.user_id, message)
 		chat[2] = socket.user.name
 		SLOG(socket, "CHAT")
 		for (let other of game_clients[socket.game_id])

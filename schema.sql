@@ -293,12 +293,13 @@ create table if not exists game_state (
 );
 
 create table if not exists game_chat (
-	chat_id integer primary key,
 	game_id integer,
-	time datetime default current_timestamp,
+	chat_id integer,
 	user_id integer,
-	message text
-);
+	time datetime default current_timestamp,
+	message text,
+	primary key (game_id, chat_id)
+) without rowid;
 
 create table if not exists unread_chats (
 	user_id integer,
@@ -309,13 +310,11 @@ create table if not exists unread_chats (
 drop view if exists game_chat_view;
 create view game_chat_view as
 	select
-		chat_id, game_id, time, name, message
+		game_id, chat_id, time, name, message
 	from
 		game_chat
 		natural join users
 	;
-
-create index if not exists game_chat_idx on game_chat(game_id);
 
 create table if not exists game_replay (
 	game_id integer,
