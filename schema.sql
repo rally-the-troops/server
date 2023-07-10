@@ -439,6 +439,20 @@ create view your_turn as
 		and active in ('All', 'Both', role)
 	;
 
+-- Trigger to remove game data when filing a game as archived
+
+drop trigger if exists trigger_archive_game;
+create trigger trigger_archive_game after update on games when new.status = 3
+begin
+	delete from game_state where game_id = old.game_id;
+	delete from game_chat where game_id = old.game_id;
+	delete from game_replay where game_id = old.game_id;
+	delete from game_snap where game_id = old.game_id;
+	delete from game_notes where game_id = old.game_id;
+	delete from last_notified where game_id = old.game_id;
+	delete from unread_chats where game_id = old.game_id;
+end;
+
 -- Triggers to clean up without relying on foreign key cascades
 
 drop trigger if exists trigger_delete_on_games;
