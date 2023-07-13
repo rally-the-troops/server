@@ -2364,6 +2364,11 @@ wss.on('connection', (socket, req) => {
 				delete game_clients[socket.game_id]
 		})
 
+		socket.on('error', (err) => {
+			SLOG(socket, "ERROR" + err)
+			socket.close(1000, err.toString())
+		})
+
 		socket.on('message', (data) => {
 			try {
 				let [ cmd, arg ] = JSON.parse(data)
@@ -2372,7 +2377,7 @@ wss.on('connection', (socket, req) => {
 				else
 					handle_observer_message(socket, cmd, arg)
 			} catch (err) {
-				send_message(socket, 'error', err)
+				send_message(socket, 'error', err.toString())
 			}
 		})
 
