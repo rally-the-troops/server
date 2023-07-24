@@ -1121,7 +1121,7 @@ const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role
 const SQL_SELECT_OPEN_GAMES = SQL(`SELECT * FROM games WHERE status=${STATUS_OPEN}`)
 const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN}`).pluck()
 
-const SQL_SELECT_REMATCH = SQL(`SELECT game_id FROM games WHERE status = ${STATUS_FINISHED} AND notice=?`).pluck()
+const SQL_SELECT_REMATCH = SQL(`SELECT game_id FROM games WHERE status < ${STATUS_FINISHED} AND notice=?`).pluck()
 const SQL_INSERT_REMATCH = SQL(`
 	INSERT INTO games
 		(owner_id, title_id, scenario, options, is_private, is_random, notice)
