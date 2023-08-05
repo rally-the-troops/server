@@ -24,6 +24,7 @@ let socket = null
 let chat = null
 
 let game_log = []
+let game_cookie = 0
 
 let snap_active = []
 let snap_cache = []
@@ -421,6 +422,7 @@ function connect_play() {
 
 	socket.onclose = function (evt) {
 		console.log("CLOSE %d", evt.code)
+		game_cookie = 0
 		if (evt.code === 1000 && evt.reason !== "") {
 			document.getElementById("prompt").textContent = "Disconnected: " + evt.reason
 			document.title = "DISCONNECTED"
@@ -435,11 +437,17 @@ function connect_play() {
 	}
 
 	socket.onmessage = function (evt) {
-		let [ cmd, arg ] = JSON.parse(evt.data)
-		console.log("MESSAGE %s", cmd)
+		let msg_data = JSON.parse(evt.data)
+		let cmd = msg_data[0]
+		let arg = msg_data[1]
+		console.log("MESSAGE", cmd)
 		switch (cmd) {
 		case "error":
 			document.getElementById("prompt").textContent = arg
+			if (view) {
+				view.actions = null
+				on_update()
+			}
 			break
 
 		case "chat":
@@ -473,6 +481,8 @@ function connect_play() {
 			break
 
 		case "state":
+			game_cookie = msg_data[2]
+
 			if (snap_view)
 				on_snap_stop()
 
@@ -683,13 +693,13 @@ function send_action(verb, noun) {
 		let realnoun = Array.isArray(noun) ? noun[0] : noun
 		if (view.actions && view.actions[verb] && view.actions[verb].includes(realnoun)) {
 			view.actions = null
-			send_message("action", [ verb, noun ])
+			send_message("action", [ verb, noun, game_cookie ])
 			return true
 		}
 	} else {
 		if (view.actions && view.actions[verb]) {
 			view.actions = null
-			send_message("action", [ verb ])
+			send_message("action", [ verb, null, game_cookie ])
 			return true
 		}
 	}

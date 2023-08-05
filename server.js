@@ -1969,6 +1969,7 @@ setInterval(notify_ready_to_start_reminder, 5 * 60 * 1000)
  */
 
 var game_clients = {}
+var game_cookies = {}
 
 function is_player_online(game_id, user_id) {
 	if (game_clients[game_id])
@@ -1997,10 +1998,10 @@ function send_state(socket, state) {
 		view.log = view.log.slice(view.log_start)
 		if (state.state === 'game_over')
 			view.game_over = 1
-		view = JSON.stringify(['state', view])
-		if (socket.last_view !== view) {
-			socket.send(view)
-			socket.last_view = view
+		let this_view = JSON.stringify(view)
+		if (view.actions || socket.last_view !== this_view) {
+			socket.send('["state",' + this_view + ',' + game_cookies[socket.game_id] + ']')
+			socket.last_view = this_view
 		}
 	} catch (err) {
 		console.log(err)
@@ -2062,11 +2063,17 @@ function put_new_state(game_id, state, old_active, role, action, args) {
 	put_game_state(game_id, state, old_active)
 }
 
-function on_action(socket, action, args) {
-	if (args !== undefined)
+function on_action(socket, action, args, cookie) {
+	if (args !== null)
 		SLOG(socket, "ACTION", action, JSON.stringify(args))
 	else
 		SLOG(socket, "ACTION", action)
+
+	if (typeof cookie === "number") // TODO: for backwards compatibility only, remove later!
+	if (game_cookies[socket.game_id] !== cookie)
+		return send_message(socket, 'error', "Synchronization error!")
+	game_cookies[socket.game_id] ++
+
 	try {
 		let state = get_game_state(socket.game_id)
 		let old_active = state.active
@@ -2254,7 +2261,7 @@ function broadcast_presence(game_id) {
 function handle_player_message(socket, cmd, arg) {
 	switch (cmd) {
 	case "action":
-		on_action(socket, arg[0], arg[1])
+		on_action(socket, arg[0], arg[1], arg[2])
 		break
 	case "query":
 		on_query(socket, arg[0], arg[1])
@@ -2350,18 +2357,22 @@ wss.on('connection', (socket, req) => {
 		if (socket.seen === 0)
 			send_message(socket, 'players', [socket.role, players.map(p => ({ name: p.name, role: p.role }))])
 
-		if (game_clients[socket.game_id])
+		if (game_clients[socket.game_id]) {
 			game_clients[socket.game_id].push(socket)
-		else
+		} else {
 			game_clients[socket.game_id] = [ socket ]
+			game_cookies[socket.game_id] = 1
+		}
 
 		socket.on('close', (code) => {
 			SLOG(socket, "CLOSE " + code)
 			game_clients[socket.game_id].splice(game_clients[socket.game_id].indexOf(socket), 1)
-			if (game_clients[socket.game_id].length > 0)
+			if (game_clients[socket.game_id].length > 0) {
 				broadcast_presence(socket.game_id)
-			else
+			} else {
 				delete game_clients[socket.game_id]
+				delete game_cookies[socket.game_id]
+			}
 		})
 
 		socket.on('error', (err) => {
