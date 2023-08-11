@@ -2471,28 +2471,3 @@ app.get('/user-stats/:who_name', function (req, res) {
 		return res.status(404).send("Invalid user name.")
 	}
 })
-
-function backup_run() {
-	let start = Date.now()
-	console.log("BACKUP STARTED")
-	db.backup("backup.tmp")
-		.then(() => {
-			fs.renameSync("backup.tmp", "backup.db")
-			console.log("BACKUP FINISHED", Date.now() - start + "ms")
-		})
-		.catch((err) => {
-			console.log("BACKUP FAILED", err)
-		})
-}
-
-function backup_heartbeat() {
-	try {
-		fs.accessSync("backup.request", fs.constants.R_OK)
-		fs.unlinkSync("backup.request")
-		backup_run()
-	} catch (err) {
-		// no file exists!
-	}
-}
-
-setInterval(backup_heartbeat, 60 * 1000)
