@@ -29,6 +29,10 @@ body.Observer .resign {
 	display: none;
 }
 
+.action {
+	cursor: pointer;
+}
+
 /* BUTTON */
 
 button {
