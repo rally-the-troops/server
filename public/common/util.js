@@ -278,3 +278,29 @@ function map_delete(map, item) {
 		}
 	}
 }
+
+function object_diff(a, b) {
+	if (a === b)
+		return false
+	if (a !== null && b !== null && typeof a === "object" && typeof b === "object") {
+		if (Array.isArray(a)) {
+			if (!Array.isArray(b))
+				return true
+			let a_length = a.length
+			if (b.length !== a_length)
+				return true
+			for (let i = 0; i < a_length; ++i)
+				if (object_diff(a[i], b[i]))
+					return true
+			return false
+		}
+		for (let key in a)
+			if (object_diff(a[key], b[key]))
+				return true
+		for (let key in b)
+			if (!(key in a))
+				return true
+		return false
+	}
+	return true
+}
