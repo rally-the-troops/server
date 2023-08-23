@@ -2,14 +2,14 @@ html, input, textarea {
 	font-family: "Source Serif", "Georgia", "Noto Emoji", "Dingbats", serif;
 	font-size: 16px;
 }
-button, select {
+button, select, option {
 	font-family: "Source Sans", "Verdana", "Noto Emoji", "Dingbats", sans-serif;
 	font-size: 16px;
 }
 
-html, body { margin: 0; }
-h1 { margin-left: -2px; }
-h2 { margin-left: -1px; }
+html, body { margin: 0 }
+h1 { margin: 16px 0 16px -1px; font-size: 24px; }
+h2 { margin: 16px 0 16px -1px; font-size: 20px; }
 a { color: blue; }
 .w { white-space: nowrap; }
 .r { text-align: right; }
@@ -41,7 +41,7 @@ div.logo {
 	min-width: 150px;
 }
 div.logo img {
-	box-shadow: 1px 2px 4px 0px rgba(0,0,0,0.3);
+	box-shadow: 1px 2px 4px 0px #0004;
 }
 
 input[type="checkbox"], input[type="radio"] {
@@ -69,6 +69,10 @@ button:enabled:active:hover, select:active {
 	border-color: darkgray white white darkgray;
 	padding: 2px 9px 0px 11px;
 }
+option {
+	background-color: white;
+	color: black;
+}
 button:disabled {
 	color: gray;
 	border-color: gainsboro;
@@ -86,7 +90,7 @@ table {
 	min-width: min(50rem,100%);
 	border-collapse: collapse;
 	border: 1px solid black;
-	box-shadow: 1px 2px 4px rgba(0,0,0,0.2);
+	box-shadow: 1px 2px 4px #0004;
 }
 thead, tfoot {
 	background-color: gainsboro;
@@ -111,7 +115,7 @@ div.post {
 	max-width: 50em;
 	margin-top: 24px;
 	border: 1px solid black;
-	box-shadow: 1px 2px 4px rgba(0,0,0,0.2);
+	box-shadow: 1px 2px 4px #0004;
 }
 div.post > div.head {
 	display: flex;
@@ -139,7 +143,7 @@ article hr + p { font-style: italic; }
 }
 .game_item {
 	border: 1px solid black;
-	box-shadow: 1px 2px 4px rgba(0,0,0,0.2);
+	box-shadow: 1px 2px 4px #0004;
 }
 .game_head, .game_main {
 	display: flex;
@@ -150,7 +154,7 @@ article hr + p { font-style: italic; }
 	border-bottom: 1px solid black;
 }
 .game_info {
-	font-family: "Source Serif SmText", "Dingbats", "Noto Emoji", "Georgia", serif;
+	font-family: "Source Serif SmText", "Georgia", "Noto Emoji", "Dingbats", serif;
 	font-size: 14px;
 	line-height: 20px;
 }

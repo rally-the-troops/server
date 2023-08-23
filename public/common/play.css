@@ -393,9 +393,10 @@ header .viewpoint_button.selected:active:hover {
 #chat_x, #notepad_x {
 	user-select: none;
 	cursor: pointer;
-	float: right;
+	position: absolute;
+	right: 3px;
+	top: 3px;
 	padding: 0px 2px;
-	margin: 4px 4px;
 }
 
 #chat_x:hover, #notepad_x:hover {

@@ -21,8 +21,8 @@ html
 						th
 				tbody
 					each row in threads
-						tr
-							td(class=row.is_read?"read":"unread")
+						tr(class=row.is_read?"read":"unread")
+							td
 								a(href="/forum/thread/"+row.thread_id)= row.subject
 							td.r= row.count
 							td.w= row.mtime
