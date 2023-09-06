@@ -24,6 +24,12 @@ const SITE_URL = process.env.SITE_URL || "http://" + HTTP_HOST + ":" + HTTP_PORT
 const REGEX_MAIL = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
 const REGEX_NAME = /^[\p{Alpha}\p{Number}'_-]+( [\p{Alpha}\p{Number}'_-]+)*$/u
 
+const WEBHOOKS = process.env.WEBHOOKS | 0
+if (WEBHOOKS)
+	console.log("Webhook notifications enabled.")
+else
+	console.log("Webhook notifications disabled.")
+
 function LOG_STATS() {
 	// Count clients connected to join page events
 	let num_joins = 0
@@ -43,6 +49,12 @@ function LOG_STATS() {
 }
 
 setInterval(LOG_STATS, 60 * 1000)
+
+/* CONNECTED CLIENT INFO */
+
+var join_clients = {}
+var game_clients = {}
+var game_cookies = {}
 
 /*
  * Main database.
@@ -90,11 +102,6 @@ if (process.env.MAIL_HOST && process.env.MAIL_PORT && process.env.MAIL_FROM) {
 	console.log("Mail notifications enabled: ", mailer.options)
 } else {
 	console.log("Mail notifications disabled.")
-	mailer = {
-		sendMail(obj, callback) {
-			callback("DID NOT SEND: " + JSON.stringify(obj,0,4))
-		}
-	}
 }
 
 /*
@@ -151,6 +158,9 @@ function set_static_headers(res, path) {
 let app = express()
 app.locals.SITE_NAME = SITE_NAME
 app.locals.SITE_URL = SITE_URL
+app.locals.ENABLE_MAIL = !!mailer
+app.locals.ENABLE_WEBHOOKS = !!WEBHOOKS
+app.locals.ENABLE_FORUM = process.env.FORUM | 0
 app.set('x-powered-by', false)
 app.set('etag', false)
 app.set('view engine', 'pug')
@@ -275,8 +285,6 @@ const SQL_SELECT_USER_PROFILE = SQL("SELECT * FROM user_profile_view WHERE name=
 const SQL_SELECT_USER_DYNAMIC = SQL("select * from user_dynamic_view where user_id=?")
 const SQL_SELECT_USER_ID = SQL("SELECT user_id FROM users WHERE name=?").pluck()
 
-const SQL_OFFLINE_USER = SQL("SELECT * FROM user_view NATURAL JOIN user_last_seen WHERE user_id=? AND julianday() > julianday(atime, ?)")
-
 const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify FROM users WHERE user_id=?").pluck()
 const SQL_UPDATE_USER_NOTIFY = SQL("UPDATE users SET notify=? WHERE user_id=?")
 const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?")
@@ -290,6 +298,7 @@ const SQL_SELECT_WEBHOOK = SQL("SELECT * FROM webhooks WHERE user_id=?")
 const SQL_SELECT_WEBHOOK_SEND = SQL("SELECT url, format, prefix FROM webhooks WHERE user_id=? AND error is null")
 const SQL_UPDATE_WEBHOOK = SQL("INSERT OR REPLACE INTO webhooks (user_id, url, format, prefix, error) VALUES (?,?,?,?,null)")
 const SQL_UPDATE_WEBHOOK_ERROR = SQL("UPDATE webhooks SET error=? WHERE user_id=?")
+const SQL_UPDATE_WEBHOOK_SUCCESS = SQL("UPDATE webhooks SET error=null WHERE user_id=? AND error IS NOT NULL")
 const SQL_DELETE_WEBHOOK = SQL("DELETE FROM webhooks WHERE user_id=?")
 
 const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND julianday('now') < julianday(time, '+5 minutes')").pluck()
@@ -558,7 +567,7 @@ app.post("/update-webhook", must_be_logged_in, function (req, res) {
 	SQL_UPDATE_WEBHOOK.run(req.user.user_id, url, format, prefix)
 	const webhook = SQL_SELECT_WEBHOOK_SEND.get(req.user.user_id)
 	if (webhook)
-		send_webhook(req.user.user_id, webhook, "Test message!")
+		send_webhook(req.user.user_id, webhook, "Test message!", 0)
 	res.setHeader("refresh", "3; url=/webhook")
 	res.send("Testing Webhook. Please wait...")
 })
@@ -764,8 +773,7 @@ app.post('/message/send', must_be_logged_in, function (req, res) {
 		})
 	}
 	let info = MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body)
-	if (to_user.notify)
-		mail_new_message(to_user, info.lastInsertRowid, req.user.name)
+	send_notification(to_user, message_link(info.lastInsertRowid), "New message from " + req.user.name)
 	res.redirect('/inbox')
 })
 
@@ -1440,8 +1448,6 @@ app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 	return res.redirect('/join/'+new_game_id)
 })
 
-var join_clients = {}
-
 function update_join_clients_deleted(game_id) {
 	let list = join_clients[game_id]
 	if (list && list.length > 0) {
@@ -1641,7 +1647,7 @@ app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 	SQL_UPDATE_GAME_RESULT.run(1, null, game_id)
 	if (is_solo(players))
 		SQL_UPDATE_GAME_PRIVATE.run(game_id)
-	mail_game_started_notification_to_offline_users(game_id)
+	send_game_started_notification_to_offline_users(game_id)
 
 	put_new_state(game_id, state, null, null, ".setup", [seed, game.scenario, options])
 
@@ -1681,6 +1687,34 @@ app.get('/api/replay/:game_id', function (req, res) {
 })
 
 /*
+ * MAIL NOTIFICATIONS
+ */
+
+const MAIL_FROM = process.env.MAIL_FROM || "user@localhost"
+const MAIL_FOOTER = "\n--\nYou can unsubscribe from notifications on your profile page:\n" + SITE_URL + "/profile\n"
+
+function mail_callback(err) {
+	if (err)
+		console.log("MAIL ERROR", err)
+}
+
+function mail_addr(user) {
+	return user.name + " <" + user.mail + ">"
+}
+
+function mail_password_reset_token(user, token) {
+	if (mailer) {
+		let subject = "Password reset request"
+		let body =
+			"Your password reset token is: " + token + "\n\n" +
+			SITE_URL + "/reset-password/" + user.mail + "/" + token + "\n\n" +
+			"If you did not request a password reset you can ignore this mail.\n"
+		console.log("SENT MAIL:", mail_addr(user), subject)
+		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+	}
+}
+
+/*
  * WEBHOOK NOTIFICATIONS
  */
 
@@ -1702,6 +1736,7 @@ const webhook_text_options = {
 
 function on_webhook_success(user_id) {
 	console.log("WEBHOOK SENT", user_id)
+	SQL_UPDATE_WEBHOOK_SUCCESS.run(user_id)
 }
 
 function on_webhook_error(user_id, error) {
@@ -1709,7 +1744,9 @@ function on_webhook_error(user_id, error) {
 	SQL_UPDATE_WEBHOOK_ERROR.run(error, user_id)
 }
 
-function send_webhook(user_id, webhook, message) {
+function send_webhook(user_id, webhook, message, retry=2) {
+	if (!WEBHOOKS)
+		return
 	try {
 		const text = webhook.prefix + " " + message
 		const data = webhook.format ? JSON.stringify({ [webhook.format]: text }) : text
@@ -1717,182 +1754,113 @@ function send_webhook(user_id, webhook, message) {
 		const req = https.request(webhook.url, options, res => {
 			if (res.statusCode === 200 || res.statusCode === 204)
 				on_webhook_success(user_id)
-			else
-				on_webhook_error(user_id, res.statusCode + " " + http.STATUS_CODES[res.statusCode])
+			else {
+				if (retry > 0)
+					retry_webhook(user_id, webhook, message, retry - 1)
+				else
+					on_webhook_error(user_id, res.statusCode + " " + http.STATUS_CODES[res.statusCode])
+			}
 		})
 		req.on("timeout", () => {
-			on_webhook_error(user_id, "Timeout")
+			if (retry > 0)
+				retry_webhook(user_id, webhook, message, retry - 1)
+			else
+				on_webhook_error(user_id, "Timeout")
 			req.abort()
 		})
 		req.on("error", (err) => {
-			on_webhook_error(user_id, err.toString())
+			if (retry > 0)
+				retry_webhook(user_id, webhook, message, retry - 1)
+			else
+				on_webhook_error(user_id, err.toString())
 		})
 		req.write(data)
 		req.end()
 	} catch (err) {
-		on_webhook_error(user_id, err.message)
+		if (retry > 0)
+			retry_webhook(user_id, webhook, message, retry - 1)
+		else
+			on_webhook_error(user_id, err.message)
 	}
 }
 
-function webhook_game_link(game, user) {
-	if (user.role)
-		return SITE_URL + play_url(game.title_id, game.game_id, user.role)
-	return SITE_URL + "/join/" + game.game_id
-}
-
-function webhook_game_started(user, game_id) {
-	let webhook = SQL_SELECT_WEBHOOK_SEND.get(user.user_id)
-	if (webhook) {
-		let game = SQL_SELECT_GAME_VIEW.get(game_id)
-		let message = webhook_game_link(game, user) + " - Started!"
-		send_webhook(user.user_id, webhook, message)
-	}
-}
-
-function webhook_game_finished(user, game_id) {
-	let webhook = SQL_SELECT_WEBHOOK_SEND.get(user.user_id)
-	if (webhook) {
-		let game = SQL_SELECT_GAME_VIEW.get(game_id)
-		let message = webhook_game_link(game, user) + " - Finished!"
-		send_webhook(user.user_id, webhook, message)
-	}
-}
-
-function webhook_your_turn(user, game_id) {
-	let webhook = SQL_SELECT_WEBHOOK_SEND.get(user.user_id)
-	if (webhook) {
-		let game = SQL_SELECT_GAME_VIEW.get(game_id)
-		let message = webhook_game_link(game, user) + " - Your turn!"
-		send_webhook(user.user_id, webhook, message)
-	}
+function retry_webhook(user_id, webhook, message, retry) {
+	console.log("WEBHOOK RETRY", user_id)
+	setTimeout(() => send_webhook(user_id, webhook, message, retry), 3000 + Math.random() * 7000)
 }
 
 /*
- * MAIL NOTIFICATIONS
+ * NOTIFICATIONS
  */
-
-const MAIL_FROM = process.env.MAIL_FROM || "user@localhost"
-const MAIL_FOOTER = "\n--\nYou can unsubscribe from notifications on your profile page:\n" + SITE_URL + "/profile\n"
 
 const SQL_SELECT_NOTIFIED = SQL("SELECT julianday() < julianday(time, ?) FROM last_notified WHERE game_id=? AND user_id=?").pluck()
 const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,datetime())")
 const SQL_DELETE_NOTIFIED = SQL("DELETE FROM last_notified WHERE game_id=? AND user_id=?")
-const SQL_DELETE_NOTIFIED_ALL = SQL("DELETE FROM last_notified WHERE game_id=?")
 
-const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
-
-function mail_callback(err) {
-	if (err)
-		console.log("MAIL ERROR", err)
-}
-
-function mail_addr(user) {
-	return user.name + " <" + user.mail + ">"
-}
-
-function mail_game_info(game) {
-	let desc = `Game: ${game.title_name}\n`
-	desc += `Scenario: ${game.scenario}\n`
-	desc += `Players: ${game.player_names}\n`
-	desc += "\n"
-	if (game.notice && game.notice.length > 0)
-		desc += game.notice + "\n"
-	return desc + "\n"
-}
-
-function mail_game_link(game, user) {
-	return SITE_URL + "/" + game.title_id + "/play.html?game=" + game.game_id + "&role=" + encodeURIComponent(user.role) + "\n"
-}
-
-function mail_password_reset_token(user, token) {
-	if (mailer) {
-		let subject = "Password reset request"
-		let body =
-			"Your password reset token is: " + token + "\n\n" +
-			SITE_URL + "/reset-password/" + user.mail + "/" + token + "\n\n" +
-			"If you did not request a password reset you can ignore this mail.\n"
-		console.log("SENT MAIL:", mail_addr(user), subject)
-		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
-	}
-}
-
-function mail_new_message(user, msg_id, msg_from) {
-	if (mailer) {
-		let subject = "You have a new message from " + msg_from + "."
-		let body =
-			"Read the message here:\n" +
-			SITE_URL + "/message/read/" + msg_id + "\n" +
-			MAIL_FOOTER
-		console.log("SENT MAIL:", mail_addr(user), subject)
-		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
-	}
-}
-
-function mail_game_started_notification(user, game_id) {
-	if (mailer) {
-		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id)
-		let subject = `${game.title_name} #${game_id} (${user.role}) - Started!`
-		let body = mail_game_info(game) +
-			"The game has started!\n\n" +
-			mail_game_link(game, user) +
-			MAIL_FOOTER
-		console.log("SENT MAIL:", mail_addr(user), subject)
-		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
-	}
-}
-
-function mail_game_finished_notification(user, game_id, result) {
-	if (mailer) {
-		let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id)
-		let subject = `${game.title_name} #${game_id} (${user.role}) - Finished!`
-		let body = mail_game_info(game) +
-			"Result: " + result + "\n\n" +
-			mail_game_link(game, user) +
-			MAIL_FOOTER
-		console.log("SENT MAIL:", mail_addr(user), subject)
-		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
-	}
-}
-
-function mail_your_turn_notification(user, game_id, interval) {
-	if (mailer) {
-		let too_soon = SQL_SELECT_NOTIFIED.get(interval, game_id, user.user_id)
-		if (!too_soon) {
-			SQL_INSERT_NOTIFIED.run(game_id, user.user_id)
-			let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id)
-			let subject = `${game.title_name} #${game_id} (${user.role}) - Your turn!`
-			let body = mail_game_info(game) +
-				"It's your turn.\n\n" +
-				mail_game_link(game, user) +
-				MAIL_FOOTER
-			console.log("SENT MAIL:", mail_addr(user), subject)
-			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
-		}
-	}
-}
-
-function reset_your_turn_notification(user, game_id) {
+function delete_last_notified(user, game_id) {
 	SQL_DELETE_NOTIFIED.run(game_id, user.user_id)
 }
 
-function mail_ready_to_start_notification(user, game_id, interval) {
-	if (mailer) {
-		let too_soon = SQL_SELECT_NOTIFIED.get(interval, game_id, user.user_id)
-		if (!too_soon) {
-			SQL_INSERT_NOTIFIED.run(game_id, user.user_id)
-			let game = SQL_SELECT_GAME_FULL_VIEW.get(game_id)
-			let subject = `${game.title_name} #${game_id} - Ready to start!`
-			let body = mail_game_info(game) +
-				"Your game is ready to start.\n\n" +
-				SITE_URL + "/join/" + game_id + "\n" +
-				MAIL_FOOTER
-			console.log("SENT MAIL:", mail_addr(user), subject)
-			mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+function insert_last_notified(user, game_id) {
+	SQL_INSERT_NOTIFIED.run(game_id, user.user_id)
+}
+
+function should_send_reminder(user, game_id) {
+	if (!SQL_SELECT_NOTIFIED.get('+23 hours', game_id, user.user_id))
+		return true
+	return false
+}
+
+function game_play_link(game_id, title_id, user) {
+	return SITE_URL + play_url(title_id, game_id, user.role)
+}
+
+function game_join_link(game_id) {
+	return SITE_URL + "/join/" + game_id
+}
+
+function message_link(msg_id) {
+	return SITE_URL + "/message/read/" + msg_id
+}
+
+function send_notification(user, link, message) {
+	if (WEBHOOKS) {
+		let webhook = SQL_SELECT_WEBHOOK_SEND.get(user.user_id)
+		if (webhook) {
+			console.log("WEBHOOK", user.name, link, message)
+			send_webhook(user.user_id, webhook, link + " - " + message)
 		}
+	}
+	if (mailer && user.notify) {
+		console.log("MAIL", mail_addr(user), link, message)
+		mailer.sendMail(
+			{
+				from: MAIL_FROM,
+				to: mail_addr(user),
+				subject: message,
+				text: link + "\n" + MAIL_FOOTER,
+			},
+			mail_callback
+		)
 	}
 }
 
-function mail_your_turn_notification_to_offline_users(game_id, old_active, active) {
+function send_join_notification(user, game_id, message) {
+	let title_id = SQL_SELECT_GAME_TITLE.get(game_id)
+	let title_name = TITLES[title_id].title_name
+	send_notification(user, game_join_link(game_id), `${title_name} #${game_id} - ${message}`)
+}
+
+function send_play_notification(user, game_id, message) {
+	let title_id = SQL_SELECT_GAME_TITLE.get(game_id)
+	let title = TITLES[title_id].title_name
+	send_notification(user, game_play_link(game_id, title_id, user), `${title} #${game_id} (${user.role}) - ${message}`)
+}
+
+const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
+const QUERY_LIST_INVITES = SQL("SELECT * FROM invite_reminder")
+
+function send_your_turn_notification_to_offline_users(game_id, old_active, active) {
 	// Only send notifications when the active player changes.
 	if (old_active === active)
 		return
@@ -1902,46 +1870,51 @@ function mail_your_turn_notification_to_offline_users(game_id, old_active, activ
 		let p_was_active = (old_active === p.role || old_active === 'Both' || old_active === 'All')
 		let p_is_active = (active === p.role || active === 'Both' || active === 'All')
 		if (!p_was_active && p_is_active) {
-			if (is_player_online(game_id, p.user_id)) {
-				if (p.notify)
-					reset_your_turn_notification(p, game_id)
+			if (!is_player_online(game_id, p.user_id)) {
+				insert_last_notified(p, game_id)
+				send_play_notification(p, game_id, "Your turn")
 			} else {
-				if (p.notify)
-					mail_your_turn_notification(p, game_id, '+15 minutes')
-				webhook_your_turn(p, game_id)
+				delete_last_notified(p, game_id)
 			}
 		} else {
-			if (p.notify)
-				reset_your_turn_notification(p, game_id)
+			delete_last_notified(p, game_id)
 		}
 	}
 }
 
-function mail_game_started_notification_to_offline_users(game_id) {
+function send_game_started_notification_to_offline_users(game_id) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		if (!is_player_online(game_id, p.user_id)) {
-			if (p.notify)
-				mail_game_started_notification(p, game_id)
-			webhook_game_started(p, game_id)
-		}
+		if (!is_player_online(game_id, p.user_id))
+			send_play_notification(p, game_id, "Started")
+		delete_last_notified(p, game_id)
 	}
 }
 
-function mail_game_finished_notification_to_offline_users(game_id, result) {
+function send_game_finished_notification_to_offline_users(game_id, result) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		if (!is_player_online(game_id, p.user_id)) {
-			if (p.notify)
-				mail_game_finished_notification(p, game_id, result)
-			webhook_game_finished(p, game_id)
-		}
+		if (!is_player_online(game_id, p.user_id))
+			send_play_notification(p, game_id, "Finished (" + result + ")")
+		delete_last_notified(p, game_id)
 	}
 }
 
 function notify_your_turn_reminder() {
 	for (let item of QUERY_LIST_YOUR_TURN.all()) {
-		mail_your_turn_notification(item, item.game_id, '+25 hours')
+		if (should_send_reminder(item, item.game_id)) {
+			insert_last_notified(item, item.game_id)
+			send_play_notification(item, item.game_id, "Your turn")
+		}
+	}
+}
+
+function notify_invited_reminder() {
+	for (let item of QUERY_LIST_INVITES.all()) {
+		if (should_send_reminder(item, item.game_id)) {
+			insert_last_notified(item, item.game_id)
+			send_join_notification(item, item.game_id, "You have an invitation")
+		}
 	}
 }
 
@@ -1949,27 +1922,29 @@ function notify_ready_to_start_reminder() {
 	for (let game of SQL_SELECT_OPEN_GAMES.all()) {
 		let players = SQL_SELECT_PLAYERS.all(game.game_id)
 		if (is_game_ready(game.title_id, game.scenario, game.options, players)) {
-			let owner = SQL_OFFLINE_USER.get(game.owner_id, '+3 minutes')
-			if (owner) {
-				if (owner.notify)
-					mail_ready_to_start_notification(owner, game.game_id, '+25 hours')
+			if (!is_player_online(game.game_id, game.owner_id)) {
+				let owner = SQL_SELECT_USER_VIEW.get(game.owner_id)
+				if (should_send_reminder(owner, game.game_id)) {
+					insert_last_notified(owner, game.game_id)
+					send_join_notification(owner, game.game_id, "Ready to start")
+				}
 			}
 		}
 	}
 }
 
-// Check and send daily 'your turn' reminders every 15 minutes.
-setInterval(notify_your_turn_reminder, 15 * 60 * 1000)
+// Send "you've been invited" notifications every 5 minutes.
+setInterval(notify_invited_reminder, 5 * 60 * 1000)
 
-// Check and send ready to start notifications every 5 minutes.
-setInterval(notify_ready_to_start_reminder, 5 * 60 * 1000)
+// Check and send ready to start notifications every 7 minutes.
+setInterval(notify_ready_to_start_reminder, 7 * 60 * 1000)
+
+// Check and send daily your turn reminders every 17 minutes.
+setInterval(notify_your_turn_reminder, 17 * 60 * 1000)
 
 /*
  * GAME SERVER
  */
-
-var game_clients = {}
-var game_cookies = {}
 
 function is_player_online(game_id, user_id) {
 	if (game_clients[game_id])
@@ -2043,17 +2018,17 @@ function put_snap(game_id, state) {
 
 function put_game_state(game_id, state, old_active) {
 	// TODO: separate state, undo, and log entries to reuse "snap" json stringifaction?
-	if (state.state === "game_over") {
-		SQL_UPDATE_GAME_RESULT.run(2, state.result, game_id)
-		SQL_DELETE_NOTIFIED_ALL.run(game_id)
-		mail_game_finished_notification_to_offline_users(game_id, state.result)
-	}
 	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)
 	if (game_clients[game_id])
 		for (let other of game_clients[game_id])
 			send_state(other, state)
 	update_join_clients_game(game_id)
-	mail_your_turn_notification_to_offline_users(game_id, old_active, state.active)
+	if (state.state === "game_over") {
+		SQL_UPDATE_GAME_RESULT.run(2, state.result, game_id)
+		send_game_finished_notification_to_offline_users(game_id, state.result)
+	} else {
+		send_your_turn_notification_to_offline_users(game_id, old_active, state.active)
+	}
 }
 
 function put_new_state(game_id, state, old_active, role, action, args) {

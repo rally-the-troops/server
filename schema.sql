@@ -422,7 +422,6 @@ create view your_turn_reminder as
 		status = 1
 		and active in ('All', 'Both', role)
 		and is_solo = 0
-		and notify = 1
 		and julianday() > julianday(mtime, '+1 hour')
 	;
 
@@ -437,6 +436,17 @@ create view your_turn as
 	where
 		status = 1
 		and active in ('All', 'Both', role)
+	;
+
+drop view if exists invite_reminder;
+create view invite_reminder as
+	select
+		game_id, role, user_id, name, mail, notify
+	from
+		players
+		join users using(user_id)
+	where
+		is_invite = 1
 	;
 
 -- Trigger to remove game data when filing a game as archived

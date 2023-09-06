@@ -48,3 +48,8 @@ html
 								a(href="/"+title.title_id)= title.title_name
 
 			p!= process.env.SITE_INVITE
+
+			if !ENABLE_MAIL
+				p.error Mail notifications disabled.
+			if !ENABLE_WEBHOOKS
+				p.error Webhook notifications disabled.

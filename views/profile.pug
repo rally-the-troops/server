@@ -12,10 +12,14 @@ html
 			p Welcome, #{user.name}!
 			p Your mail address is #{user.mail}
 
-			if user.notify
-				p <a href="/unsubscribe">Disable mail notifications</a>
-			else
-				p <a href="/subscribe">Enable mail notifications</a>
+			if ENABLE_MAIL
+				if !user.is_verified
+					p <a href="/verify-mail">Verify your mail address</a>
+
+				if user.notify
+					p <a href="/unsubscribe">Disable mail notifications</a>
+				else
+					p <a href="/subscribe">Enable mail notifications</a>
 
 			p
 				| <a href="/change-password">Change password</a>
@@ -28,16 +32,17 @@ html
 				br
 				| <a href="/delete-account">Delete account</a>
 
-			if !user.webhook
-				p <a href="/webhook">Configure webhook</a>
-			else if user.webhook.error
-				dl
-					dt <a href="/webhook">Configure webhook</a>
-					dd.error ERROR: #{user.webhook.error}
-			else
-				dl
-					dt <a href="/webhook">Configure webhook</a>
-					dd= new URL(user.webhook.url).hostname
+			if ENABLE_WEBHOOKS
+				if !user.webhook
+					p <a href="/webhook">Configure webhook</a>
+				else if user.webhook.error
+					dl
+						dt <a href="/webhook">Configure webhook</a>
+						dd.error ERROR: #{user.webhook.error}
+				else
+					dl
+						dt <a href="/webhook">Configure webhook</a>
+						dd= new URL(user.webhook.url).hostname
 
 			p
 				form(action="/logout" method="post")

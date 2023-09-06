@@ -4,7 +4,8 @@ header
 	nav
 		a(href="/about") About
 		if user
-			a(href="/forum") Forum
+			if ENABLE_FORUM
+				a(href="/forum") Forum
 			a(href="/games/public") Public
 			if user.active > 0
 				a(href="/games/active") Games (#{user.active})
