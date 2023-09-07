@@ -1,0 +1,21 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Verify mail
+	body
+		include header
+		article
+			h1 Verify mail
+			if flash
+				p.error= flash
+
+			form(method="post" action="/verify-mail")
+				p A token has been sent to #{user.mail}.
+				p
+					label Enter the token here:
+						br
+						input(type="text" name="token" size=32 value=token style="font-family:monospace" required)
+				p
+					button(type="submit") Verify

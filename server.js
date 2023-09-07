@@ -286,9 +286,11 @@ const SQL_SELECT_USER_DYNAMIC = SQL("select * from user_dynamic_view where user_
 const SQL_SELECT_USER_ID = SQL("SELECT user_id FROM users WHERE name=?").pluck()
 
 const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify FROM users WHERE user_id=?").pluck()
+const SQL_SELECT_USER_VERIFIED = SQL("SELECT is_verified FROM users WHERE user_id=?").pluck()
 const SQL_UPDATE_USER_NOTIFY = SQL("UPDATE users SET notify=? WHERE user_id=?")
 const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?")
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?")
+const SQL_UPDATE_USER_VERIFIED = SQL("UPDATE users SET is_verified=? WHERE user_id=?")
 const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?")
 const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?")
 const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,datetime())")
@@ -422,6 +424,34 @@ app.post('/signup', function (req, res) {
 	res.redirect('/profile')
 })
 
+function create_and_mail_verification_token(user) {
+	if (!SQL_FIND_TOKEN.get(user.user_id))
+		mail_verification_token(user, SQL_CREATE_TOKEN.get(user.user_id))
+}
+
+app.get('/verify-mail', must_be_logged_in, function (req, res) {
+	if (SQL_SELECT_USER_VERIFIED.get(req.user.user_id))
+		return res.redirect("/profile")
+	create_and_mail_verification_token(req.user)
+	res.render('verify_mail.pug', { user: req.user })
+})
+
+app.get('/verify-mail/:token', must_be_logged_in, function (req, res) {
+	if (SQL_SELECT_USER_VERIFIED.get(req.user.user_id))
+		return res.redirect("/profile")
+	res.render('verify_mail.pug', { user: req.user, token: req.params.token })
+})
+
+app.post('/verify-mail', must_be_logged_in, function (req, res) {
+	if (SQL_VERIFY_TOKEN.get(req.user.user_id, req.body.token)) {
+		SQL_UPDATE_USER_VERIFIED.run(1, req.user.user_id)
+		res.redirect("/profile")
+	} else {
+		create_and_mail_verification_token(req.user)
+		res.render('verify_mail.pug', { user: req.user, flash: "Invalid or expired token!" })
+	}
+})
+
 app.get('/forgot-password', function (req, res) {
 	if (req.user)
 		return res.redirect('/')
@@ -482,6 +512,7 @@ app.post('/reset-password', function (req, res) {
 	let salt = crypto.randomBytes(32).toString('hex')
 	let hash = hash_password(password, salt)
 	SQL_UPDATE_USER_PASSWORD.run(hash, salt, user.user_id)
+	SQL_UPDATE_USER_VERIFIED.run(1, user.user_id)
 	login_insert(res, user.user_id)
 	return res.redirect('/profile')
 })
@@ -597,6 +628,7 @@ app.post('/change-mail', must_be_logged_in, function (req, res) {
 	if (SQL_EXISTS_USER_MAIL.get(newmail))
 		return res.render('change_mail.pug', { user: req.user, flash: "That mail address is already taken!" })
 	SQL_UPDATE_USER_MAIL.run(newmail, req.user.user_id)
+	SQL_UPDATE_USER_VERIFIED.run(0, req.user.user_id)
 	return res.redirect('/profile')
 })
 
@@ -1285,6 +1317,7 @@ function annotate_games(games, user_id, unread) {
 
 app.get('/profile', must_be_logged_in, function (req, res) {
 	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id)
+	req.user.is_verified = SQL_SELECT_USER_VERIFIED.get(req.user.user_id)
 	req.user.webhook = SQL_SELECT_WEBHOOK.get(req.user.user_id)
 	res.render('profile.pug', { user: req.user })
 })
@@ -1707,8 +1740,18 @@ function mail_password_reset_token(user, token) {
 		let subject = "Password reset request"
 		let body =
 			"Your password reset token is: " + token + "\n\n" +
-			SITE_URL + "/reset-password/" + user.mail + "/" + token + "\n\n" +
-			"If you did not request a password reset you can ignore this mail.\n"
+			SITE_URL + "/reset-password/" + user.mail + "/" + token + "\n"
+		console.log("SENT MAIL:", mail_addr(user), subject)
+		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
+	}
+}
+
+function mail_verification_token(user, token) {
+	if (mailer) {
+		let subject = "Verify mail address"
+		let body =
+			"Your mail verification token is: " + token + "\n\n" +
+			SITE_URL + "/verify-mail/" + token + "\n"
 		console.log("SENT MAIL:", mail_addr(user), subject)
 		mailer.sendMail({ from: MAIL_FROM, to: mail_addr(user), subject: subject, text: body }, mail_callback)
 	}
