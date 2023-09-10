@@ -1072,20 +1072,18 @@ function get_game_roles(title_id, scenario, options) {
 	return roles
 }
 
-function is_game_full(title_id, scenario, options, players) {
-	return get_game_roles(title_id, scenario, options).length === players.length
-}
-
-function is_game_ready(title_id, scenario, options, players) {
+function is_game_ready(player_count, players) {
+	if (player_count !== players.length)
+		return false
 	for (let p of players)
 		if (p.is_invite)
 			return false
-	return is_game_full(title_id, scenario, options, players)
+	return true
 }
 
 load_rules()
 
-const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,is_private,is_random,notice) VALUES (?,?,?,?,?,?,?)")
+const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,player_count,is_private,is_random,notice) VALUES (?,?,?,?,?,?,?,?)")
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
 
 const SQL_SELECT_UNREAD_CHAT_GAMES = SQL("select game_id from unread_chats where user_id = ?").pluck()
@@ -1146,7 +1144,6 @@ const SQL_SELECT_REPLAY = SQL(`
 
 const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?")
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?")
-const SQL_SELECT_GAME_FULL_VIEW = SQL("SELECT * FROM game_full_view WHERE game_id=?")
 const SQL_SELECT_GAME_TITLE = SQL("SELECT title_id FROM games WHERE game_id=?").pluck()
 
 const SQL_SELECT_PLAYERS_ID = SQL("SELECT DISTINCT user_id FROM players WHERE game_id=?").pluck()
@@ -1164,9 +1161,9 @@ const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AN
 const SQL_SELECT_REMATCH = SQL(`SELECT game_id FROM games WHERE status < ${STATUS_FINISHED} AND notice=?`).pluck()
 const SQL_INSERT_REMATCH = SQL(`
 	INSERT INTO games
-		(owner_id, title_id, scenario, options, is_private, is_random, notice)
+		(owner_id, title_id, scenario, options, player_count, is_private, is_random, notice)
 	SELECT
-		$user_id, title_id, scenario, options, is_private, 0, $magic
+		$user_id, title_id, scenario, options, player_count, is_private, 0, $magic
 	FROM games
 	WHERE game_id = $game_id AND NOT EXISTS (
 		SELECT * FROM games WHERE notice=$magic
@@ -1175,20 +1172,58 @@ const SQL_INSERT_REMATCH = SQL(`
 
 const SQL_INSERT_REMATCH_PLAYERS = SQL("insert into players (game_id, user_id, role, is_invite) select ?, user_id, role, user_id!=? from players where game_id=?")
 
-const QUERY_LIST_PUBLIC_GAMES = SQL(`
-	SELECT * FROM game_view
-	WHERE is_private=0 AND status=?
-	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND players.user_id = game_view.owner_id )
-	ORDER BY mtime DESC, ctime DESC
-	LIMIT ?
+const QUERY_LIST_PUBLIC_GAMES_OPEN = SQL(`
+	select * from game_view where status=0 and not is_private and join_count > 0 and join_count < player_count
+	order by mtime desc, ctime desc
 	`)
 
-const QUERY_LIST_GAMES_OF_TITLE = SQL(`
-	SELECT * FROM game_view
-	WHERE is_private=0 AND title_id=? AND status=?
-	AND EXISTS ( SELECT 1 FROM players WHERE players.game_id = game_view.game_id AND players.user_id = game_view.owner_id )
-	ORDER BY mtime DESC, ctime DESC
-	LIMIT ?
+const QUERY_LIST_PUBLIC_GAMES_READY = SQL(`
+	select * from game_view where status=0 and not is_private and join_count = player_count
+	order by mtime desc, ctime desc
+	`)
+
+const QUERY_LIST_PUBLIC_GAMES_REPLACEMENT = SQL(`
+	select * from game_view where status=1 and not is_private and join_count < player_count
+	order by mtime desc, ctime desc
+	`)
+
+const QUERY_LIST_PUBLIC_GAMES_ACTIVE = SQL(`
+	select * from game_view where status=1 and not is_private and join_count = player_count
+	order by mtime desc, ctime desc
+	limit 12
+	`)
+
+const QUERY_LIST_PUBLIC_GAMES_FINISHED = SQL(`
+	select * from game_view where status=2 and not is_private
+	order by mtime desc, ctime desc
+	limit 12
+	`)
+
+const QUERY_LIST_GAMES_OF_TITLE_OPEN = SQL(`
+	select * from game_view where title_id=? and not is_private and status=0 and join_count > 0 and join_count < player_count
+	order by mtime desc, ctime desc
+	`)
+
+const QUERY_LIST_GAMES_OF_TITLE_READY = SQL(`
+	select * from game_view where title_id=? and not is_private and status=0 and join_count = player_count
+	order by mtime desc, ctime desc
+	`)
+
+const QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT = SQL(`
+	select * from game_view where title_id=? and not is_private and status=1 and join_count < player_count
+	order by mtime desc, ctime desc
+	`)
+
+const QUERY_LIST_GAMES_OF_TITLE_ACTIVE = SQL(`
+	select * from game_view where title_id=? and not is_private and status=1 and join_count = player_count
+	order by mtime desc, ctime desc
+	limit 12
+	`)
+
+const QUERY_LIST_GAMES_OF_TITLE_FINISHED = SQL(`
+	select * from game_view where title_id=? and not is_private and status=2
+	order by mtime desc, ctime desc
+	limit 12
 	`)
 
 const QUERY_NEXT_GAME_OF_USER = SQL(`
@@ -1198,7 +1233,7 @@ const QUERY_NEXT_GAME_OF_USER = SQL(`
 	join players using(game_id)
 	where
 		status = ${STATUS_ACTIVE}
-		and active in ('All', 'Both', role)
+		and active in (role, 'Both')
 		and user_id = ?
 	order by mtime
 	limit 1
@@ -1233,10 +1268,6 @@ const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
 	order by status asc, mtime desc
 	`)
 
-function is_solo(players) {
-	return players.every(p => p.user_id === players[0].user_id)
-}
-
 function format_options(options) {
 	function to_english(k) {
 		if (k === true || k === 1) return 'yes'
@@ -1252,36 +1283,36 @@ function format_options(options) {
 	}).join(", ")
 }
 
-function annotate_game(game, user_id, unread) {
-	let players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id)
-	let options = JSON.parse(game.options)
-	let roles = get_game_roles(game.title_id, game.scenario, options)
+function annotate_game_players(game) {
+	game.players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id)
+	if (game.player_count === game.join_count) {
+		game.is_ready = true
+		for (let p of game.players)
+			if (p.is_invite)
+				game.is_ready = false
+	} else {
+		game.is_ready = false
+	}
+}
 
-	if (game.options === '{}')
-		game.human_options = "None"
-	else
-		game.human_options = format_options(options)
-
-	for (let i = 0; i < players.length; ++i)
-		players[i].index = roles.indexOf(players[i].role)
-	players.sort((a, b) => a.index - b.index)
-
-	game.is_full = is_game_full(game.title_id, game.scenario, options, players)
-	game.is_ready = is_game_ready(game.title_id, game.scenario, options, players)
+function annotate_game_info(game, user_id, unread) {
 	game.is_unread = set_has(unread, game.game_id)
+	if (game.options && game.options !== '{}')
+		game.human_options = format_options(JSON.parse(game.options))
+	else
+		game.human_options = "None"
 
 	let your_count = 0
 	let your_role = null
-	game.player_names = ""
-	for (let i = 0; i < players.length; ++i) {
-		let p = players[i]
 
+	game.player_names = ""
+	for (let p of game.players) {
 		let p_is_owner = false
 		if (game.status === STATUS_OPEN && (game.owner_id === p.user_id))
 			p_is_owner = true
 
 		let p_is_active = false
-		if (game.status === STATUS_ACTIVE && (game.active === p.role || game.active === "Both" || game.active === "All"))
+		if (game.status === STATUS_ACTIVE && (game.active === p.role || game.active === "Both"))
 			p_is_active = true
 
 		if (p.user_id === user_id) {
@@ -1301,9 +1332,10 @@ function annotate_game(game, user_id, unread) {
 		else
 			link = `<a href="/user/${p.name}">${p.name}</a>`
 
-		if (game.player_names.length > 0)
-			game.player_names += ", "
-		game.player_names += link
+		if (game.player_names)
+			game.player_names += ", " + link
+		else
+			game.player_names = link
 
 		if (game.active === p.role)
 			game.active = link
@@ -1321,9 +1353,12 @@ function annotate_game(game, user_id, unread) {
 	game.mtime = human_date(game.mtime)
 }
 
-function annotate_games(games, user_id, unread) {
-	for (let i = 0; i < games.length; ++i)
-		annotate_game(games[i], user_id, unread)
+function annotate_games(list, user_id, unread) {
+	for (let game of list) {
+		annotate_game_players(game)
+		annotate_game_info(game, user_id, unread)
+	}
+	return list
 }
 
 app.get('/profile', must_be_logged_in, function (req, res) {
@@ -1378,17 +1413,33 @@ app.get('/games/finished/:who_name', function (req, res) {
 })
 
 app.get('/games/public', function (req, res) {
-	let games0 = QUERY_LIST_PUBLIC_GAMES.all(STATUS_OPEN, 1000)
-	let games1 = QUERY_LIST_PUBLIC_GAMES.all(STATUS_ACTIVE, 48)
+	let user_id = 0
+	let unread = null
 	if (req.user) {
-		let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
-		annotate_games(games0, req.user.user_id, unread)
-		annotate_games(games1, req.user.user_id, unread)
-	} else {
-		annotate_games(games0, 0, null)
-		annotate_games(games1, 0, null)
+		user_id = req.user.user_id
+		unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
 	}
-	res.render('games_public.pug', { user: req.user, games0, games1 })
+
+	let open_games = QUERY_LIST_PUBLIC_GAMES_OPEN.all()
+	let ready_games = QUERY_LIST_PUBLIC_GAMES_READY.all()
+	let replacement_games = QUERY_LIST_PUBLIC_GAMES_REPLACEMENT.all()
+	let active_games = QUERY_LIST_PUBLIC_GAMES_ACTIVE.all()
+	let finished_games = QUERY_LIST_PUBLIC_GAMES_FINISHED.all()
+
+	annotate_games(open_games, user_id, unread)
+	annotate_games(ready_games, user_id, unread)
+	annotate_games(replacement_games, user_id, unread)
+	annotate_games(active_games, user_id, unread)
+	annotate_games(finished_games, user_id, unread)
+
+	res.render('games_public.pug', {
+		user: req.user,
+		open_games,
+		ready_games,
+		replacement_games,
+		active_games,
+		finished_games
+	})
 })
 
 function get_title_page(req, res, title_id) {
@@ -1398,17 +1449,35 @@ function get_title_page(req, res, title_id) {
 	let unread = null
 	if (req.user)
 		unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
-	let games0 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, STATUS_OPEN, 1000)
-	let games1 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, STATUS_ACTIVE, 1000)
-	let games2 = QUERY_LIST_GAMES_OF_TITLE.all(title_id, STATUS_FINISHED, 24)
-	annotate_games(games0, req.user ? req.user.user_id : 0, unread)
-	annotate_games(games1, req.user ? req.user.user_id : 0, unread)
-	annotate_games(games2, req.user ? req.user.user_id : 0, unread)
+	let user_id = req.user ? req.user.user_id : 0
+
+	// Title page shows 
+
+	let a = Date.now()
+
+	let open_games = QUERY_LIST_GAMES_OF_TITLE_OPEN.all(title_id)
+	let ready_games = QUERY_LIST_GAMES_OF_TITLE_READY.all(title_id)
+	let replacement_games = QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT.all(title_id)
+	let active_games = QUERY_LIST_GAMES_OF_TITLE_ACTIVE.all(title_id)
+	let finished_games = QUERY_LIST_GAMES_OF_TITLE_FINISHED.all(title_id)
+
+	annotate_games(open_games, user_id, unread)
+	annotate_games(ready_games, user_id, unread)
+	annotate_games(replacement_games, user_id, unread)
+	annotate_games(active_games, user_id, unread)
+	annotate_games(finished_games, user_id, unread)
+
+	console.log("LIST GAMES", Date.now() - a)
+
 	res.render('info.pug', {
 		user: req.user,
 		title: title,
 		about_html: HTML_ABOUT[title_id],
-		games0, games1, games2
+		open_games,
+		ready_games,
+		replacement_games,
+		active_games,
+		finished_games
 	})
 }
 
@@ -1452,14 +1521,16 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 	let notice = req.body.notice
 
 	let count = SQL_COUNT_OPEN_GAMES.get(user_id)
-	if (count >= 5)
+	if (count >= 7)
 		return res.send("You have too many open games!")
 	if (!(title_id in RULES))
 		return res.send("Invalid title.")
 	if (!RULES[title_id].scenarios.includes(scenario))
 		return res.send("Invalid scenario.")
 
-	let info = SQL_INSERT_GAME.run(user_id, title_id, scenario, options, priv ? 1 : 0, rand ? 1 : 0, notice)
+	let player_count = get_game_roles(title_id, scenario, JSON.parse(options)).length
+
+	let info = SQL_INSERT_GAME.run(user_id, title_id, scenario, options, player_count, priv ? 1 : 0, rand ? 1 : 0, notice)
 	res.redirect("/join/" + info.lastInsertRowid)
 })
 
@@ -1516,7 +1587,7 @@ function update_join_clients_players(game_id) {
 	let list = join_clients[game_id]
 	if (list && list.length > 0) {
 		let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
-		let ready = is_game_ready(list.title_id, list.scenario, list.options, players)
+		let ready = is_game_ready(list.player_count, players)
 		for (let {res} of list) {
 			res.write("retry: 15000\n")
 			res.write("event: players\n")
@@ -1546,7 +1617,7 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	let friends = null
 	if (game.owner_id === req.user.user_id)
 		friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
-	let ready = (game.status === STATUS_OPEN) && is_game_ready(game.title_id, game.scenario, game.options, players)
+	let ready = (game.status === STATUS_OPEN) && is_game_ready(game.player_count, players)
 	game.ctime = human_date(game.ctime)
 	game.mtime = human_date(game.mtime)
 	res.render('join.pug', {
@@ -1568,9 +1639,7 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	}
 	if (!(game_id in join_clients)) {
 		join_clients[game_id] = []
-		join_clients[game_id].title_id = game.title_id
-		join_clients[game_id].scenario = game.scenario
-		join_clients[game_id].options = JSON.parse(game.options)
+		join_clients[game_id].player_count = game.player_count
 	}
 	join_clients[game_id].push({ res: res, user_id: req.user.user_id})
 
@@ -1673,7 +1742,7 @@ app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 	if (game.status !== STATUS_OPEN)
 		return res.send("The game is already started.")
 	let players = SQL_SELECT_PLAYERS.all(game_id)
-	if (!is_game_ready(game.title_id, game.scenario, game.options, players))
+	if (!is_game_ready(game.player_count, players))
 		return res.send("Invalid scenario/options/player configuration!")
 	if (game.is_random) {
 		assign_random_roles(game, players)
@@ -1685,7 +1754,7 @@ app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 	let state = RULES[game.title_id].setup(seed, game.scenario, options)
 
 	SQL_UPDATE_GAME_RESULT.run(1, null, game_id)
-	if (is_solo(players))
+	if (game.user_count !== game.player_count)
 		SQL_UPDATE_GAME_PRIVATE.run(game_id)
 	send_game_started_notification_to_offline_users(game_id)
 
@@ -1916,8 +1985,8 @@ function send_your_turn_notification_to_offline_users(game_id, old_active, activ
 
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		let p_was_active = (old_active === p.role || old_active === 'Both' || old_active === 'All')
-		let p_is_active = (active === p.role || active === 'Both' || active === 'All')
+		let p_was_active = (old_active === p.role || old_active === 'Both')
+		let p_is_active = (active === p.role || active === 'Both')
 		if (!p_was_active && p_is_active) {
 			if (!is_player_online(game_id, p.user_id)) {
 				insert_last_notified(p, game_id)
@@ -1970,7 +2039,7 @@ function notify_invited_reminder() {
 function notify_ready_to_start_reminder() {
 	for (let game of SQL_SELECT_OPEN_GAMES.all()) {
 		let players = SQL_SELECT_PLAYERS.all(game.game_id)
-		if (is_game_ready(game.title_id, game.scenario, game.options, players)) {
+		if (is_game_ready(game.player_count, players)) {
 			if (!is_player_online(game.game_id, game.owner_id)) {
 				let owner = SQL_SELECT_USER_VIEW.get(game.owner_id)
 				if (should_send_reminder(owner, game.game_id)) {
@@ -2435,7 +2504,7 @@ wss.on('connection', (socket, req) => {
 
 const SQL_GAME_STATS = SQL(`
 	select
-		title_id, scenario,
+		title_id, player_count, scenario,
 		group_concat(result, '%') as result_role,
 		group_concat(n, '%') as result_count,
 		sum(n) as total
@@ -2443,22 +2512,26 @@ const SQL_GAME_STATS = SQL(`
 		(
 			select
 				title_id,
+				player_count,
 				scenario,
 				result,
 				count(1) as n
 			from
-				opposed_games
+				game_view
 			where
-				( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
-				and
-				( title_id not in ( 'andean-abyss', 'pax-pamir', 'time-of-crisis' ) )
+				is_opposed
+				and ( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
+				and ( title_id not in ( select title_id from titles where is_symmetric ) )
 			group by
 				title_id,
+				player_count,
 				scenario,
 				result
+			order by
+				n desc
 		)
 	group by
-		title_id, scenario
+		title_id, player_count, scenario
 	having
 		total > 12
 	`)
@@ -2485,22 +2558,42 @@ const SQL_USER_STATS = SQL(`
 		count(*) as total
 	from
 		players
-		natural join games
+		natural join game_view
 		natural join titles
 	where
-		user_id = ?
+		not is_symmetric
+		and user_id = ?
+		and is_opposed
 		and ( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
-		and game_id in (select game_id from opposed_games)
 	group by
 		title_name,
 		scenario,
 		role
+	union
+	select
+		title_name,
+		scenario,
+		null as role,
+		sum(role=result) as won,
+		count(*) as total
+	from
+		players
+		natural join game_view
+		natural join titles
+	where
+		is_symmetric
+		and user_id = ?
+		and is_opposed
+		and ( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
+	group by
+		title_name,
+		scenario
 	`)
 
 app.get('/user-stats/:who_name', function (req, res) {
 	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
 	if (who) {
-		let stats = SQL_USER_STATS.all(who.user_id)
+		let stats = SQL_USER_STATS.all(who.user_id, who.user_id)
 		res.render('user_stats.pug', { user: req.user, who: who, stats: stats })
 	} else {
 		return res.status(404).send("Invalid user name.")

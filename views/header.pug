@@ -7,8 +7,8 @@ header
 			if ENABLE_FORUM
 				a(href="/forum") Forum
 			a(href="/games/public") Public
-			if user.active > 0
-				a(href="/games/active") Games (#{user.active})
+			if user.waiting > 0
+				a(href="/games/active") Games (#{user.waiting})
 			else
 				a(href="/games/active") Games
 			a(href="/contacts") Friends

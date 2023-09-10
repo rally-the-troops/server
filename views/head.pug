@@ -45,10 +45,11 @@ mixin gamelist(list,hide_title=0)
 					let className = "game_item"
 					if (item.your_turn) className += " your_turn"
 					if (item.is_unread) className += " unread"
-					if (item.status === 0 && !item.is_full) className += " open"
-					else if (item.status === 0 && item.is_full) className += " ready"
-					else if (item.status === 1 && !item.is_full) className += " replacement"
-					else if (item.status === 1 && item.is_full) className += " active"
+					if (item.status === 0 && item.join_count === 0) className += " open replacement"
+					else if (item.status === 0 && item.join_count !== item.player_count) className += " open"
+					else if (item.status === 0 && item.join_count === item.player_count) className += " ready"
+					else if (item.status === 1 && item.join_count !== item.player_count) className += " replacement"
+					else if (item.status === 1 && item.join_count === item.player_count) className += " active"
 					else if (item.status === 2) className += " finished"
 					else if (item.status === 3) className += " archived"
 
@@ -63,12 +64,14 @@ mixin gamelist(list,hide_title=0)
 
 						case item.status
 							when 0
-								if item.is_ready && item.your_turn
+								if item.join_count === item.player_count
 									a(class="command" href=`/join/${item.game_id}`) Start
 								else
 									a(class="command" href=`/join/${item.game_id}`) Join
 							when 1
-								if item.is_yours
+								if item.join_count !== item.player_count
+									a(class="command" href="/join/"+item.game_id) Join
+								else if item.is_yours
 									if item.your_role
 										a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=${encodeURIComponent(item.your_role)}`) Play
 									else

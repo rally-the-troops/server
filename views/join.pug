@@ -43,11 +43,13 @@ html
 
 			unless game.human_options === "None"
 				div Options: #{game.human_options}
-			div
-				if game.is_private
-					| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a> (private)
-				else
-					| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a>
+
+			if game.owner_id
+				div
+					if game.is_private
+						| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a> (private)
+					else
+						| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a>
 
 			div Created: #{game.ctime}
 			unless game.mtime === "never"

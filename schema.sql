@@ -8,6 +8,7 @@ create table if not exists titles (
 	title_id text primary key,
 	title_name text,
 	bgg integer,
+	is_symmetric boolean default 0,
 	is_hidden boolean default 0
 ) without rowid;
 
@@ -113,17 +114,34 @@ create view user_dynamic_view as
 				join game_state using(game_id)
 			where
 				status = 1
+				and user_count = player_count
 				and players.user_id = users.user_id
-				and active in ( players.role, 'Both', 'All' )
+				and active in ( players.role, 'Both' )
 		) + (
 			select
 				count(*)
 			from
 				players
 			where
-				players.user_id = users.user_id
-				and players.is_invite
-		) as active,
+				players.user_id = users.user_id and players.is_invite
+		) + (
+			select
+				count(*)
+			from
+				games
+			where
+				owner_id = users.user_id
+				and status = 0
+				and (
+					join_count = 0
+					or (
+						join_count = player_count
+						and not exists (
+							select 1 from players where players.game_id = games.game_id and players.is_invite
+						)
+					)
+				)
+		) as waiting,
 		is_banned
 	from
 		users
@@ -274,7 +292,10 @@ create table if not exists games (
 	title_id text,
 	scenario text,
 	options text,
-	owner_id integer,
+	player_count integer,
+	join_count integer default 0,
+	user_count integer default 0,
+	owner_id integer default 0,
 	ctime datetime default current_timestamp,
 	is_private boolean default 0,
 	is_random boolean default 0,
@@ -359,6 +380,7 @@ create view game_view as
 		titles.title_name,
 		owner.name as owner_name,
 		coalesce(game_state.mtime, xtime) as mtime,
+		user_count = join_count and join_count > 1 as is_opposed,
 		game_state.active
 	from
 		games
@@ -368,75 +390,19 @@ create view game_view as
 			on owner.user_id = games.owner_id
 	;
 
-drop view if exists game_full_view;
-create view game_full_view as
-	select
-		*,
-		(
-			select
-				group_concat(name, ', ')
-			from
-				players
-				natural join users
-			where
-				players.game_id = game_view.game_id
-		) as player_names,
-		(
-			select
-				count(distinct user_id) = 1
-			from
-				players
-			where
-				players.game_id = game_view.game_id
-		) as is_solo
-	from
-		game_view
-	;
-
-drop view if exists opposed_games;
-create view opposed_games as
-	select
-		*
-	from
-		games
-	where
-		status > 0
-		and (
-			select
-				count(distinct user_id) > 1
-			from
-				players
-			where
-				players.game_id = games.game_id
-		)
-	;
-
 drop view if exists your_turn_reminder;
 create view your_turn_reminder as
 	select
 		game_id, role, user_id, name, mail, notify
 	from
-		game_full_view
+		game_view
 		join players using(game_id)
 		join users using(user_id)
 	where
 		status = 1
-		and active in ('All', 'Both', role)
-		and is_solo = 0
+		and active in (role, 'Both')
+		and user_count > 1
 		and julianday() > julianday(mtime, '+1 hour')
-	;
-
-drop view if exists your_turn;
-create view your_turn as
-	select
-		game_id, user_id, role
-	from
-		players
-		join games using(game_id)
-		join game_state using(game_id)
-	where
-		status = 1
-		and active in ('All', 'Both', role)
 	;
 
 drop view if exists invite_reminder;
@@ -449,6 +415,32 @@ create view invite_reminder as
 	where
 		is_invite = 1
 	;
+
+-- Trigger to update player counts when players join and part games
+
+drop trigger if exists trigger_join_game;
+create trigger trigger_join_game after insert on players
+begin
+	update
+		games
+	set
+		join_count = ( select count(1) from players where players.game_id = new.game_id ),
+		user_count = ( select count(distinct user_id) from players where players.game_id = new.game_id )
+	where
+		games.game_id = new.game_id;
+end;
+
+drop trigger if exists trigger_part_game;
+create trigger trigger_part_game after delete on players
+begin
+	update
+		games
+	set
+		join_count = ( select count(1) from players where players.game_id = old.game_id ),
+		user_count = ( select count(distinct user_id) from players where players.game_id = old.game_id )
+	where
+		games.game_id = old.game_id;
+end;
 
 -- Trigger to remove game data when filing a game as archived
 

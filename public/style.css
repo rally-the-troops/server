@@ -10,6 +10,7 @@ button, select, option {
 html, body { margin: 0 }
 h1 { margin: 16px 0 16px -1px; font-size: 24px; }
 h2 { margin: 16px 0 16px -1px; font-size: 20px; }
+h3 { margin: 16px 0 8px -1px; font-size: 16px; }
 a { color: blue; }
 .w { white-space: nowrap; }
 .r { text-align: right; }
@@ -91,6 +92,7 @@ table {
 	border-collapse: collapse;
 	border: 1px solid black;
 	box-shadow: 1px 2px 4px #0004;
+	margin: 1em 0;
 }
 thead, tfoot {
 	background-color: gainsboro;
