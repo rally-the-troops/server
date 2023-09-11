@@ -2,6 +2,8 @@
 
 "use strict"
 
+var replay_query = null
+
 ;(function () {
 
 /* global view, player, params, roles, game_log, replay_panel */
@@ -171,7 +173,7 @@ function update_replay_view() {
 	on_update_log(log_start, game_log.length)
 }
 
-function replay_query(query, params) {
+replay_query = function replay_query(query, params) {
 	on_reply(query, rules.query(replay_state, player, query, params))
 }
 
