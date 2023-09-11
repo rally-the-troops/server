@@ -20,7 +20,7 @@ html
 					thead
 						tr
 							th
-								a(href="/"+row.title_id)= row.title_name
+								a.black(href="/"+row.title_id)= row.title_name
 								unless row.scenario === "Standard"
 									|  &#x2013; #{row.scenario}
 							th= row.total

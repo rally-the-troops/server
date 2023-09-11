@@ -135,8 +135,12 @@ function is_solo() {
 	return players.every(p => p.user_id === players[0].user_id)
 }
 
+function user_link(player) {
+	return `<a class="black" href="/user/${player.name}">${player.name}</a>`
+}
+
 function play_link(player) {
-	return `<a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(player.role)}">${player.name}</a>`
+	return `\xbb <a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(player.role)}">Play</a>`
 }
 
 function action_link(player, action, color, text) {
@@ -162,16 +166,16 @@ function update() {
 				if (player.user_id === user_id)
 					element.innerHTML = play_link(player)
 				else
-					element.innerHTML = player.name
+					element.innerHTML = user_link(player)
 				break
 			case 1:
 				element.classList.toggle("is_active", is_active(player, role))
 				if (player.user_id === user_id)
 					element.innerHTML = play_link(player) + action_link(player, "part", "red", "\u274c")
 				else if (game.owner_id === user_id)
-					element.innerHTML = player.name + action_link(player, "kick", "red", "\u274c")
+					element.innerHTML = user_link(player) + action_link(player, "kick", "red", "\u274c")
 				else
-					element.innerHTML = player.name
+					element.innerHTML = user_link(player)
 				break
 			case 0:
 				if (player.is_invite) {
@@ -180,22 +184,18 @@ function update() {
 						element.innerHTML = player.name + " ?" +
 							action_link(player, "part", "red", "\u274c") +
 							action_link(player, "accept", "green", "\u2714")
-					else if (player.user_id === user_id)
-						element.innerHTML = player.name + " ?" + action_link(player, "part", "red", "\u274c")
 					else if (game.owner_id === user_id)
-						element.innerHTML = player.name + " ?" + action_link(player, "kick", "red", "\u274c")
+						element.innerHTML = user_link(player) + " ?" + action_link(player, "kick", "red", "\u274c")
 					else
-						element.innerHTML = player.name + " ?"
+						element.innerHTML = user_link(player) + " ?"
 				} else {
 					element.classList.remove("is_invite")
-					if (player.user_id === user_id && player.is_invite)
-						element.innerHTML = player.name + action_link(player, "part", "red", "\u274c")
-					else if (player.user_id === user_id)
+					if (player.user_id === user_id)
 						element.innerHTML = player.name + action_link(player, "part", "red", "\u274c")
 					else if (game.owner_id === user_id)
-						element.innerHTML = player.name + action_link(player, "kick", "red", "\u274c")
+						element.innerHTML = user_link(player) + action_link(player, "kick", "red", "\u274c")
 					else
-						element.innerHTML = player.name
+						element.innerHTML = user_link(player)
 				}
 				break
 			}
@@ -212,13 +212,11 @@ function update() {
 				element.innerHTML = `<i>Empty</i>`
 				break
 			case 1:
-				element.innerHTML = `<a class="join" href="javascript:join('${role}')">Join</a>`
-				break
 			case 0:
 				if (game.owner_id === user_id)
-					element.innerHTML = `<a class="join" href="javascript:join('${role}')">Join</a><a class="green" href="javascript:show_invite('${role}')">\u{2795}</a>`
+					element.innerHTML = `\xbb <a class="join" href="javascript:join('${role}')">Join</a><a class="green" href="javascript:show_invite('${role}')">\u{2795}</a>`
 				else
-					element.innerHTML = `<a class="join" href="javascript:join('${role}')">Join</a>`
+					element.innerHTML = `\xbb <a class="join" href="javascript:join('${role}')">Join</a>`
 				break
 			}
 			element.classList.remove("friend")

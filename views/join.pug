@@ -10,14 +10,13 @@ html
 		style.
 			table { min-width: 0; }
 			th,td { border: 1px solid black; }
-			td a.red { text-decoration: none; color: brown; font-size: 15px; float: right; }
-			td a.green { text-decoration: none; color: green; font-size: 15px; float: right; }
-			td a { text-decoration: underline; color: blue; }
+			a.red { text-decoration: none; color: brown; font-size: 15px; float: right; }
+			a.green { text-decoration: none; color: green; font-size: 15px; float: right; }
 			th { white-space: nowrap; background-color: gainsboro; }
 			td { width: 180px; background-color: white; }
 			#message { background-color: whitesmoke; }
 			.hide { display: none; }
-			td.is_invite { color: gray }
+			td.is_invite { background-color: honeydew }
 			td.enemy { background-color: #f66 }
 			td.enemy::before { content: "\1f6ab    "; color: #000; font-size: 15px; }
 		script.
@@ -33,34 +32,33 @@ html
 	body
 		include header
 		article
-			h1= game.title_name
+			if game.scenario === "Standard"
+				h1 #{game.title_name}
+			else
+				h1 #{game.title_name} - #{game.scenario}
 			p.error#error
 
 			div.logo
 				+gamecover(game.title_id)
 
-			div Scenario: #{game.scenario}
+			if game.owner_id
+				if game.is_private
+					p Created #{game.ctime} by <a class="black" href="/user/#{game.owner_name}">#{game.owner_name}</a> (private).
+				else
+					p Created #{game.ctime} by <a class="black" href="/user/#{game.owner_name}">#{game.owner_name}</a>.
+			else
+				p Created #{game.ctime}.
+
+			if game.status > 1
+				p Finished #{game.mtime}.
+			else if game.mtime !== "never"
+				p Last changed #{game.mtime}.
 
 			unless game.human_options === "None"
-				div Options: #{game.human_options}
-
-			if game.owner_id
-				div
-					if game.is_private
-						| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a> (private)
-					else
-						| Owner: <a href="/user/#{game.owner_name}">#{game.owner_name}</a>
-
-			div Created: #{game.ctime}
-			unless game.mtime === "never"
-				div Changed: #{game.mtime}
-
-			if game.status === 2
-				div Result: #{game.result}
+				p Options: #{game.human_options}.
 
 			if game.notice
-				br
-				div
+				p
 					i= game.notice
 
 			br(clear="left")
@@ -83,9 +81,9 @@ html
 					each role in roles
 						tr
 							th(id="role_"+role.replace(/ /g, "_")+"_name")= role
-							td.command(id="role_"+role.replace(/ /g, "_")) -
+							td(id="role_"+role.replace(/ /g, "_")) -
 					tr
-						td.command#message(colspan=2) -
+						td#message(colspan=2) -
 
 			p
 				button.hide#delete_button(onclick="confirm_delete()") Delete

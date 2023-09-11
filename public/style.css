@@ -12,6 +12,8 @@ h1 { margin: 16px 0 16px -1px; font-size: 24px; }
 h2 { margin: 16px 0 16px -1px; font-size: 20px; }
 h3 { margin: 16px 0 8px -1px; font-size: 16px; }
 a { color: blue; }
+a.black { text-decoration: none; color: black; }
+a.black:hover { text-decoration: underline; color: blue; }
 .w { white-space: nowrap; }
 .r { text-align: right; }
 
@@ -31,8 +33,8 @@ header nav {
 	flex-wrap: wrap;
 	justify-content: end;
 }
-header nav a { display: block; margin: 0 16px; color: black; }
-header nav a:hover { color: blue; }
+header nav a { display: block; margin: 0 12px; color: black }
+header nav a:hover { color: blue }
 article { margin: 2em; }
 article p, article dl, article ul { max-width: 50rem; }
 
@@ -47,6 +49,7 @@ div.logo img {
 
 input[type="checkbox"], input[type="radio"] {
 	margin-right: 7px;
+	accent-color: black;
 }
 input[type="text"], input[type="password"], input[type="email"], textarea {
 	padding: 5px;
@@ -106,8 +109,6 @@ th, td {
 tbody tr:nth-child(2n) {
 	background-color: whitesmoke;
 }
-table a:not(:hover) { text-decoration: none; color: black; }
-td.command a { text-decoration: underline; color: blue; }
 td.is_active { background-color: lemonchiffon; }
 
 /* FORUM AND MESSAGE POSTS */
@@ -154,6 +155,7 @@ article hr + p { font-style: italic; }
 }
 .game_head {
 	border-bottom: 1px solid black;
+	line-height: 23px;
 }
 .game_info {
 	font-family: "Source Serif SmText", "Georgia", "Noto Emoji", "Dingbats", serif;
@@ -206,8 +208,6 @@ article hr + p { font-style: italic; }
 .game_item.your_turn .game_head { background-color: gold }
 .game_item.your_turn .game_main { background-color: lightyellow }
 .game_item.your_turn a:hover { color: #860 }
-
-.game_item.unread .game_head div::after { content: " \1f4dd  "; }
 
 /* DARK MODE */
 @media (prefers-color-scheme: dark) {

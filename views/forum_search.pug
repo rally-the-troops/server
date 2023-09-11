@@ -18,8 +18,8 @@ html
 				tobdy
 					each row in results
 						tr
-							td: a(href="/user/"+row.author)= row.author
-							td: a(href="/forum/thread/"+row.thread_id+"#"+row.post_id)= row.subject
+							td: a.black(href="/user/"+row.author)= row.author
+							td: a.black(href="/forum/thread/"+row.thread_id+"#"+row.post_id)= row.subject
 							td= row.snippet
 
 			if user

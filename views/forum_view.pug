@@ -23,24 +23,24 @@ html
 					each row in threads
 						tr(class=row.is_read?"read":"unread")
 							td
-								a(href="/forum/thread/"+row.thread_id)= row.subject
+								a.black(href="/forum/thread/"+row.thread_id)= row.subject
 							td.r= row.count
 							td.w= row.mtime
 				tfoot
 					tr
 						td(colspan=4)
 							if current_page > 1
-								| #[a(href="/forum/page/"+(current_page-1)) &#x2190;]
+								| #[a.black(href="/forum/page/"+(current_page-1)) &#x2190;]
 								|
 							- for (let p=1; p<=page_count && p<=30; ++p)
 								if p === current_page
 									| (#{p})
 									|
 								else
-									| #[a(href="/forum/page/"+p)= p]
+									| #[a.black(href="/forum/page/"+p)= p]
 									|
 							if current_page < page_count
-								| #[a(href="/forum/page/"+(current_page+1)) &#x2192;]
+								| #[a.black(href="/forum/page/"+(current_page+1)) &#x2192;]
 
 			if user
 				p

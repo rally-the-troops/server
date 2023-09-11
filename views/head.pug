@@ -43,8 +43,8 @@ mixin gamelist(list,hide_title=0)
 			div
 				-
 					let className = "game_item"
+					let chat_icon = ""
 					if (item.your_turn) className += " your_turn"
-					if (item.is_unread) className += " unread"
 					if (item.status === 0 && item.join_count === 0) className += " open replacement"
 					else if (item.status === 0 && item.join_count !== item.player_count) className += " open"
 					else if (item.status === 0 && item.join_count === item.player_count) className += " ready"
@@ -52,15 +52,16 @@ mixin gamelist(list,hide_title=0)
 					else if (item.status === 1 && item.join_count === item.player_count) className += " active"
 					else if (item.status === 2) className += " finished"
 					else if (item.status === 3) className += " archived"
+					if (item.is_unread) chat_icon = "\u{1f4dd}"
 
 				div(class=className)
 					div.game_head
 						if item.scenario.length <= 2
 							div
-								| <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name} (#{item.scenario})</a>
+								| <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name} (#{item.scenario})</a> #{chat_icon}
 						else
 							div
-								| <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name}</a>
+								| <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name}</a> #{chat_icon}
 
 						case item.status
 							when 0

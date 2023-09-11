@@ -25,9 +25,9 @@ html
 					each row in messages
 						tr
 							td
-								a(href="/user/"+row.from_name)= row.from_name
+								a.black(href="/user/"+row.from_name)= row.from_name
 							td(class=row.is_read?"read":"unread")
-								a(href="/message/read/"+row.message_id)= row.subject
+								a.black(href="/message/read/"+row.message_id)= row.subject
 							td= row.time
 					else
 						tr

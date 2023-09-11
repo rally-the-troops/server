@@ -25,7 +25,7 @@ html
 					each who in friends
 						tr
 							td
-								a(href="/user/"+who.name)= who.name
+								a.black(href="/user/"+who.name)= who.name
 							td= who.atime
 							td.r
 								a.blue(href="/message/send/"+who.name) &#x1f4dd;
@@ -46,7 +46,7 @@ html
 						each who in enemies
 							tr
 								td
-									a(href="/user/"+who.name)= who.name
+									a.black(href="/user/"+who.name)= who.name
 								td.r
 									a.red(href="/contact/remove/"+who.name) &#x274c;
 						else
