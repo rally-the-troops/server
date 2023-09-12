@@ -261,10 +261,10 @@ create index if not exists posts_thread_idx on posts(thread_id);
 
 -- Forum Search (FTS5) --
 
-drop table if exists forum_search;
-create virtual table forum_search using fts5(thread_id, post_id, text, tokenize='porter unicode61');
-insert into forum_search(thread_id,post_id,text) select thread_id, 0, subject from threads;
-insert into forum_search(thread_id,post_id,text) select thread_id, post_id, body from posts;
+-- drop table if exists forum_search;
+create virtual table if not exists forum_search using fts5(thread_id, post_id, text, tokenize='porter unicode61');
+-- insert into forum_search(thread_id,post_id,text) select thread_id, 0, subject from threads;
+-- insert into forum_search(thread_id,post_id,text) select thread_id, post_id, body from posts;
 
 -- Games --
 
