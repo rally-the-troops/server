@@ -1072,7 +1072,7 @@ const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,st
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=?, xtime=datetime() WHERE game_id=?")
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
 
-const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?) returning replay_id").pluck()
+const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?)")
 
 const SQL_INSERT_SNAP = SQL("insert into game_snap (game_id,snap_id,state) values (?, (select coalesce(max(snap_id), 0) + 1 from game_snap where game_id=?), ?) returning snap_id").pluck()
 const SQL_SELECT_SNAP = SQL("select state from game_snap where game_id = ? and snap_id = ?").pluck()
@@ -2006,7 +2006,7 @@ function snap_from_state(state) {
 function put_replay(game_id, role, action, args) {
 	if (args !== undefined && args !== null && typeof args !== "number")
 		args = JSON.stringify(args)
-	return SQL_INSERT_REPLAY.get(game_id, game_id, role, action, args)
+	SQL_INSERT_REPLAY.run(game_id, game_id, role, action, args)
 }
 
 function put_snap(game_id, state) {
@@ -2032,7 +2032,7 @@ function put_game_state(game_id, state, old_active) {
 }
 
 function put_new_state(game_id, state, old_active, role, action, args) {
-	let replay_id = put_replay(game_id, role, action, args)
+	put_replay(game_id, role, action, args)
 	if (state.active !== old_active)
 		put_snap(game_id, state)
 	put_game_state(game_id, state, old_active)
