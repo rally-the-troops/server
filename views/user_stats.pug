@@ -5,12 +5,11 @@ doctype html
 html
 	head
 		include head
-		title Stats for #{who.name}
-		style td:nth-child(n+4){text-align:right}
+		title Statistics for #{who.name}
 	body
 		include header
 		article
-			h1 Stats for #{who.name}
+			h1 Statistics for #{who.name}
 
 			table(style="min-width:auto")
 				thead
@@ -18,8 +17,8 @@ html
 						th Title
 						th Scenario
 						th Role
-						th Played
-						th Won
+						th.r Played
+						th.r Won
 				tbody
 					each row in stats
 						tr
@@ -28,12 +27,27 @@ html
 							td= row.title_name
 							td= row.scenario
 							td= row.role
-							td= row.total
-							td= Math.round(row.won*100/row.total) + "%"
+							td.r= row.total
+							td.r= Math.round(row.won*100/row.total) + "%"
 				tfoot
 					tr
+						td Overall
 						td
 						td
-						td
-						td= all_total
-						td= Math.round(all_won*100/all_total) + "%"
+						td.r= all_total
+						td.r= Math.round(all_won*100/all_total) + "%"
+
+			table(style="min-width:auto")
+				thead
+					tr
+						th Title
+						th.r Rating
+						th.r Plays
+						th.r Last played
+				tbody
+					each row in ratings
+						tr
+							td= row.title_name
+							td.r= row.rating
+							td.r= row.count
+							td.r= row.last

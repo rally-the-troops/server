@@ -1451,10 +1451,6 @@ function get_title_page(req, res, title_id) {
 		unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
 	let user_id = req.user ? req.user.user_id : 0
 
-	// Title page shows 
-
-	let a = Date.now()
-
 	let open_games = QUERY_LIST_GAMES_OF_TITLE_OPEN.all(title_id)
 	let ready_games = QUERY_LIST_GAMES_OF_TITLE_READY.all(title_id)
 	let replacement_games = QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT.all(title_id)
@@ -1466,8 +1462,6 @@ function get_title_page(req, res, title_id) {
 	annotate_games(replacement_games, user_id, unread)
 	annotate_games(active_games, user_id, unread)
 	annotate_games(finished_games, user_id, unread)
-
-	console.log("LIST GAMES", Date.now() - a)
 
 	res.render('info.pug', {
 		user: req.user,
@@ -1794,6 +1788,59 @@ app.get('/api/replay/:game_id', function (req, res) {
 		return res.status(401).send("Not authorized to debug.")
 	return res.send(SQL_SELECT_REPLAY.get({game_id}))
 })
+
+/*
+ * ELO RATINGS
+ *
+ * TODO:
+ * use role ratings in asymmetric games based on title_id, scenario, player_count
+ * add role_rating to Ev and update role_rating with low K-value
+ */
+
+const SQL_SELECT_RATING_GAME = SQL("select title_id, player_count, scenario, result, xtime from games where game_id=? and status>1 and player_count=user_count and player_count>1")
+const SQL_SELECT_RATING_PLAYERS = SQL("select * from player_rating_view where game_id=?")
+const SQL_INSERT_RATING = SQL("insert or replace into ratings (title_id,user_id,rating,count,last) values (?,?,?,?,?)")
+
+function elo_k(a) {
+	return a.count < 10 ? 60 : 30
+}
+
+function elo_ev(a, players) {
+	// https://arxiv.org/pdf/2104.05422.pdf
+	// original: 1 / ( 1 + 10**((Rb-Ra)/400) )
+	// unoptimized: 10**(Ra/400) / ( 10**(Ra/400) + 10**(Rb/400) )
+	// generalized: 10**(Ra/400) / ( 10**(Ra/400) + 10**(Rb/400) + 10**(Rc/400) + ... )
+	let sum = 0
+	for (let p of players)
+		sum += 10**(p.rating/400)
+	return 10**(a.rating/400) / sum
+}
+
+function elo_change(a, players, score) {
+	return Math.round( elo_k(a) * ( score - elo_ev(a, players) ) )
+}
+
+function update_elo_ratings(game_id) {
+	let game = SQL_SELECT_RATING_GAME.get(game_id)
+	if (!game)
+		return
+
+	let players = SQL_SELECT_RATING_PLAYERS.all(game_id)
+
+	let winner = null
+	for (let p of players)
+		if (p.role === game.result)
+			winner = p
+
+	for (let p of players)
+		if (winner !== null)
+			p.change = elo_change(p, players, p === winner ? 1 : 0)
+		else
+			p.change = elo_change(p, players, 1 / players.length)
+
+	for (let p of players)
+		SQL_INSERT_RATING.run(game.title_id, p.user_id, p.rating + p.change, p.count + 1, game.xtime)
+}
 
 /*
  * MAIL NOTIFICATIONS
@@ -2144,6 +2191,8 @@ function put_game_state(game_id, state, old_active) {
 	if (state.state === "game_over") {
 		SQL_UPDATE_GAME_RESULT.run(2, state.result, game_id)
 		send_game_finished_notification_to_offline_users(game_id, state.result)
+		if (state.result && state.result !== "None")
+			update_elo_ratings(game_id)
 	} else {
 		send_your_turn_notification_to_offline_users(game_id, old_active, state.active)
 	}
@@ -2590,12 +2639,40 @@ const SQL_USER_STATS = SQL(`
 		scenario
 	`)
 
-app.get('/user-stats/:who_name', function (req, res) {
+const SQL_USER_RATINGS = SQL(`
+	select title_name, rating, count, date(last) as last
+	from ratings natural join titles
+	where user_id = ?
+	and count >= 5
+	order by rating desc
+	`)
+
+const SQL_GAME_RATINGS = SQL(`
+	select name, rating, count, date(last) as last
+	from ratings natural join users
+	where title_id = ? and rating >= 1600 and count >= 10
+	order by rating desc
+	limit 50
+	`)
+
+app.get('/user-stats/:who_name', must_be_administrator, function (req, res) {
 	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
 	if (who) {
 		let stats = SQL_USER_STATS.all(who.user_id, who.user_id)
-		res.render('user_stats.pug', { user: req.user, who: who, stats: stats })
+		let ratings = SQL_USER_RATINGS.all(who.user_id)
+		res.render('user_stats.pug', { user: req.user, who, stats, ratings })
 	} else {
 		return res.status(404).send("Invalid user name.")
+	}
+})
+
+app.get('/game-stats/:title_id', must_be_administrator, function (req, res) {
+	let title_id = req.params.title_id
+	if (title_id in TITLES) {
+		let title_name = TITLES[title_id].title_name
+		let ratings = SQL_GAME_RATINGS.all(title_id)
+		res.render('game_stats.pug', { user: req.user, title_name, ratings })
+	} else {
+		return res.status(404).send("Invalid title.")
 	}
 })

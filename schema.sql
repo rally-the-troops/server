@@ -147,6 +147,42 @@ create view user_dynamic_view as
 		users
 	;
 
+-- Elo ratings & match making --
+
+create table if not exists ratings (
+	title_id integer,
+	user_id integer,
+	rating integer,
+	count integer,
+	last timestamp,
+	primary key (title_id, user_id)
+) without rowid;
+
+drop view if exists rating_view;
+create view rating_view as
+	select
+		title_id, name, rating, count, last
+	from
+		ratings
+		natural join users
+	order by
+		title_id,
+		rating desc
+;
+
+drop view if exists player_rating_view;
+create view player_rating_view as
+	select
+		games.game_id,
+		players.user_id,
+		players.role,
+		coalesce(rating, 1500) as rating,
+		coalesce(count, 0) as count
+	from players
+	natural join games
+	natural left join ratings
+;
+
 -- Friend and Block Lists --
 
 create table if not exists contacts (
@@ -487,6 +523,7 @@ begin
 	delete from threads where author_id = old.user_id;
 	delete from game_chat where user_id = old.user_id;
 	delete from players where user_id = old.user_id;
+	delete from ratings where user_id = old.user_id;
 	update games set owner_id = 0 where owner_id = old.user_id;
 end;
 

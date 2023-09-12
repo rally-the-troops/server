@@ -1,0 +1,25 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title #{title_name} - Ranking
+	body
+		include header
+		article
+			h1 #{title_name} - Ranking
+
+			table(style="min-width:auto")
+				thead
+					tr
+						th Player
+						th.r Rating
+						th.r Plays
+						th.r Last played
+				tbody
+					each row in ratings
+						tr
+							td= row.name
+							td.r= row.rating
+							td.r= row.count
+							td.r= row.last
