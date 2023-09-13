@@ -647,7 +647,7 @@ app.get('/user/:who_name', function (req, res) {
 	if (who) {
 		who.ctime = human_date(who.ctime)
 		who.atime = human_date(who.atime)
-		let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: who.user_id })
+		let games = QUERY_LIST_PUBLIC_GAMES_OF_USER.all({ user_id: who.user_id })
 		annotate_games(games, 0, null)
 		let relation = 0
 		if (req.user)
@@ -1204,6 +1204,17 @@ const QUERY_NEXT_GAME_OF_USER = SQL(`
 	limit 1
 	`)
 
+const QUERY_LIST_PUBLIC_GAMES_OF_USER = SQL(`
+	select * from game_view
+	where
+		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
+		and
+		( status <= ${STATUS_FINISHED} )
+		and
+		( not is_private or status = ${STATUS_ACTIVE} )
+	order by status asc, mtime desc
+	`)
+
 const QUERY_LIST_ACTIVE_GAMES_OF_USER = SQL(`
 	select * from game_view
 	where
@@ -1378,10 +1389,6 @@ app.get('/games/public', function (req, res) {
 		annotate_games(games1, 0, null)
 	}
 	res.render('games_public.pug', { user: req.user, games0, games1 })
-})
-
-app.get('/info/:title_id', function (req, res) {
-	return res.redirect('/' + req.params.title_id)
 })
 
 function get_title_page(req, res, title_id) {
@@ -1778,7 +1785,6 @@ const webhook_text_options = {
 }
 
 function on_webhook_success(user_id) {
-	console.log("WEBHOOK SENT", user_id)
 	SQL_UPDATE_WEBHOOK_SUCCESS.run(user_id)
 }
 
