@@ -381,7 +381,10 @@ function on_game_over() {
 function init_player_names(players) {
 	for (let i = 0; i < roles.length; ++i) {
 		let p = players.find(p => p.role === roles[i].role)
-		document.getElementById(roles[i].id).querySelector(".role_user").textContent = p ? p.name : "NONE"
+		if (p)
+			document.getElementById(roles[i].id).querySelector(".role_user").innerHTML = `<a href="/user/${p.name}" target="_blank">${p.name}</a>`
+		else
+			document.getElementById(roles[i].id).querySelector(".role_user").textContent = "NONE"
 	}
 }
 

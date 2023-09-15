@@ -326,6 +326,15 @@ header .viewpoint_button.selected:active:hover {
 	white-space: nowrap;
 }
 
+.role_user a {
+	text-decoration: none;
+	color: black;
+}
+
+.role_user a:hover {
+	text-decoration: underline;
+}
+
 .role_name::before {
 	content: "\25cb  ";
 	opacity: 0.6;
