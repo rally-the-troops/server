@@ -43,6 +43,8 @@ mixin gamelist(list,hide_title=0)
 			div
 				-
 					let className = "game_item"
+					let pace_icon = ""
+					let pace_text = ""
 					let chat_icon = ""
 					if (item.your_turn) className += " your_turn"
 					if (item.status === 0 && item.join_count === 0) className += " open replacement"
@@ -53,15 +55,19 @@ mixin gamelist(list,hide_title=0)
 					else if (item.status === 2) className += " finished"
 					else if (item.status === 3) className += " archived"
 					if (item.is_unread) chat_icon = "\u{1f4dd}"
+					if (item.pace === 0) pace_icon = "", pace_text = ""
+					else if (item.pace === 1) pace_icon = EMOJI_LIVE, pace_text = "Live!"
+					else if (item.pace === 2) pace_icon = EMOJI_FAST, pace_text = "Fast - many moves per day"
+					else if (item.pace === 3) pace_icon = EMOJI_SLOW, pace_text = "Slow - one move per day"
 
 				div(class=className)
 					div.game_head
 						if item.scenario.length <= 2
 							div
-								| <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name} (#{item.scenario})</a> #{chat_icon}
+								| #{pace_icon} <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name} (#{item.scenario})</a> #{chat_icon}
 						else
 							div
-								| <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name}</a> #{chat_icon}
+								| #{pace_icon} <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name}</a> #{chat_icon}
 
 						case item.status
 							when 0
@@ -94,6 +100,8 @@ mixin gamelist(list,hide_title=0)
 						div.game_info
 							if item.notice
 								i= item.notice
+							else
+								i= pace_text
 							if item.scenario !== "Standard" && item.scenario !== "Historical" && item.scenario.length > 2
 								div Scenario: #{item.scenario}
 							unless item.human_options === "None"

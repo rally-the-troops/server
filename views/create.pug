@@ -29,6 +29,27 @@ html
 					br
 					input(type="text" autocomplete="off" name="notice" size=50 placeholder="What are you looking for?")
 
+				p Pace:
+					br
+					label
+						input(type="radio" name="pace" value="0" checked)
+						| Any
+
+					br
+					label
+						input(type="radio" name="pace" value="1")
+						| #{EMOJI_LIVE} Live
+
+					br
+					label
+						input(type="radio" name="pace" value="2")
+						| #{EMOJI_FAST} Fast <i>&ndash; many moves per day</i>
+
+					br
+					label
+						input(type="radio" name="pace" value="3")
+						| #{EMOJI_SLOW} Slow <i>&ndash; one move per day</i>
+
 				p
 					label
 						input(type="checkbox" name="is_random" value="true")
@@ -38,6 +59,7 @@ html
 					label
 						input(type="checkbox" name="is_private" value="true")
 						| Private
+
 				if limit
 					p.error= limit
 				else

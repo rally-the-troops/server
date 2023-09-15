@@ -164,11 +164,17 @@ function set_static_headers(res, path) {
 }
 
 let app = express()
+
 app.locals.SITE_NAME = SITE_NAME
 app.locals.SITE_URL = SITE_URL
 app.locals.ENABLE_MAIL = !!mailer
 app.locals.ENABLE_WEBHOOKS = !!WEBHOOKS
 app.locals.ENABLE_FORUM = process.env.FORUM | 0
+
+app.locals.EMOJI_LIVE = "\u{1f465}"
+app.locals.EMOJI_FAST = "\u{1f3c1}"
+app.locals.EMOJI_SLOW = "\u{1f40c}"
+
 app.set('x-powered-by', false)
 app.set('etag', false)
 app.set('view engine', 'pug')
@@ -1051,6 +1057,13 @@ const STATUS_ACTIVE = 1
 const STATUS_FINISHED = 2
 const STATUS_ARCHIVED = 3
 
+const PACE_ANY = 0
+const PACE_LIVE = 1
+const PACE_FAST = 2
+const PACE_SLOW = 3
+
+const PACE_NAME = [ "Any", "Live", "Fast", "Slow" ]
+
 function load_rules() {
 	const SQL_SELECT_TITLES = SQL("SELECT * FROM titles")
 	for (let title of SQL_SELECT_TITLES.all()) {
@@ -1126,7 +1139,7 @@ function is_game_ready(player_count, players) {
 
 load_rules()
 
-const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,player_count,is_private,is_random,notice) VALUES (?,?,?,?,?,?,?,?)")
+const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,player_count,pace,is_private,is_random,notice) VALUES (?,?,?,?,?,?,?,?,?)")
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
 
 const SQL_START_GAME = SQL(`
@@ -1229,9 +1242,9 @@ const SQL_COUNT_ACTIVE_GAMES = SQL(`
 const SQL_SELECT_REMATCH = SQL(`SELECT game_id FROM games WHERE status < ${STATUS_FINISHED} AND notice=?`).pluck()
 const SQL_INSERT_REMATCH = SQL(`
 	INSERT INTO games
-		(owner_id, title_id, scenario, options, player_count, is_private, is_random, notice)
+		(owner_id, title_id, scenario, options, player_count, pace, is_private, is_random, notice)
 	SELECT
-		$user_id, title_id, scenario, options, player_count, is_private, 0, $magic
+		$user_id, title_id, scenario, options, player_count, pace, is_private, 0, $magic
 	FROM games
 	WHERE game_id = $game_id AND NOT EXISTS (
 		SELECT * FROM games WHERE notice=$magic
@@ -1561,6 +1574,7 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 function options_json_replacer(key, value) {
 	if (key === 'scenario') return undefined
 	if (key === 'notice') return undefined
+	if (key === 'pace') return undefined
 	if (key === 'is_random') return undefined
 	if (key === 'is_private') return undefined
 	if (value === 'true') return true
@@ -1574,8 +1588,9 @@ function options_json_replacer(key, value) {
 
 app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 	let title_id = req.params.title_id
-	let priv = req.body.is_private === "true"
-	let rand = req.body.is_random === "true"
+	let priv = req.body.is_private === "true" ? 1 : 0
+	let rand = req.body.is_random === "true" ? 1 : 0
+	let pace = req.body.pace | 0
 	let user_id = req.user.user_id
 	let scenario = req.body.scenario
 	let options = JSON.stringify(req.body, options_json_replacer)
@@ -1592,7 +1607,7 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 
 	let player_count = get_game_roles(title_id, scenario, parse_game_options(options)).length
 
-	let info = SQL_INSERT_GAME.run(user_id, title_id, scenario, options, player_count, priv ? 1 : 0, rand ? 1 : 0, notice)
+	let info = SQL_INSERT_GAME.run(user_id, title_id, scenario, options, player_count, pace, priv, rand, notice)
 	res.redirect("/join/" + info.lastInsertRowid)
 })
 

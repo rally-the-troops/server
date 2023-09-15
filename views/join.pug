@@ -61,6 +61,14 @@ html
 			unless game.human_options === "None"
 				p Options: #{game.human_options}.
 
+			case game.pace
+				when 1
+					p #{EMOJI_LIVE} Live!
+				when 2
+					p #{EMOJI_FAST} Fast &ndash; many moves per day.
+				when 3
+					p #{EMOJI_SLOW} Slow &ndash; one move per day.
+
 			if game.notice
 				p
 					i= game.notice

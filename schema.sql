@@ -352,6 +352,7 @@ create table if not exists games (
 
 	owner_id integer default 0,
 	notice text,
+	pace integer default 0,
 	is_private boolean default 0,
 	is_random boolean default 0,
 
