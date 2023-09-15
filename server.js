@@ -2369,7 +2369,7 @@ function on_chat(socket, message) {
 		for (let user_id of users) {
 			let found = false
 			for (let other of game_clients[socket.game_id])
-				if (other.user.user_id === user_id)
+				if (other.user && other.user.user_id === user_id && other.role !== "Observer")
 					found = true
 			if (!found)
 				SQL_INSERT_UNREAD_CHAT.run(user_id, socket.game_id)
