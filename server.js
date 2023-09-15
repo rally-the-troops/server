@@ -21,6 +21,10 @@ const HTTP_PORT = process.env.HTTP_PORT || 8080
 const SITE_NAME = process.env.SITE_NAME || "Localhost"
 const SITE_URL = process.env.SITE_URL || "http://" + HTTP_HOST + ":" + HTTP_PORT
 
+const LIMIT_WAITING_GAMES = (process.env.LIMIT_WAITING_GAMES | 0) || 3
+const LIMIT_OPEN_GAMES = (process.env.LIMIT_OPEN_GAMES | 0) || 7
+const LIMIT_ACTIVE_GAMES = (process.env.LIMIT_ACTIVE_GAMES | 0) || 29
+
 const REGEX_MAIL = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
 const REGEX_NAME = /^[\p{Alpha}\p{Number}'_-]+( [\p{Alpha}\p{Number}'_-]+)*$/u
 
@@ -1157,6 +1161,12 @@ const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role
 
 const SQL_SELECT_OPEN_GAMES = SQL(`SELECT * FROM games WHERE status=${STATUS_OPEN}`)
 const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN}`).pluck()
+const SQL_COUNT_ACTIVE_GAMES = SQL(`
+	select count(*) from games
+	where status < 2 and exists (
+		select 1 from players where players.user_id=? and players.game_id=games.game_id
+	)
+`).pluck()
 
 const SQL_SELECT_REMATCH = SQL(`SELECT game_id FROM games WHERE status < ${STATUS_FINISHED} AND notice=?`).pluck()
 const SQL_INSERT_REMATCH = SQL(`
@@ -1256,7 +1266,7 @@ const QUERY_LIST_ACTIVE_GAMES_OF_USER = SQL(`
 		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
 		and
 		( status <= ${STATUS_FINISHED} )
-	order by status asc, mtime desc
+	order by status asc, is_opposed desc, mtime desc
 	`)
 
 const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
@@ -1267,6 +1277,24 @@ const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
 		( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
 	order by status asc, mtime desc
 	`)
+
+function check_create_game_limit(user) {
+	if (user.waiting > LIMIT_WAITING_GAMES)
+		return "You have too many games waiting!"
+	if (SQL_COUNT_OPEN_GAMES.get(user.user_id) >= LIMIT_OPEN_GAMES)
+		return "You have too many open games!"
+	if (SQL_COUNT_ACTIVE_GAMES.get(user.user_id) >= LIMIT_ACTIVE_GAMES)
+		return "You cannot join any more games!"
+	return null
+}
+
+function check_join_game_limit(user) {
+	if (user.waiting > LIMIT_WAITING_GAMES + 1)
+		return "You have too many games waiting!"
+	if (SQL_COUNT_ACTIVE_GAMES.get(user.user_id) >= LIMIT_ACTIVE_GAMES)
+		return "You cannot join any more games!"
+	return null
+}
 
 function format_options(options) {
 	function to_english(k) {
@@ -1373,8 +1401,10 @@ app.get('/games', function (req, res) {
 })
 
 function sort_your_turn(a, b) {
-	if (a.your_turn && !b.your_turn) return -1
-	if (!a.your_turn && b.your_turn) return 1
+	if (a.is_opposed && b.is_opposed) {
+		if (a.your_turn && !b.your_turn) return -1
+		if (!a.your_turn && b.your_turn) return 1
+	}
 	return 0
 }
 
@@ -1486,6 +1516,7 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 	res.render('create.pug', {
 		user: req.user,
 		title: title,
+		limit: check_create_game_limit(req.user),
 		scenarios: RULES[title_id].scenarios,
 		create_html: HTML_CREATE[title_id],
 	})
@@ -1514,9 +1545,10 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 	let options = JSON.stringify(req.body, options_json_replacer)
 	let notice = req.body.notice
 
-	let count = SQL_COUNT_OPEN_GAMES.get(user_id)
-	if (count >= 7)
-		return res.send("You have too many open games!")
+	let limit = check_create_game_limit(req.user)
+	if (limit)
+		return res.send(limit)
+
 	if (!(title_id in RULES))
 		return res.send("Invalid title.")
 	if (!RULES[title_id].scenarios.includes(scenario))
@@ -1615,7 +1647,8 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	game.ctime = human_date(game.ctime)
 	game.mtime = human_date(game.mtime)
 	res.render('join.pug', {
-		user: req.user, game, roles, players, ready, whitelist, blacklist, friends
+		user: req.user, game, roles, players, ready, whitelist, blacklist, friends,
+		limit: check_join_game_limit(req.user)
 	})
 })
 
@@ -1679,6 +1712,9 @@ function do_join(res, game_id, role, user_id, is_invite) {
 app.post('/join/:game_id/:role', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let role = req.params.role
+	let limit = check_join_game_limit(req.user)
+	if (limit)
+		return res.send(limit)
 	do_join(res, game_id, role, req.user.user_id, 0)
 })
 
@@ -1693,6 +1729,7 @@ app.post('/invite/:game_id/:role/:user', must_be_logged_in, function (req, res) 
 })
 
 app.post('/accept/:game_id/:role', must_be_logged_in, function (req, res) {
+	// TODO: check join game limit if inviting self...
 	let game_id = req.params.game_id | 0
 	let role = req.params.role
 	let info = SQL_UPDATE_PLAYER_ACCEPT.run(game_id, role, req.user.user_id)

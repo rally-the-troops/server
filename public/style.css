@@ -85,7 +85,7 @@ button:disabled {
 
 .error { color: brown; font-style: italic; white-space: pre-wrap; }
 .warning { color: brown; }
-p.warning::before { content: "\26a0"; }
+p.warning::before { content: "\26a0  "; }
 
 /* TABLES */
 

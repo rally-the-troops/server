@@ -213,7 +213,9 @@ function update() {
 				break
 			case 1:
 			case 0:
-				if (game.owner_id === user_id)
+				if (limit)
+					element.innerHTML = `<i>Empty</i>`
+				else if (game.owner_id === user_id)
 					element.innerHTML = `\xbb <a class="join" href="javascript:join('${role}')">Join</a><a class="green" href="javascript:show_invite('${role}')">\u{2795}</a>`
 				else
 					element.innerHTML = `\xbb <a class="join" href="javascript:join('${role}')">Join</a>`

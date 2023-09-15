@@ -27,6 +27,7 @@ html
 			let whitelist = !{ JSON.stringify(whitelist) }
 			let blacklist = !{ JSON.stringify(blacklist) }
 			let friends = !{ JSON.stringify(friends) }
+			let limit = !{ !!limit }
 			let ready = !{ ready }
 		script(src="/join.js")
 	body
@@ -36,6 +37,9 @@ html
 				h1 #{game.title_name}
 			else
 				h1 #{game.title_name} - #{game.scenario}
+
+			if limit
+				p.error= limit
 			p.error#error
 
 			div.logo
