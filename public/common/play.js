@@ -442,6 +442,15 @@ function connect_play() {
 		let arg = msg_data[1]
 		console.log("MESSAGE", cmd)
 		switch (cmd) {
+		case "warning":
+			document.getElementById("prompt").textContent = arg
+			document.querySelector("header").classList.add("disconnected")
+			setTimeout(() => {
+				document.querySelector("header").classList.remove("disconnected")
+				on_update_header()
+			}, 1000)
+			break
+
 		case "error":
 			document.getElementById("prompt").textContent = arg
 			if (view) {

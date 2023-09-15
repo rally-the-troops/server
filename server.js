@@ -2211,19 +2211,26 @@ function on_action(socket, action, args, cookie) {
 	else
 		SLOG(socket, "ACTION", action)
 
-	if (typeof cookie === "number") // TODO: for backwards compatibility only, remove later!
-	if (game_cookies[socket.game_id] !== cookie)
-		return send_message(socket, 'error', "Synchronization error!")
-	game_cookies[socket.game_id] ++
+	if (game_cookies[socket.game_id] !== cookie) {
+		send_state(socket, get_game_state(socket.game_id))
+		send_message(socket, "warning", "Synchronization error!")
+		return
+	}
 
 	try {
 		let state = get_game_state(socket.game_id)
 		let old_active = state.active
+
+		// Don't update cookie during simultaneous turns, as it results
+		// in many in-flight collisions.
+		if (old_active !== "Both")
+			game_cookies[socket.game_id] ++
+
 		state = socket.rules.action(state, socket.role, action, args)
 		put_new_state(socket.game_id, state, old_active, socket.role, action, args)
 	} catch (err) {
 		console.log(err)
-		return send_message(socket, 'error', err.toString())
+		return send_message(socket, "error", err.toString())
 	}
 }
 
