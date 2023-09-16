@@ -1187,11 +1187,6 @@ const QUERY_LIST_PUBLIC_GAMES_OPEN = SQL(`
 	order by mtime desc, ctime desc
 	`)
 
-const QUERY_LIST_PUBLIC_GAMES_READY = SQL(`
-	select * from game_view where status=0 and not is_private and join_count = player_count
-	order by mtime desc, ctime desc
-	`)
-
 const QUERY_LIST_PUBLIC_GAMES_REPLACEMENT = SQL(`
 	select * from game_view where status=1 and not is_private and join_count < player_count
 	order by mtime desc, ctime desc
@@ -1451,13 +1446,11 @@ app.get('/games/public', function (req, res) {
 	}
 
 	let open_games = QUERY_LIST_PUBLIC_GAMES_OPEN.all()
-	let ready_games = QUERY_LIST_PUBLIC_GAMES_READY.all()
 	let replacement_games = QUERY_LIST_PUBLIC_GAMES_REPLACEMENT.all()
 	let active_games = QUERY_LIST_PUBLIC_GAMES_ACTIVE.all()
 	let finished_games = QUERY_LIST_PUBLIC_GAMES_FINISHED.all()
 
 	annotate_games(open_games, user_id, unread)
-	annotate_games(ready_games, user_id, unread)
 	annotate_games(replacement_games, user_id, unread)
 	annotate_games(active_games, user_id, unread)
 	annotate_games(finished_games, user_id, unread)
@@ -1465,7 +1458,6 @@ app.get('/games/public', function (req, res) {
 	res.render('games_public.pug', {
 		user: req.user,
 		open_games,
-		ready_games,
 		replacement_games,
 		active_games,
 		finished_games
