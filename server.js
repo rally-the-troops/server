@@ -67,6 +67,10 @@ var game_cookies = {}
 let db = new sqlite3(process.env.DATABASE || "./db")
 db.pragma("synchronous = NORMAL")
 
+const SQL_BEGIN = db.prepare("begin")
+const SQL_COMMIT = db.prepare("commit")
+const SQL_ROLLBACK = db.prepare("rollback")
+
 db.exec("delete from logins where julianday() > julianday(expires)")
 db.exec("delete from tokens where julianday() > julianday(time, '+1 days')")
 
@@ -1137,7 +1141,9 @@ const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,rol
 const SQL_DELETE_GAME_NOTE = SQL("DELETE FROM game_notes WHERE game_id=? AND role=?")
 
 const SQL_SELECT_GAME_STATE = SQL("SELECT state FROM game_state WHERE game_id=?").pluck()
-const SQL_UPDATE_GAME_STATE = SQL("INSERT OR REPLACE INTO game_state (game_id,state,active,mtime) VALUES (?,?,?,datetime())")
+const SQL_INSERT_GAME_STATE = SQL("insert into game_state (game_id,state,active,mtime) values (?,?,?,datetime())")
+const SQL_UPDATE_GAME_STATE = SQL("update game_state set state=?, active=? where game_id=?")
+const SQL_UPDATE_GAME_MTIME = SQL("update game_state set mtime=datetime() where game_id=?")
 const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=?, xtime=datetime() WHERE game_id=?")
 const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
 
@@ -1783,27 +1789,49 @@ app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 		return res.send("Not authorized to start that game ID.")
 	if (game.status !== STATUS_OPEN)
 		return res.send("The game is already started.")
-	let players = SQL_SELECT_PLAYERS.all(game_id)
-	if (!is_game_ready(game.player_count, players))
-		return res.send("Invalid scenario/options/player configuration!")
-	if (game.is_random) {
-		assign_random_roles(game, parse_game_options(game.options), players)
-		players = SQL_SELECT_PLAYERS.all(game_id)
-		update_join_clients_players(game_id)
+	if (game.join_count !== game.player_count)
+		return res.send("The game does not have enough players.")
+
+	try {
+		start_game(game)
+	} catch (err) {
+		console.log(err)
+		return res.send(err.toString())
 	}
-	let options = game.options ? JSON.parse(game.options) : {}
-	let seed = random_seed()
-	let state = RULES[game.title_id].setup(seed, game.scenario, options)
-
-	SQL_UPDATE_GAME_RESULT.run(1, null, game_id)
-	if (game.user_count !== game.player_count)
-		SQL_UPDATE_GAME_PRIVATE.run(game_id)
-	send_game_started_notification_to_offline_users(game_id)
-
-	put_new_state(game_id, state, null, null, ".setup", [seed, game.scenario, options])
 
 	res.send("SUCCESS")
 })
+
+function start_game(game) {
+	let options = parse_game_options(game.options)
+	let seed = random_seed()
+	let state = RULES[game.title_id].setup(seed, game.scenario, options)
+
+	SQL_BEGIN.run()
+	try {
+		if (game.is_random)
+			assign_random_roles(game, options, SQL_SELECT_PLAYERS.all(game.game_id))
+
+		SQL_UPDATE_GAME_RESULT.run(1, null, game.game_id)
+		if (game.user_count !== game.player_count)
+			SQL_UPDATE_GAME_PRIVATE.run(game.game_id)
+
+		put_replay(game.game_id, null, ".setup", [seed, game.scenario, options])
+		put_snap(game.game_id, state)
+		SQL_INSERT_GAME_STATE.run(game.game_id, JSON.stringify(state), state.active)
+
+		SQL_COMMIT.run()
+	} finally {
+		if (db.inTransaction)
+			SQL_ROLLBACK.run()
+	}
+
+	update_join_clients_game(game.game_id)
+	update_join_clients_players(game.game_id)
+
+	send_game_started_notification_to_offline_users(game.game_id)
+	send_your_turn_notification_to_offline_users(game.game_id, null, state.active)
+}
 
 app.get('/play/:game_id/:role', function (req, res) {
 	let game_id = req.params.game_id | 0
@@ -2229,28 +2257,49 @@ function put_snap(game_id, state) {
 			send_message(other, "snapsize", snap_id)
 }
 
-function put_game_state(game_id, state, old_active) {
-	// TODO: separate state, undo, and log entries to reuse "snap" json stringifaction?
-	SQL_UPDATE_GAME_STATE.run(game_id, JSON.stringify(state), state.active)
-	if (game_clients[game_id])
-		for (let other of game_clients[game_id])
-			send_state(other, state)
-	update_join_clients_game(game_id)
+function put_game_state(game_id, state, old_active, current_role) {
+	// TODO: separate state, undo, and log entries (and reuse "snap" json stringifaction?)
+
+	SQL_UPDATE_GAME_STATE.run(JSON.stringify(state), state.active, game_id)
+
+	if (state.active !== old_active) {
+		// TODO: add time spent for old_active players
+		// TODO: add time available for new_active players
+		SQL_UPDATE_GAME_MTIME.run(game_id)
+	}
+
 	if (state.state === "game_over") {
 		SQL_UPDATE_GAME_RESULT.run(2, state.result, game_id)
-		send_game_finished_notification_to_offline_users(game_id, state.result)
 		if (state.result && state.result !== "None")
 			update_elo_ratings(game_id)
-	} else {
-		send_your_turn_notification_to_offline_users(game_id, old_active, state.active)
 	}
 }
 
 function put_new_state(game_id, state, old_active, role, action, args) {
-	put_replay(game_id, role, action, args)
-	if (state.active !== old_active)
-		put_snap(game_id, state)
-	put_game_state(game_id, state, old_active)
+	SQL_BEGIN.run()
+	try {
+		put_replay(game_id, role, action, args)
+
+		if (state.active !== old_active)
+			put_snap(game_id, state)
+
+		put_game_state(game_id, state, old_active, role)
+
+		update_join_clients_game(game_id)
+		if (game_clients[game_id])
+			for (let other of game_clients[game_id])
+				send_state(other, state)
+
+		if (state.state === "game_over")
+			send_game_finished_notification_to_offline_users(game_id, state.result)
+		else
+			send_your_turn_notification_to_offline_users(game_id, old_active, state.active)
+
+		SQL_COMMIT.run()
+	} finally {
+		if (db.inTransaction)
+			SQL_ROLLBACK.run()
+	}
 }
 
 function on_action(socket, action, args, cookie) {
