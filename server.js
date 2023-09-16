@@ -1067,9 +1067,42 @@ function load_rules() {
 	}
 }
 
+const PARSE_OPTIONS_CACHE = {}
+
+const HUMAN_OPTIONS_CACHE = {
+	"{}": "None"
+}
+
+function parse_game_options(options_json) {
+	if (options_json in PARSE_OPTIONS_CACHE)
+		return PARSE_OPTIONS_CACHE[options_json]
+	return PARSE_OPTIONS_CACHE[options_json] = Object.freeze(JSON.parse(options_json))
+}
+
+function option_to_english(k) {
+	if (k === true || k === 1)
+		return "yes"
+	if (k === false)
+		return "no"
+	return k.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+}
+
+function format_options(options_json, options) {
+	if (options_json in HUMAN_OPTIONS_CACHE)
+		return HUMAN_OPTIONS_CACHE[options_json]
+	let text = Object.entries(options)
+		.map(([ k, v ]) => {
+			if (k === "players")
+				return v + " Player"
+			if (v === true || v === 1)
+				return option_to_english(k)
+			return option_to_english(k) + "=" + option_to_english(v)
+		})
+		.join(", ")
+	return (HUMAN_OPTIONS_CACHE[options_json] = text)
+}
+
 function get_game_roles(title_id, scenario, options) {
-	if (typeof options === "string")
-		options = JSON.parse(options)
 	let roles = RULES[title_id].roles
 	if (typeof roles === 'function')
 		return roles(scenario, options)
@@ -1291,21 +1324,6 @@ function check_join_game_limit(user) {
 	return null
 }
 
-function format_options(options) {
-	function to_english(k) {
-		if (k === true || k === 1) return 'yes'
-		if (k === false) return 'no'
-		return k.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase())
-	}
-	return Object.entries(options||{}).map(([k,v]) => {
-		if (k === "players")
-			return v + " Player"
-		if (v === true || v === 1)
-			return to_english(k)
-		return to_english(k) + "=" + to_english(v)
-	}).join(", ")
-}
-
 function annotate_game_players(game) {
 	game.players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id)
 	if (game.player_count === game.join_count) {
@@ -1319,14 +1337,18 @@ function annotate_game_players(game) {
 }
 
 function annotate_game_info(game, user_id, unread) {
+	let options = parse_game_options(game.options)
+	game.human_options = format_options(game.options, options)
+
 	game.is_unread = set_has(unread, game.game_id)
-	if (game.options && game.options !== '{}')
-		game.human_options = format_options(JSON.parse(game.options))
-	else
-		game.human_options = "None"
 
 	let your_count = 0
 	let your_role = null
+
+	let roles = get_game_roles(game.title_id, game.scenario, options)
+	for (let p of game.players)
+		p.index = roles.indexOf(p.role)
+	game.players.sort((a, b) => a.index - b.index)
 
 	game.player_names = ""
 	for (let p of game.players) {
@@ -1546,7 +1568,7 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 	if (!RULES[title_id].scenarios.includes(scenario))
 		return res.send("Invalid scenario.")
 
-	let player_count = get_game_roles(title_id, scenario, JSON.parse(options)).length
+	let player_count = get_game_roles(title_id, scenario, parse_game_options(options)).length
 
 	let info = SQL_INSERT_GAME.run(user_id, title_id, scenario, options, player_count, priv ? 1 : 0, rand ? 1 : 0, notice)
 	res.redirect("/join/" + info.lastInsertRowid)
@@ -1622,13 +1644,10 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 	if (!game)
 		return res.status(404).send("Invalid game ID.")
 
-	let options = JSON.parse(game.options)
-	if (game.options === '{}')
-		game.human_options = "None"
-	else
-		game.human_options = format_options(options)
+	let options = parse_game_options(game.options)
+	game.human_options = format_options(game.options, options)
 
-	let roles = get_game_roles(game.title_id, game.scenario, game.options)
+	let roles = get_game_roles(game.title_id, game.scenario, options)
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
 	let whitelist = SQL_SELECT_CONTACT_WHITELIST.all(req.user.user_id)
 	let blacklist = SQL_SELECT_CONTACT_BLACKLIST.all(req.user.user_id)
@@ -1680,7 +1699,7 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 
 function do_join(res, game_id, role, user_id, is_invite) {
 	let game = SQL_SELECT_GAME.get(game_id)
-	let roles = get_game_roles(game.title_id, game.scenario, game.options)
+	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
 	if (game.is_random && game.status === STATUS_OPEN) {
 		let m = role.match(/^Random (\d+)$/)
 		if (!m || Number(m[1]) < 1 || Number(m[1]) > roles.length)
@@ -1741,14 +1760,14 @@ app.post('/part/:game_id/:role', must_be_logged_in, function (req, res) {
 	res.send("SUCCESS")
 })
 
-function assign_random_roles(game, players) {
+function assign_random_roles(game, options, players) {
 	function pick_random_item(list) {
 		let k = crypto.randomInt(list.length)
 		let r = list[k]
 		list.splice(k, 1)
 		return r
 	}
-	let roles = get_game_roles(game.title_id, game.scenario, game.options).slice()
+	let roles = get_game_roles(game.title_id, game.scenario, options).slice()
 	for (let p of players) {
 		let old_role = p.role
 		p.role = pick_random_item(roles)
@@ -1768,7 +1787,7 @@ app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 	if (!is_game_ready(game.player_count, players))
 		return res.send("Invalid scenario/options/player configuration!")
 	if (game.is_random) {
-		assign_random_roles(game, players)
+		assign_random_roles(game, parse_game_options(game.options), players)
 		players = SQL_SELECT_PLAYERS.all(game_id)
 		update_join_clients_players(game_id)
 	}
