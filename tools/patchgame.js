@@ -13,7 +13,8 @@ let insert_replay = db.prepare("insert into game_replay (game_id,replay_id,role,
 let delete_snap = db.prepare("delete from game_snap where game_id=?")
 let insert_snap = db.prepare("insert into game_snap(game_id,snap_id,state) values (?,?,?)")
 
-let update_state = db.prepare("update game_state set active=?, state=? where game_id=?")
+let update_state = db.prepare("update game_state set state=? where game_id=?")
+let update_active = db.prepare("update games set active=? where game_id=?")
 
 const CRC32C_TABLE = new Int32Array([
 	0x00000000, 0xf26b8303, 0xe13b70f7, 0x1350f3f4, 0xc79a971f, 0x35f1141c, 0x26a1e7e8, 0xd4ca64eb,
@@ -175,7 +176,8 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 					insert_snap.run(game_id, ++snap_id, item.state)
 		}
 
-		update_state.run(state.active, JSON.stringify(state), game_id)
+		update_active.run(state.active, game_id)
+		update_state.run(JSON.stringify(state), game_id)
 
 		db.exec("commit")
 

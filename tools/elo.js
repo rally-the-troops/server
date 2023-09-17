@@ -4,7 +4,7 @@ const sqlite3 = require("better-sqlite3")
 
 const db = new sqlite3("db")
 
-const SQL_SELECT_GAMES = db.prepare("select * from games where status>1 and user_count=player_count and player_count>1 order by xtime")
+const SQL_SELECT_GAMES = db.prepare("select * from rated_games_view order by mtime")
 const SQL_SELECT_RATING = db.prepare("select * from player_rating_view where game_id=?")
 const SQL_INSERT_RATING = db.prepare("insert or replace into ratings (title_id,user_id,rating,count,last) values (?,?,?,?,?)")
 

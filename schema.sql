@@ -111,7 +111,6 @@ create view user_dynamic_view as
 			from
 				players
 				join games using(game_id)
-				join game_state using(game_id)
 			where
 				status = 1
 				and user_count = player_count
@@ -148,6 +147,21 @@ create view user_dynamic_view as
 	;
 
 -- Elo ratings & match making --
+
+drop view if exists rated_games_view;
+create view rated_games_view as
+	select
+		game_id, title_id, player_count, scenario, result, mtime
+	from
+		games
+	where
+		status > 1
+		and user_count = player_count
+		and player_count > 1
+		and not exists (
+			select 1 from players where players.game_id = games.game_id and user_id = 0
+		)
+;
 
 create table if not exists ratings (
 	title_id integer,
@@ -325,20 +339,27 @@ create virtual table if not exists forum_search using fts5(thread_id, post_id, t
 
 create table if not exists games (
 	game_id integer primary key,
+	status integer default 0,
+
 	title_id text,
 	scenario text,
 	options text,
-	player_count integer,
+
+	player_count integer default 2,
 	join_count integer default 0,
+	invite_count integer default 0,
 	user_count integer default 0,
+
 	owner_id integer default 0,
-	ctime datetime default current_timestamp,
+	notice text,
 	is_private boolean default 0,
 	is_random boolean default 0,
-	notice text,
-	status integer default 0,
-	result text,
-	xtime datetime
+
+	ctime datetime default current_timestamp,
+	mtime datetime default current_timestamp,
+	moves integer default 0,
+	active text,
+	result text
 );
 
 create index if not exists games_title_idx on games(title_id);
@@ -346,8 +367,6 @@ create index if not exists games_status_idx on games(status);
 
 create table if not exists game_state (
 	game_id integer primary key,
-	mtime datetime,
-	active text,
 	state text
 );
 
@@ -415,15 +434,30 @@ create view game_view as
 		games.*,
 		titles.title_name,
 		owner.name as owner_name,
-		coalesce(game_state.mtime, xtime) as mtime,
-		user_count = join_count and join_count > 1 as is_opposed,
-		game_state.active
+		user_count = join_count and join_count > 1 as is_opposed
 	from
 		games
-		natural left join game_state
 		natural join titles
 		join users as owner
 			on owner.user_id = games.owner_id
+	;
+
+drop view if exists ready_to_start_reminder;
+create view ready_to_start_reminder as
+	select
+		game_id, owner_id as user_id, name, mail, notify
+	from
+		games
+		join users on user_id = owner_id
+	where
+		status = 0
+		and join_count = player_count
+		and not exists (
+			select 1 from players
+			where
+				players.game_id = players.game_id
+				and is_invite
+		)
 	;
 
 drop view if exists your_turn_reminder;
@@ -431,7 +465,7 @@ create view your_turn_reminder as
 	select
 		game_id, role, user_id, name, mail, notify
 	from
-		game_view
+		games
 		join players using(game_id)
 		join users using(user_id)
 	where
@@ -522,9 +556,9 @@ begin
 	delete from posts where author_id = old.user_id;
 	delete from threads where author_id = old.user_id;
 	delete from game_chat where user_id = old.user_id;
-	delete from players where user_id = old.user_id;
 	delete from ratings where user_id = old.user_id;
 	update games set owner_id = 0 where owner_id = old.user_id;
+	update players set user_id = 0 where user_id = old.user_id;
 end;
 
 drop trigger if exists trigger_delete_on_threads;

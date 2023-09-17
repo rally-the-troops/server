@@ -1129,6 +1129,31 @@ load_rules()
 const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,player_count,is_private,is_random,notice) VALUES (?,?,?,?,?,?,?,?)")
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
 
+const SQL_START_GAME = SQL(`
+	update games set
+		status = 1,
+		is_private = (is_private or user_count < player_count),
+		mtime = datetime(),
+		active = ?
+	where
+		game_id = ?
+`)
+
+const SQL_FINISH_GAME = SQL(`
+	update games set
+		status = 2,
+		mtime = datetime(),
+		active = null,
+		result = ?
+	where
+		game_id = ?
+`)
+
+const SQL_UPDATE_GAME_ACTIVE = SQL("update games set active=?,mtime=datetime(),moves=moves+1 where game_id=?")
+
+const SQL_SELECT_GAME_STATE = SQL("select state from game_state where game_id=?").pluck()
+const SQL_INSERT_GAME_STATE = SQL("insert or replace into game_state (game_id,state) values (?,?)")
+
 const SQL_SELECT_UNREAD_CHAT_GAMES = SQL("select game_id from unread_chats where user_id = ?").pluck()
 const SQL_INSERT_UNREAD_CHAT = SQL("insert or ignore into unread_chats (user_id,game_id) values (?,?)")
 const SQL_DELETE_UNREAD_CHAT = SQL("delete from unread_chats where user_id = ? and game_id = ?")
@@ -1139,13 +1164,6 @@ const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,chat_id,user_id
 const SQL_SELECT_GAME_NOTE = SQL("SELECT note FROM game_notes WHERE game_id=? AND role=?").pluck()
 const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,role,note) VALUES (?,?,?)")
 const SQL_DELETE_GAME_NOTE = SQL("DELETE FROM game_notes WHERE game_id=? AND role=?")
-
-const SQL_SELECT_GAME_STATE = SQL("SELECT state FROM game_state WHERE game_id=?").pluck()
-const SQL_INSERT_GAME_STATE = SQL("insert into game_state (game_id,state,active,mtime) values (?,?,?,datetime())")
-const SQL_UPDATE_GAME_STATE = SQL("update game_state set state=?, active=? where game_id=?")
-const SQL_UPDATE_GAME_MTIME = SQL("update game_state set mtime=datetime() where game_id=?")
-const SQL_UPDATE_GAME_RESULT = SQL("UPDATE games SET status=?, result=?, xtime=datetime() WHERE game_id=?")
-const SQL_UPDATE_GAME_PRIVATE = SQL("UPDATE games SET is_private=1 WHERE game_id=?")
 
 const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?)")
 
@@ -1200,7 +1218,6 @@ const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND
 const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
 
-const SQL_SELECT_OPEN_GAMES = SQL(`SELECT * FROM games WHERE status=${STATUS_OPEN}`)
 const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN}`).pluck()
 const SQL_COUNT_ACTIVE_GAMES = SQL(`
 	select count(*) from games
@@ -1275,7 +1292,6 @@ const QUERY_LIST_GAMES_OF_TITLE_FINISHED = SQL(`
 const QUERY_NEXT_GAME_OF_USER = SQL(`
 	select title_id, game_id, role
 	from games
-	join game_state using(game_id)
 	join players using(game_id)
 	where
 		status = ${STATUS_ACTIVE}
@@ -1812,13 +1828,10 @@ function start_game(game) {
 		if (game.is_random)
 			assign_random_roles(game, options, SQL_SELECT_PLAYERS.all(game.game_id))
 
-		SQL_UPDATE_GAME_RESULT.run(1, null, game.game_id)
-		if (game.user_count !== game.player_count)
-			SQL_UPDATE_GAME_PRIVATE.run(game.game_id)
-
+		SQL_START_GAME.run(state.active, game.game_id)
 		put_replay(game.game_id, null, ".setup", [seed, game.scenario, options])
 		put_snap(game.game_id, state)
-		SQL_INSERT_GAME_STATE.run(game.game_id, JSON.stringify(state), state.active)
+		SQL_INSERT_GAME_STATE.run(game.game_id, JSON.stringify(state))
 
 		SQL_COMMIT.run()
 	} finally {
@@ -1873,7 +1886,7 @@ app.get('/api/replay/:game_id', function (req, res) {
  * add role_rating to Ev and update role_rating with low K-value
  */
 
-const SQL_SELECT_RATING_GAME = SQL("select title_id, player_count, scenario, result, xtime from games where game_id=? and status>1 and player_count=user_count and player_count>1")
+const SQL_SELECT_RATING_GAME = SQL("select * from rated_games_view where game_id=?")
 const SQL_SELECT_RATING_PLAYERS = SQL("select * from player_rating_view where game_id=?")
 const SQL_INSERT_RATING = SQL("insert or replace into ratings (title_id,user_id,rating,count,last) values (?,?,?,?,?)")
 
@@ -1915,7 +1928,7 @@ function update_elo_ratings(game_id) {
 			p.change = elo_change(p, players, 1 / players.length)
 
 	for (let p of players)
-		SQL_INSERT_RATING.run(game.title_id, p.user_id, p.rating + p.change, p.count + 1, game.xtime)
+		SQL_INSERT_RATING.run(game.title_id, p.user_id, p.rating + p.change, p.count + 1, game.mtime)
 }
 
 /*
@@ -2098,6 +2111,7 @@ function send_play_notification(user, game_id, message) {
 	send_notification(user, game_play_link(game_id, title_id, user), `${title_name} #${game_id} (${user.role}) - ${message}`)
 }
 
+const QUERY_LIST_READY_TO_START = SQL("select * from ready_to_start_reminder")
 const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
 const QUERY_LIST_INVITES = SQL("SELECT * FROM invite_reminder")
 
@@ -2160,15 +2174,11 @@ function notify_invited_reminder() {
 }
 
 function notify_ready_to_start_reminder() {
-	for (let game of SQL_SELECT_OPEN_GAMES.all()) {
-		let players = SQL_SELECT_PLAYERS.all(game.game_id)
-		if (is_game_ready(game.player_count, players)) {
-			if (!is_player_online(game.game_id, game.owner_id)) {
-				let owner = SQL_SELECT_USER_VIEW.get(game.owner_id)
-				if (should_send_reminder(owner, game.game_id)) {
-					insert_last_notified(owner, game.game_id)
-					send_join_notification(owner, game.game_id, "Ready to start")
-				}
+	for (let item of QUERY_LIST_READY_TO_START.all()) {
+		if (!is_player_online(item.game_id, item.user_id)) {
+			if (should_send_reminder(item, item.game_id)) {
+				insert_last_notified(item, item.game_id)
+				send_join_notification(item, item.game_id, "Ready to start")
 			}
 		}
 	}
@@ -2260,16 +2270,16 @@ function put_snap(game_id, state) {
 function put_game_state(game_id, state, old_active, current_role) {
 	// TODO: separate state, undo, and log entries (and reuse "snap" json stringifaction?)
 
-	SQL_UPDATE_GAME_STATE.run(JSON.stringify(state), state.active, game_id)
+	SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(state))
 
 	if (state.active !== old_active) {
 		// TODO: add time spent for old_active players
 		// TODO: add time available for new_active players
-		SQL_UPDATE_GAME_MTIME.run(game_id)
+		SQL_UPDATE_GAME_ACTIVE.run(state.active, game_id)
 	}
 
 	if (state.state === "game_over") {
-		SQL_UPDATE_GAME_RESULT.run(2, state.result, game_id)
+		SQL_FINISH_GAME.run(state.result, game_id)
 		if (state.result && state.result !== "None")
 			update_elo_ratings(game_id)
 	}
