@@ -355,11 +355,11 @@ function must_be_administrator(req, res, next) {
 }
 
 app.get('/', function (req, res) {
-	res.render('index.pug', { user: req.user, titles: TITLES })
+	res.render('index.pug', { user: req.user })
 })
 
 app.get('/create', must_be_logged_in, function (req, res) {
-	res.render('create-index.pug', { user: req.user, titles: TITLES })
+	res.render('create-index.pug', { user: req.user })
 })
 
 app.get('/about', function (req, res) {
@@ -1037,10 +1037,10 @@ app.get('/forum/search', must_be_logged_in, function (req, res) {
  * GAME LOBBY
  */
 
-let TITLES = {}
 let RULES = {}
-let HTML_ABOUT = {}
-let HTML_CREATE = {}
+let TITLE_TABLE = app.locals.TITLE_TABLE = {}
+let TITLE_LIST = app.locals.TITLE_LIST = []
+let TITLE_NAME = app.locals.TITLE_NAME = {}
 
 const STATUS_OPEN = 0
 const STATUS_ACTIVE = 1
@@ -1054,10 +1054,12 @@ function load_rules() {
 		if (fs.existsSync(__dirname + "/public/" + title_id + "/rules.js")) {
 			console.log("Loading rules for " + title_id)
 			try {
-				TITLES[title_id] = title
 				RULES[title_id] = require("./public/" + title_id + "/rules.js")
-				HTML_ABOUT[title_id] = fs.readFileSync("./public/" + title_id + "/about.html")
-				HTML_CREATE[title_id] = fs.readFileSync("./public/" + title_id + "/create.html")
+				TITLE_LIST.push(title)
+				TITLE_TABLE[title_id] = title
+				TITLE_NAME[title_id] = title.title_name
+				title.about_html = fs.readFileSync("./public/" + title_id + "/about.html")
+				title.create_html = fs.readFileSync("./public/" + title_id + "/create.html")
 			} catch (err) {
 				console.log(err)
 			}
@@ -1487,7 +1489,7 @@ app.get('/games/public', function (req, res) {
 })
 
 function get_title_page(req, res, title_id) {
-	let title = TITLES[title_id]
+	let title = TITLE_TABLE[title_id]
 	if (!title)
 		return res.status(404).send("Invalid title.")
 	let unread = null
@@ -1510,7 +1512,6 @@ function get_title_page(req, res, title_id) {
 	res.render('info.pug', {
 		user: req.user,
 		title: title,
-		about_html: HTML_ABOUT[title_id],
 		open_games,
 		ready_games,
 		replacement_games,
@@ -1519,12 +1520,12 @@ function get_title_page(req, res, title_id) {
 	})
 }
 
-for (let title_id in TITLES)
-	app.get('/' + title_id, (req, res) => get_title_page(req, res, title_id))
+for (let title of TITLE_LIST)
+	app.get('/' + title.title_id, (req, res) => get_title_page(req, res, title.title_id))
 
 app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 	let title_id = req.params.title_id
-	let title = TITLES[title_id]
+	let title = TITLE_TABLE[title_id]
 	if (!title)
 		return res.status(404).send("Invalid title.")
 	res.render('create.pug', {
@@ -1532,7 +1533,6 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 		title: title,
 		limit: check_create_game_limit(req.user),
 		scenarios: RULES[title_id].scenarios,
-		create_html: HTML_CREATE[title_id],
 	})
 })
 
@@ -2060,14 +2060,14 @@ function send_notification(user, link, message) {
 
 function send_join_notification(user, game_id, message) {
 	let title_id = SQL_SELECT_GAME_TITLE.get(game_id)
-	let title_name = TITLES[title_id].title_name
+	let title_name = TITLE_NAME[title_id]
 	send_notification(user, game_join_link(game_id), `${title_name} #${game_id} - ${message}`)
 }
 
 function send_play_notification(user, game_id, message) {
 	let title_id = SQL_SELECT_GAME_TITLE.get(game_id)
-	let title = TITLES[title_id].title_name
-	send_notification(user, game_play_link(game_id, title_id, user), `${title} #${game_id} (${user.role}) - ${message}`)
+	let title_name = TITLE_NAME[title_id]
+	send_notification(user, game_play_link(game_id, title_id, user), `${title_name} #${game_id} (${user.role}) - ${message}`)
 }
 
 const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
@@ -2643,7 +2643,7 @@ const SQL_GAME_STATS = SQL(`
 app.get('/stats', function (req, res) {
 	let stats = SQL_GAME_STATS.all()
 	stats.forEach(row => {
-		row.title_name = TITLES[row.title_id].title_name
+		row.title_name = TITLE_NAME[row.title_id]
 		row.result_role = row.result_role.split("%")
 		row.result_count = row.result_count.split("%").map(Number)
 	})
@@ -2723,8 +2723,8 @@ app.get('/user-stats/:who_name', must_be_administrator, function (req, res) {
 
 app.get('/game-stats/:title_id', must_be_administrator, function (req, res) {
 	let title_id = req.params.title_id
-	if (title_id in TITLES) {
-		let title_name = TITLES[title_id].title_name
+	if (title_id in TITLE_TABLE) {
+		let title_name = TITLE_NAME[title_id]
 		let ratings = SQL_GAME_RATINGS.all(title_id)
 		res.render('game_stats.pug', { user: req.user, title_name, ratings })
 	} else {

@@ -10,7 +10,7 @@ html
 			h1 Create a new game
 
 			ul
-				each title in titles
+				each title in TITLE_LIST
 					unless title.is_hidden
 						li
 							a(href="/create/"+title.title_id)= title.title_name
