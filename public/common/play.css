@@ -321,9 +321,6 @@ header .viewpoint_button.selected:active:hover {
 .role_user {
 	font-style: italic;
 	text-align: right;
-	overflow: clip;
-	text-overflow: "...";
-	white-space: nowrap;
 }
 
 .role_user a {
