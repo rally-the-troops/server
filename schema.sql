@@ -156,6 +156,7 @@ create view rated_games_view as
 		games
 	where
 		status > 1
+		and moves > 5
 		and user_count = player_count
 		and player_count > 1
 		and not exists (
