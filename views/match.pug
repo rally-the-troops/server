@@ -1,0 +1,71 @@
+//- vim:ts=4:sw=4:
+
+mixin show_ticket(ticket)
+	- var setup = SETUP_TABLE[ticket.setup_id]
+	label
+		input(type="checkbox" name="tickets" value=ticket.ticket_id)
+		case ticket.pace
+			when 1
+				| #{EMOJI_LIVE} #{setup.setup_name}
+			when 2
+				| #{EMOJI_FAST} #{setup.setup_name}
+			when 3
+				| #{EMOJI_SLOW} #{setup.setup_name}
+
+mixin show_setup(setup)
+	label
+		input(type="checkbox" name="setups" value=setup.setup_id)
+		| #{setup.setup_name}
+
+mixin show_setup_list(list)
+	each setup in list
+		+show_setup(setup)
+
+doctype html
+html
+	head
+		include head
+		title Matches
+		style.
+			label { display: block; margin: 2px 0; user-select: none }
+			div.group, details { margin: 6px 0 }
+			details > summary { user-select: none }
+			details > label { margin-left: 24px }
+	body
+		include header
+		article
+			h1 The Miraculous Match-making Machine
+
+			p People go in one end; games come out the other.
+
+			h2 Tickets
+			if tickets.length > 0
+				form(method="post" action="/api/match/unqueue")
+					each ticket in tickets
+						+show_ticket(ticket)
+					if tickets.length > 7
+						p
+							i Don't sign up for more games than you will be able to handle!
+					p
+						button(name="submit") &#x274c; Delete
+			else
+				p You are not queued for any matches.
+
+			h2 Register
+			if limit
+				p.error= limit
+			else
+				form(method="post" action="/api/match/queue")
+					each title in TITLE_LIST
+						if title.setups.length > 2
+							details
+								summary
+									u= title.title_name
+								+show_setup_list(title.setups)
+						else
+							div.group
+								+show_setup_list(title.setups)
+					p
+						button(name="pace" value=1) #{EMOJI_LIVE} Play Live
+						button(name="pace" value=2) #{EMOJI_FAST} Play Fast
+						button(name="pace" value=3) #{EMOJI_SLOW} Play Slow
