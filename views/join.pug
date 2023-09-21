@@ -38,7 +38,7 @@ html
 			else
 				h1 #{game.title_name} - #{game.scenario}
 
-			if limit
+			if limit && game.status < 1
 				p.error= limit
 			p.error#error
 
