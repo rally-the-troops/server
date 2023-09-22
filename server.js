@@ -1194,7 +1194,7 @@ const SQL_SELECT_REPLAY = SQL(`
 						json_object('role', role, 'name', name)
 					)
 					from players
-					natural join users
+					join users using(user_id)
 					where game_id = :game_id
 				),
 			'state',
@@ -2729,48 +2729,49 @@ app.get('/stats', function (req, res) {
 
 const SQL_USER_STATS = SQL(`
 	select
-		title_name,
+		titles.title_name,
 		scenario,
 		role,
 		sum(role=result) as won,
 		count(*) as total
 	from
 		players
-		natural join game_view
-		natural join titles
+		join game_view using(game_id)
+		join titles using(title_id)
 	where
 		not is_symmetric
 		and user_id = ?
 		and is_opposed
 		and ( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
 	group by
-		title_name,
+		titles.title_name,
 		scenario,
 		role
 	union
 	select
-		title_name,
+		titles.title_name,
 		scenario,
 		null as role,
 		sum(role=result) as won,
 		count(*) as total
 	from
 		players
-		natural join game_view
-		natural join titles
+		join game_view using(game_id)
+		join titles using(title_id)
 	where
 		is_symmetric
 		and user_id = ?
 		and is_opposed
 		and ( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
 	group by
-		title_name,
+		titles.title_name,
 		scenario
 	`)
 
 const SQL_USER_RATINGS = SQL(`
 	select title_name, rating, count, date(last) as last
-	from ratings natural join titles
+	from ratings
+	join titles using(title_id)
 	where user_id = ?
 	and count >= 5
 	order by rating desc
@@ -2778,7 +2779,8 @@ const SQL_USER_RATINGS = SQL(`
 
 const SQL_GAME_RATINGS = SQL(`
 	select name, rating, count, date(last) as last
-	from ratings natural join users
+	from ratings
+	join users using(user_id)
 	where title_id = ? and rating >= 1600 and count >= 10
 	order by rating desc
 	limit 50

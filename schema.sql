@@ -86,7 +86,7 @@ create view user_profile_view as
 		user_id, name, mail, notify, ctime, atime, about, is_banned
 	from
 		users
-		natural left join user_last_seen
+		left join user_last_seen using(user_id)
 	;
 
 drop view if exists user_dynamic_view;
@@ -179,7 +179,7 @@ create view rating_view as
 		title_id, name, rating, count, last
 	from
 		ratings
-		natural join users
+		join users using(title_id, user_id)
 	order by
 		title_id,
 		rating desc
@@ -194,8 +194,8 @@ create view player_rating_view as
 		coalesce(rating, 1500) as rating,
 		coalesce(count, 0) as count
 	from players
-	natural join games
-	natural left join ratings
+	join games using(game_id)
+	left join ratings using(title_id, user_id)
 ;
 
 -- Friend and Block Lists --
@@ -393,7 +393,7 @@ create view game_chat_view as
 		game_id, chat_id, time, name, message
 	from
 		game_chat
-		natural join users
+		join users using(user_id)
 	;
 
 create table if not exists game_replay (
@@ -439,7 +439,7 @@ create view game_view as
 		user_count = join_count and join_count > 1 as is_opposed
 	from
 		games
-		natural join titles
+		join titles using(title_id)
 		join users as owner
 			on owner.user_id = games.owner_id
 	;
