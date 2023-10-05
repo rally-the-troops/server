@@ -6,3 +6,6 @@ Disallow: /forum
 Disallow: /user
 Disallow: /games
 Disallow: /*play*
+
+User-agent: Google-Extended
+Disallow: /
