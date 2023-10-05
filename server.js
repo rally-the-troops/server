@@ -600,12 +600,12 @@ app.get('/webhook', must_be_logged_in, function (req, res) {
 	res.render('webhook.pug', { user: req.user, webhook: webhook })
 })
 
-app.post("/delete-webhook", must_be_logged_in, function (req, res) {
+app.post("/api/webhook/delete", must_be_logged_in, function (req, res) {
 	SQL_DELETE_WEBHOOK.run(req.user.user_id)
 	res.redirect("/webhook")
 })
 
-app.post("/update-webhook", must_be_logged_in, function (req, res) {
+app.post("/api/webhook/update", must_be_logged_in, function (req, res) {
 	let url = req.body.url
 	let prefix = req.body.prefix
 	let format = req.body.format
@@ -694,7 +694,7 @@ app.get('/contacts', must_be_logged_in, function (req, res) {
 	})
 })
 
-app.get("/contact/remove/:who_name", must_be_logged_in, function (req, res) {
+app.get("/contacts/remove/:who_name", must_be_logged_in, function (req, res) {
 	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
 	if (!who)
 		return res.status(404).send("User not found.")
@@ -702,7 +702,7 @@ app.get("/contact/remove/:who_name", must_be_logged_in, function (req, res) {
 	return res.redirect("/contacts")
 })
 
-app.get("/contact/add-friend/:who_name", must_be_logged_in, function (req, res) {
+app.get("/contacts/add-friend/:who_name", must_be_logged_in, function (req, res) {
 	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
 	if (!who)
 		return res.status(404).send("User not found.")
@@ -710,7 +710,7 @@ app.get("/contact/add-friend/:who_name", must_be_logged_in, function (req, res) 
 	return res.redirect("/user/" + who.name)
 })
 
-app.get("/contact/add-enemy/:who_name", must_be_logged_in, function (req, res) {
+app.get("/contacts/add-enemy/:who_name", must_be_logged_in, function (req, res) {
 	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
 	if (!who)
 		return res.status(404).send("User not found.")
@@ -846,16 +846,16 @@ app.get('/message/reply/:message_id', must_be_logged_in, function (req, res) {
 	})
 })
 
+app.get('/message/delete/outbox', must_be_logged_in, function (req, res) {
+	MESSAGE_DELETE_ALL_OUTBOX.run(req.user.user_id)
+	res.redirect('/outbox')
+})
+
 app.get('/message/delete/:message_id', must_be_logged_in, function (req, res) {
 	let message_id = req.params.message_id | 0
 	MESSAGE_DELETE_INBOX.run(message_id, req.user.user_id)
 	MESSAGE_DELETE_OUTBOX.run(message_id, req.user.user_id)
 	res.redirect('/inbox')
-})
-
-app.get('/outbox/delete', must_be_logged_in, function (req, res) {
-	MESSAGE_DELETE_ALL_OUTBOX.run(req.user.user_id)
-	res.redirect('/outbox')
 })
 
 /*

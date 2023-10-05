@@ -14,7 +14,7 @@ html(lang="en")
 			- var format = webhook && webhook.format || ""
 			- var prefix = webhook && webhook.prefix || ""
 
-			form(action="/update-webhook" method="post")
+			form(action="/api/webhook/update" method="post")
 				if webhook && webhook.error
 					p.error ERROR: #{webhook.error}
 				p Webhook URL:
@@ -34,7 +34,7 @@ html(lang="en")
 					button(type="submit") Create
 
 			if webhook
-				form(action="/delete-webhook" method="post")
+				form(action="/api/webhook/delete" method="post")
 					button(type="submit") Delete
 
 			h2 Discord Notifications
