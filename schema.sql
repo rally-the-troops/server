@@ -208,44 +208,6 @@ create table if not exists setups (
 	unique (title_id, player_count, scenario)
 );
 
-create table if not exists tickets (
-	ticket_id integer primary key,
-	user_id integer,
-	setup_id integer,
-	pace integer,
-	time real, -- julianday
-	unique (user_id, setup_id, pace)
-);
-
-drop view if exists ticket_rating_view;
-create view ticket_rating_view as
-	select
-		tickets.*,
-		coalesce(rating, 1500) as rating
-	from tickets
-	join setups using(setup_id)
-	left join ratings using(title_id, user_id)
-	where time < julianday('now', '-30 seconds')
-;
-
-drop view if exists matchmaking_view;
-create view matchmaking_view as
-	select
-		setup_id,
-		pace,
-		count(1) / player_count as n,
-		julianday() - min(time) as age
-	from
-		tickets
-		join setups using(setup_id)
-	where
-		time < julianday('now', '-30 seconds')
-	group by
-		setup_id, pace
-	having n > 0
-	order by age desc
-;
-
 -- Friend and Block Lists --
 
 create table if not exists contacts (
@@ -563,47 +525,6 @@ begin
 		games.game_id = old.game_id;
 end;
 
-drop trigger if exists trigger_part_check;
-create trigger trigger_part_check before delete on players
-begin
-	select
-		raise(abort, 'Cannot remove players from matches and/or finished games!')
-	where
-		old.user_id > 0 and exists (
-			select 1 from games where games.game_id=old.game_id and ( is_match or status > 1 )
-		)
-	;
-end;
-
--- Log matchmaking runs and expired tickets
-
-create table if not exists matchmaking_log (
-	time datetime default current_timestamp,
-	setup_id integer,
-	pace integer,
-	age real,
-	score integer,
-	tickets json,
-	matches json
-);
-
-drop view if exists matchmaking_log_view;
-create view matchmaking_log_view as
-	select
-		time, title_id, player_count, scenario, pace, age, score, tickets, matches
-	from
-		matchmaking_log
-		join setups using(setup_id)
-;
-
-create table if not exists expired_tickets_log (
-	user_id integer,
-	setup_id integer,
-	pace integer,
-	ctime datetime,
-	xtime datetime
-);
-
 -- Trigger to remove game data when filing a game as archived
 
 drop trigger if exists trigger_archive_game;
@@ -649,7 +570,6 @@ begin
 	delete from threads where author_id = old.user_id;
 	delete from game_chat where user_id = old.user_id;
 	delete from ratings where user_id = old.user_id;
-	delete from tickets where user_id = old.user_id;
 	update games set owner_id = 0 where owner_id = old.user_id;
 	update players set user_id = 0 where user_id = old.user_id;
 end;
