@@ -1051,6 +1051,8 @@ let RULES = {}
 let TITLE_TABLE = app.locals.TITLE_TABLE = {}
 let TITLE_LIST = app.locals.TITLE_LIST = []
 let TITLE_NAME = app.locals.TITLE_NAME = {}
+let SETUP_LIST = app.locals.SETUP_LIST = []
+let SETUP_TABLE = app.locals.SETUP_TABLE = {}
 
 const STATUS_OPEN = 0
 const STATUS_ACTIVE = 1
@@ -1065,7 +1067,8 @@ const PACE_SLOW = 3
 const PACE_NAME = [ "Any", "Live", "Fast", "Slow" ]
 
 function load_rules() {
-	const SQL_SELECT_TITLES = SQL("SELECT * FROM titles")
+	const SQL_SELECT_TITLES = SQL("select * from titles")
+	const SQL_SELECT_SETUPS = SQL("select * from setups where title_id=? order by setup_id")
 	for (let title of SQL_SELECT_TITLES.all()) {
 		let title_id = title.title_id
 		if (fs.existsSync(__dirname + "/public/" + title_id + "/rules.js")) {
@@ -1075,6 +1078,17 @@ function load_rules() {
 				TITLE_LIST.push(title)
 				TITLE_TABLE[title_id] = title
 				TITLE_NAME[title_id] = title.title_name
+				title.setups = SQL_SELECT_SETUPS.all(title_id)
+				for (let setup of title.setups) {
+					if (!setup.setup_name) {
+						if (title.setups.length > 1 && setup.scenario !== "Standard")
+							setup.setup_name = title.title_name + " - " + setup.scenario
+						else
+							setup.setup_name = title.title_name
+					}
+					SETUP_LIST.push(setup)
+					SETUP_TABLE[setup.setup_id] = setup
+				}
 				title.about_html = fs.readFileSync("./public/" + title_id + "/about.html")
 				title.create_html = fs.readFileSync("./public/" + title_id + "/create.html")
 			} catch (err) {
@@ -1139,7 +1153,7 @@ function is_game_ready(player_count, players) {
 
 load_rules()
 
-const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,player_count,pace,is_private,is_random,notice) VALUES (?,?,?,?,?,?,?,?,?)")
+const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,player_count,pace,is_private,is_random,notice,is_match) VALUES (?,?,?,?,?,?,?,?,?,?) returning game_id").pluck()
 const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
 
 const SQL_START_GAME = SQL(`
@@ -1607,8 +1621,8 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 
 	let player_count = get_game_roles(title_id, scenario, parse_game_options(options)).length
 
-	let info = SQL_INSERT_GAME.run(user_id, title_id, scenario, options, player_count, pace, priv, rand, notice)
-	res.redirect("/join/" + info.lastInsertRowid)
+	let game_id = SQL_INSERT_GAME.get(user_id, title_id, scenario, options, player_count, pace, priv, rand, notice, 0)
+	res.redirect("/join/" + game_id)
 })
 
 app.get('/delete/:game_id', must_be_logged_in, function (req, res) {

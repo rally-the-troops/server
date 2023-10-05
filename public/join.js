@@ -156,6 +156,21 @@ function update() {
 		document.getElementById(role_id + "_name").textContent = role
 		let player = players.find(p => p.role === role)
 		let element = document.getElementById(role_id)
+
+		if (game.is_match) {
+			if (player) {
+				if (game.status === 1)
+					element.classList.toggle("is_active", is_active(player, role))
+				if (player.user_id === user_id && (game.status === 1 || game.status === 2))
+					element.innerHTML = play_link(player)
+				else
+					element.innerHTML = user_link(player)
+			} else {
+				element.innerHTML = `<i>Empty</i>`
+			}
+			continue
+		}
+
 		if (player) {
 			element.classList.remove("is_invite")
 			switch (game.status) {
