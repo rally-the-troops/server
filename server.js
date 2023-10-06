@@ -206,6 +206,16 @@ function random_seed() {
 	return crypto.randomInt(1, 2**35-31)
 }
 
+function shuffle(list) {
+	// Fisher-Yates shuffle
+	for (let i = list.length - 1; i > 0; --i) {
+		let j = crypto.randomInt(i + 1)
+		let tmp = list[j]
+		list[j] = list[i]
+		list[i] = tmp
+	}
+}
+
 function epoch_from_julianday(x) {
 	return (x - 2440587.5) * 86400000
 }
@@ -1237,8 +1247,8 @@ const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?")
 const SQL_SELECT_GAME_TITLE = SQL("SELECT title_id FROM games WHERE game_id=?").pluck()
 
 const SQL_SELECT_PLAYERS_ID = SQL("SELECT DISTINCT user_id FROM players WHERE game_id=?").pluck()
-const SQL_SELECT_PLAYERS = SQL("SELECT * FROM players NATURAL JOIN user_view WHERE game_id=?")
-const SQL_SELECT_PLAYERS_JOIN = SQL("SELECT role, user_id, name, is_invite FROM players NATURAL JOIN users WHERE game_id=?")
+const SQL_SELECT_PLAYERS = SQL("select * from players join user_view using(user_id) where game_id=?")
+const SQL_SELECT_PLAYERS_JOIN = SQL("select role, user_id, name, is_invite from players join users using(user_id) where game_id=?")
 const SQL_UPDATE_PLAYER_ACCEPT = SQL("UPDATE players SET is_invite=0 WHERE game_id=? AND role=? AND user_id=?")
 const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?")
 const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
@@ -1255,15 +1265,20 @@ const SQL_COUNT_ACTIVE_GAMES = SQL(`
 
 const SQL_SELECT_REMATCH = SQL(`SELECT game_id FROM games WHERE status < ${STATUS_FINISHED} AND notice=?`).pluck()
 const SQL_INSERT_REMATCH = SQL(`
-	INSERT INTO games
+	insert or ignore into games
 		(owner_id, title_id, scenario, options, player_count, pace, is_private, is_random, notice)
-	SELECT
-		$user_id, title_id, scenario, options, player_count, pace, is_private, 0, $magic
-	FROM games
-	WHERE game_id = $game_id AND NOT EXISTS (
-		SELECT * FROM games WHERE notice=$magic
-	)
-`)
+	select
+		$owner_id, title_id, scenario, options, player_count, pace, is_private, 0, $magic
+	from
+		games
+	where
+		game_id = $old_game_id
+		and not exists (
+			select 1 from games where notice = $magic
+		)
+	returning
+		game_id
+`).pluck()
 
 const SQL_INSERT_REMATCH_PLAYERS = SQL("insert into players (game_id, user_id, role, is_invite) select ?, user_id, role, user_id!=? from players where game_id=?")
 
@@ -1636,18 +1651,48 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 	res.redirect('/'+title_id)
 })
 
+function insert_replay_players(old_game_id, new_game_id, req_user_id) {
+	let game = SQL_SELECT_GAME.get(old_game_id)
+	let players = SQL_SELECT_PLAYERS_JOIN.all(old_game_id)
+	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
+	let n = roles.length
+
+	if (players.length !== n)
+		throw new Error("missing players")
+
+	if (TITLE_TABLE[game.title_id].is_symmetric)
+		shuffle(players)
+	else
+		players.sort((a, b) => roles.indexOf(a.role) - roles.indexOf(b.role))
+
+	for (let i = 0; i < n; ++i)
+		players[i].role = roles[(i+1) % n]
+
+	for (let p of players)
+		SQL_INSERT_PLAYER_ROLE.run(new_game_id, p.role, p.user_id, p.user_id !== req_user_id ? 1 : 0)
+}
+
 app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 	let old_game_id = req.params.old_game_id | 0
 	let magic = "\u{1F503} " + old_game_id
 	let new_game_id = 0
-	let info = SQL_INSERT_REMATCH.run({user_id: req.user.user_id, game_id: old_game_id, magic: magic})
-	if (info.changes === 1) {
-		new_game_id = info.lastInsertRowid
-		SQL_INSERT_REMATCH_PLAYERS.run(new_game_id, req.user.user_id, old_game_id)
-	} else {
-		new_game_id = SQL_SELECT_REMATCH.get(magic)
+
+	SQL_BEGIN.run()
+	try {
+		new_game_id = SQL_INSERT_REMATCH.get({owner_id: req.user.user_id, old_game_id, magic})
+		if (new_game_id)
+			insert_replay_players(old_game_id, new_game_id, req.user.user_id)
+		else
+			new_game_id = SQL_SELECT_REMATCH.get(magic)
+		SQL_COMMIT.run()
+	} catch (err) {
+		return res.send(err.toString())
+	} finally {
+		if (db.inTransaction)
+			SQL_ROLLBACK.run()
 	}
-	return res.redirect('/join/'+new_game_id)
+
+	return res.redirect("/join/"+new_game_id)
 })
 
 function update_join_clients_deleted(game_id) {
@@ -1855,7 +1900,7 @@ function start_game(game) {
 	SQL_BEGIN.run()
 	try {
 		if (game.is_random)
-			assign_random_roles(game, options, SQL_SELECT_PLAYERS.all(game.game_id))
+			assign_random_roles(game, options, SQL_SELECT_PLAYERS_JOIN.all(game.game_id))
 
 		SQL_START_GAME.run(state.active, game.game_id)
 		put_replay(game.game_id, null, ".setup", [seed, game.scenario, options])
