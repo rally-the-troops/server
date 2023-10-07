@@ -468,7 +468,7 @@ create view ready_to_start_reminder as
 		and not exists (
 			select 1 from players
 			where
-				players.game_id = players.game_id
+				players.game_id = games.game_id
 				and is_invite
 		)
 	;
