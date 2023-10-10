@@ -184,13 +184,25 @@ function update() {
 					element.innerHTML = user_link(player)
 				break
 			case 1:
-				element.classList.toggle("is_active", is_active(player, role))
-				if (player.user_id === user_id)
-					element.innerHTML = play_link(player) + action_link(player, "part", "red", "\u274c")
-				else if (game.owner_id === user_id)
-					element.innerHTML = user_link(player) + action_link(player, "kick", "red", "\u274c")
-				else
-					element.innerHTML = user_link(player)
+				if (player.is_invite) {
+					element.classList.add("is_invite")
+					if (player.user_id === user_id)
+						element.innerHTML = player.name + " ?" +
+							action_link(player, "part", "red", "\u274c") +
+							action_link(player, "accept", "green", "\u2714")
+					else if (game.owner_id === user_id)
+						element.innerHTML = user_link(player) + " ?" + action_link(player, "kick", "red", "\u274c")
+					else
+						element.innerHTML = user_link(player) + " ?"
+				} else {
+					element.classList.toggle("is_active", is_active(player, role))
+					if (player.user_id === user_id)
+						element.innerHTML = play_link(player) + action_link(player, "part", "red", "\u274c")
+					else if (game.owner_id === user_id)
+						element.innerHTML = user_link(player) + action_link(player, "kick", "red", "\u274c")
+					else
+						element.innerHTML = user_link(player)
+				}
 				break
 			case 0:
 				if (player.is_invite) {
@@ -204,7 +216,6 @@ function update() {
 					else
 						element.innerHTML = user_link(player) + " ?"
 				} else {
-					element.classList.remove("is_invite")
 					if (player.user_id === user_id)
 						element.innerHTML = player.name + action_link(player, "part", "red", "\u274c")
 					else if (game.owner_id === user_id)
