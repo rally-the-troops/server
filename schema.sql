@@ -451,7 +451,7 @@ create view game_view as
 	from
 		games
 		join titles using(title_id)
-		join users as owner
+		left join users as owner
 			on owner.user_id = games.owner_id
 	;
 
