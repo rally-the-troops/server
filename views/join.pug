@@ -8,17 +8,16 @@ html
 			game.title_id)
 		title= game.title_name
 		style.
-			table { min-width: 0; }
-			th,td { border: 1px solid black; }
-			a.red { text-decoration: none; color: brown; font-size: 15px; float: right; }
-			a.green { text-decoration: none; color: green; font-size: 15px; float: right; }
-			th { white-space: nowrap; background-color: gainsboro; }
-			td { width: 180px; background-color: white; }
-			#message { background-color: whitesmoke; }
+			th,td { border: var(--table-border); }
+			a.red { text-decoration: none; color: var(--color-red); font-size: 15px; float: right; }
+			a.green { text-decoration: none; color: var(--color-green); font-size: 15px; float: right; }
+			td, th { border: var(--thin-border); }
+			td { width: 180px; }
 			.hide { display: none; }
-			td.is_invite { background-color: honeydew }
-			td.enemy { background-color: #f66 }
-			td.enemy::before { content: "\1f6ab    "; color: #000; font-size: 15px; }
+			td.is_invite { background-color: var(--color-table-invite); }
+			td.is_active { background-color: var(--color-table-active); }
+			td.enemy { background-color: var(--color-table-danger); }
+			td.enemy::before { content: "\1f6ab    "; font-size: 15px; }
 		script.
 			let game = !{ JSON.stringify(game) }
 			let roles = !{ JSON.stringify(roles) }
@@ -73,8 +72,6 @@ html
 				p
 					i= game.notice
 
-			br(clear="left")
-
 			dialog(id="invite")
 				| Invite a friend:
 				br
@@ -92,8 +89,9 @@ html
 				tbody
 					each role in roles
 						tr
-							th(id="role_"+role.replace(/ /g, "_")+"_name")= role
+							th.w(id="role_"+role.replace(/ /g, "_")+"_name")= role
 							td(id="role_"+role.replace(/ /g, "_")) -
+				tfoot
 					tr
 						td#message(colspan=2) -
 

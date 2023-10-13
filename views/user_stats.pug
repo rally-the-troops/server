@@ -11,7 +11,7 @@ html
 		article
 			h1 Statistics for #{who.name}
 
-			table(style="min-width:auto")
+			table.striped
 				thead
 					tr
 						th Title
@@ -37,7 +37,7 @@ html
 						td.r= all_total
 						td.r= Math.round(all_won*100/all_total) + "%"
 
-			table(style="min-width:auto")
+			table.striped
 				thead
 					tr
 						th Title

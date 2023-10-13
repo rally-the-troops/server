@@ -8,12 +8,17 @@ html
 		style.
 			.unread { font-weight: bold }
 			tbody a { display: block }
+			@media (max-width: 400px) {
+			td:nth-child(2) { display: none }
+			th:nth-child(2) { display: none }
+			}
+
 	body
 		include header
 		article
 			h1 Forum
 
-			table
+			table.wide.striped
 				thead
 					tr
 						th Subject

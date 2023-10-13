@@ -6,6 +6,10 @@ html
 		title Outbox
 		style.
 			td a { display: block }
+			@media (max-width: 400px) {
+			td:nth-child(3) { display: none }
+			th:nth-child(3) { display: none }
+			}
 		script.
 			function delete_all() {
 				let warning = "Are you sure you want to delete ALL the messages?"
@@ -20,7 +24,7 @@ html
 			p
 				a(href="/message/send") Send message
 
-			table
+			table.wide.striped
 				thead
 					tr
 						th From
@@ -30,8 +34,8 @@ html
 					each row in messages
 						tr
 							td: a.black(href="/user/"+row.to_name)= row.to_name
-							td: a.black(href="/message/read/"+row.message_id)= row.subject
-							td= row.time
+							td.e: a.black(href="/message/read/"+row.message_id)= row.subject
+							td.w= row.time
 					else
 						tr
 							td(colspan=3) No messages.

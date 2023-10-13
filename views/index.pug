@@ -8,30 +8,26 @@ html
 		title= SITE_NAME
 		style.
 			div.list {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 12px;
+				margin: 24px 0;
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+				gap: 24px 12px;
 			}
 			div.i {
-				width: 170px;
 				height: 200px;
 				text-align: center;
 				margin-bottom: 6px;
 			}
 			div.t {
 				text-align: center;
-				width: 170px;
-			}
-			div.t a:not(:hover) {
-				color: black;
-				text-decoration: none;
 			}
 			div.i img {
-				box-shadow: 2px 2px 4px 0px rgba(0,0,0,0.5);
+				box-shadow: var(--drop-shadow);
+				border: var(--thin-border);
 			}
 	body
 		include header
-		article
+		article.wide
 			h1= SITE_NAME
 
 			p #{SITE_NAME} is a website where you can play historic board games online.
@@ -45,7 +41,7 @@ html
 							div.i
 								+gamecover(title.title_id)
 							div.t
-								a(href="/"+title.title_id)= title.title_name
+								a.black(href="/"+title.title_id)= title.title_name
 
 			p!= process.env.SITE_INVITE
 

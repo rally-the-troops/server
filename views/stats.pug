@@ -5,18 +5,17 @@ html
 		include head
 		title Game Statistics
 		style.
-			table { min-width: auto; margin-bottom: 30px; }
+			table { margin-bottom: 30px; }
 			td:not(:first-child) { text-align: right; }
 			th:not(:first-child) { text-align: right; }
 			td:not(:first-child) { width: 50px; }
-			td:first-child { width: 400px; }
 	body
 		include header
 		article
 			h1 Game Statistics
 			- function p(t,r) { return r > 0 ? Math.round(r*100/t) + "%" : "" }
 			each row in stats
-				table
+				table.half.striped
 					thead
 						tr
 							th

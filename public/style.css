@@ -1,140 +1,279 @@
+/* RALLY THE TROOPS - MAIN SITE STYLE */
+
+:root {
+	--font-normal:  "Source Serif", "Georgia", "Noto Emoji", "Dingbats", serif;
+	--font-small: "Source Serif SmText", "Georgia", "Noto Emoji", "Dingbats", serif;
+	--font-widget: "Source Sans", "Verdana", "Noto Emoji", "Dingbats", sans-serif;
+
+	--drop-shadow: 1px 1px 4px #0004;
+
+	--thin-border: 1px solid black;
+
+	--color-black: black;
+
+	--color-table-active: hsla(55, 100%, 50%, 0.15);
+	--color-table-invite: hsla(120, 100%, 50%, 0.15);
+	--color-table-danger: hsla(350, 100%, 50%, 0.15);
+}
+
+/* light gray */
+:root {
+	--color-head: hsl(0, 0%, 85%);
+	--color-body: hsl(0, 0%, 95%);
+	--color-text: hsl(0, 0%, 100%);
+
+	--color-post-head: hsl(0, 0%, 85%);
+	--color-post-body: hsl(0, 0%, 98%);
+
+	--color-table-head: hsl(0, 0%, 85%);
+	--color-table-foot: hsl(0, 0%, 90%);
+	--color-table-body: hsl(0, 0%, 98%);
+	--color-table-stripe: hsl(0, 0%, 96%);
+
+	--color-focus: hsl(210, 40%, 65%);
+
+	--color-blue: hsl(240, 100%, 50%);
+	--color-red: hsl(0, 100%, 35%);
+	--color-green: hsl(120, 100%, 30%);
+
+	--color-accent: hsl(0, 60%, 40%);
+}
+
+/* dark gray */
+@media (prefers-color-scheme: dark) {
+:root {
+	--color-head: hsl(0, 0%, 75%);
+	--color-body: hsl(0, 0%, 85%);
+	--color-text: hsl(0, 0%, 95%);
+
+	--color-post-head: hsl(0, 0%, 75%);
+	--color-post-body: hsl(0, 0%, 90%);
+
+	--color-table-head: hsl(0, 0%, 75%);
+	--color-table-foot: hsl(0, 0%, 80%);
+	--color-table-body: hsl(0, 0%, 90%);
+	--color-table-stripe: hsl(0, 0%, 88%);
+
+	--color-focus: hsl(210, 40%, 60%);
+
+	--color-blue: hsl(240, 100%, 40%);
+	--color-red: hsl(0, 100%, 35%);
+	--color-green: hsl(120, 100%, 30%);
+
+	--color-accent: hsl(0, 60%, 35%);
+}}
+
+/* WIDGETS */
+
 html, input, textarea {
-	font-family: "Source Serif", "Georgia", "Noto Emoji", "Dingbats", serif;
+	font-family: var(--font-normal);
 	font-size: 16px;
 }
+
 button, select, option {
-	font-family: "Source Sans", "Verdana", "Noto Emoji", "Dingbats", sans-serif;
+	font-family: var(--font-widget);
 	font-size: 16px;
-}
-
-html, body { margin: 0 }
-h1 { margin: 16px 0 16px -1px; font-size: 24px; }
-h2 { margin: 16px 0 16px -1px; font-size: 20px; }
-h3 { margin: 16px 0 8px -1px; font-size: 16px; }
-a { color: blue; }
-a.black { text-decoration: none; color: black; }
-a.black:hover { text-decoration: underline; color: blue; }
-.w { white-space: nowrap; }
-.r { text-align: right; }
-
-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	border-bottom: 2px solid brown;
-	padding-right: 1em;
-}
-header img {
-	display: block;
-	margin: 4px 0 -2px 2px;
-}
-header nav {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: end;
-}
-header nav a { display: block; margin: 0 12px; color: black }
-header nav a:hover { color: blue }
-article { margin: 2em; }
-article p, article dl, article ul { max-width: 50rem; }
-
-div.logo {
-	float: left;
-	margin: 0 20px 5px 0;
-	min-width: 150px;
-}
-div.logo img {
-	box-shadow: 1px 2px 4px 0px #0004;
 }
 
 input[type="checkbox"], input[type="radio"] {
 	margin-right: 7px;
-	accent-color: black;
+	accent-color: currentcolor;
 }
+
 input[type="text"], input[type="password"], input[type="email"], textarea {
+	background-color: var(--color-text);
+	color: var(--color-black);
+	border: var(--thin-border);
 	padding: 5px;
 	margin: 5px 0;
-	border: 1px solid black;
+	max-width: calc(100% - 12px);
 	vertical-align: middle;
 }
+
 input:focus, textarea:focus {
-	outline: 2px solid lightsteelblue;
+	outline: 2px solid var(--color-focus);
 }
+
+select:focus, button:focus {
+	box-shadow: 0 0 0 3px var(--color-focus);
+}
+
+option {
+	background-color: var(--color-text);
+	color: var(--color-black);
+}
+
 button, select {
 	margin: 5px 10px 5px 0;
 	padding: 1px 10px;
-	background-color: gainsboro;
 	vertical-align: middle;
 	border: 2px solid;
+
+	background-color: gainsboro;
 	border-color: white darkgray darkgray white;
-	outline: 1px solid black;
+	outline: 1px solid var(--color-black);
 }
+
 button:enabled:active:hover, select:active {
 	border-color: darkgray white white darkgray;
 	padding: 2px 9px 0px 11px;
 }
-option {
-	background-color: white;
-	color: black;
-}
+
 button:disabled {
 	color: gray;
 	border-color: gainsboro;
 	outline-color: gray;
 }
 
-.error { color: brown; font-style: italic; white-space: pre-wrap; }
-.warning { color: brown; }
+/* PAGE LAYOUT */
+
+html, body { margin: 0 }
+h1 { margin: 16px 0 16px -1px; font-size: 24px; }
+h2 { margin: 16px 0 16px -1px; font-size: 20px; }
+h3 { margin: 16px 0 8px -1px; font-size: 16px; }
+
+html {
+	overflow-y: scroll;
+}
+
+body {
+	background-color: var(--color-body);
+	color: var(--color-black);
+}
+
+header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-right: 1em;
+	background-color: var(--color-head);
+	border-bottom: 2px solid var(--color-accent);
+}
+
+header img {
+	display: block;
+	margin: 4px 0 -2px 2px;
+}
+
+header nav {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: end;
+}
+
+header nav > * {
+	display: block;
+	padding: 0 8px;
+}
+
+article {
+	margin: 0 auto;
+	padding: 0 16px;
+	max-width: 830px;
+}
+
+@media (min-width: 1340px) {
+	article.wide { max-width: 1250px; }
+}
+
+article hr { border: none; border-top: 2px dotted brown; }
+article hr + p { font-style: italic; }
+
+/* COMMON ELEMENTS */
+
+a { color: var(--color-blue); }
+nav a, a.black { color: var(--color-black); text-decoration: none; }
+nav a:hover, a.black:hover { color: var(--color-blue); text-decoration: underline; }
+
+table a.black { color: var(--color-black); text-decoration: none; }
+table a.black:hover { color: var(--color-blue); text-decoration: underline; }
+
+.error { color: var(--color-red); font-style: italic; white-space: pre-wrap; }
+.warning { color: var(--color-red); }
 p.warning::before { content: "\26a0  "; }
+
+@media (min-width: 500px) {
+	div.logo {
+		float: right;
+		margin: -20px 0px 8px 16px;
+		min-width: 150px;
+	}
+}
+
+div.logo img {
+	box-shadow: var(--drop-shadow);
+	border: var(--thin-border);
+}
 
 /* TABLES */
 
 table {
-	background-color: white;
-	min-width: min(50rem,100%);
+	background-color: var(--color-table-body);
 	border-collapse: collapse;
-	border: 1px solid black;
-	box-shadow: 1px 2px 4px #0004;
+	border: var(--thin-border);
+	box-shadow: var(--drop-shadow);
 	margin: 1em 0;
 }
-thead, tfoot {
-	background-color: gainsboro;
-	border: 1px solid black;
+
+table.wide {
+	width: 100%;
 }
+
+table.half {
+	min-width: 50%;
+}
+
+thead, th {
+	background-color: var(--color-table-head);
+}
+
+tfoot {
+	background-color: var(--color-table-foot);
+}
+
+thead, tfoot {
+	border: var(--thin-border);
+}
+
 th, td {
 	vertical-align: top;
 	text-align: left;
 	padding: 5px 10px;
 }
-tbody tr:nth-child(2n) {
-	background-color: whitesmoke;
+
+table.striped tr:nth-child(2n) {
+	background-color: var(--color-table-stripe);
 }
-td.is_active { background-color: lemonchiffon; }
+
+td.r, th.r { text-align: right; }
+td.w, th.w { white-space: nowrap; }
 
 /* FORUM AND MESSAGE POSTS */
 
 div.post {
-	background-color: white;
-	max-width: 50em;
+	background-color: var(--color-post-body);
 	margin-top: 24px;
-	border: 1px solid black;
-	box-shadow: 1px 2px 4px #0004;
+	border: var(--thin-border);
+	box-shadow: var(--drop-shadow);
 }
+
 div.post > div.head {
 	display: flex;
 	justify-content: space-between;
 	padding: 5px 10px;
-	background-color: gainsboro;
-	border-bottom: 1px solid black;
+	background-color: var(--color-post-head);
+	border-bottom: var(--thin-border);
 }
-div.post > div.head a { font-weight: bold; }
-div.post > div.head a:not(:hover) { color: black; text-decoration: none; }
-div.post > div.body { padding: 15px; white-space: pre-wrap; }
-div.post + div.edit { max-width: 50em; margin-top: 5px; text-align:right; }
 
-article hr { max-width: 50rem; margin-right: auto; margin-left: 0; }
-article hr { border: none; border-top: 2px dotted brown; }
-article hr + p { font-style: italic; }
+div.post > div.body {
+	padding: 15px;
+	white-space: pre-wrap;
+}
+
+div.post + div.edit {
+	margin-top: 5px;
+	text-align: right;
+}
 
 /* GAME BOXES */
 
@@ -144,77 +283,63 @@ article hr + p { font-style: italic; }
 	gap: 24px;
 	margin: 16px 0;
 }
+
 .game_item {
-	border: 1px solid black;
-	box-shadow: 1px 2px 4px #0004;
+	border: var(--thin-border);
+	box-shadow: var(--drop-shadow);
+	color: black;
 }
+
 .game_head, .game_main {
 	display: flex;
 	justify-content: space-between;
 	padding: 4px 8px;
 }
+
 .game_head {
-	border-bottom: 1px solid black;
+	border-bottom: var(--thin-border);
 	line-height: 23px;
 }
+
 .game_info {
-	font-family: "Source Serif SmText", "Georgia", "Noto Emoji", "Dingbats", serif;
+	font-family: var(--font-small);
 	font-size: 14px;
 	line-height: 20px;
 }
-.game_item a:not(:hover) { text-decoration: none; color: black; }
-.game_item a.command { text-decoration: underline; font-weight: bold }
-.game_info .is_active { text-decoration: underline }
-.game_info .is_invite { opacity: 0.5 }
+
+.game_item a { text-decoration: none; color: black; }
+.game_item a:hover { text-decoration: underline; }
+.game_item .game_main a:hover { color: blue; }
+.game_info .is_active { text-decoration: underline; }
+.game_info .is_invite { opacity: 60%; }
 .game_info div {
 	text-indent: -20px;
 	padding-left: 20px;
 }
+
 .game_main img {
 	display: block;
 	height: 72px;
 	margin: 4px 0 4px 4px;
-	border: 1px solid black;
+	border: var(--thin-border);
 }
 
-.game_head { background-color: gainsboro }
-.game_main { background-color: whitesmoke }
-.game_main a:hover { color: mediumblue }
+/* LIGHT MODE - GAME BOXES */
+
+.game_item .game_head { background-color: gainsboro }
+.game_item .game_main { background-color: whitesmoke }
 
 .game_item.open .game_head { background-color: lightskyblue }
 .game_item.open .game_main { background-color: aliceblue }
-.game_item.open a:hover { color: royalblue }
-
 .game_item.ready .game_head { background-color: darkseagreen }
 .game_item.ready .game_main { background-color: mintcream }
-.game_item.ready a:hover { color: seagreen }
-
 .game_item.replacement .game_head { background-color: thistle }
 .game_item.replacement .game_main { background-color: lavenderblush }
-.game_item.replacement a:hover { color: purple }
-
-.game_item.active .game_head { background-color: gainsboro }
-.game_item.active .game_main { background-color: whitesmoke }
-.game_item.active a:hover { color: mediumblue }
-
+.game_item.active .game_head { background-color: tan }
+.game_item.active .game_main { background-color: floralwhite }
 .game_item.finished .game_head { background-color: silver }
 .game_item.finished .game_main { background-color: gainsboro }
-.game_item.finished a:hover { color: mediumblue }
-
-.game_item.archived .game_head { background-color: silver }
-.game_item.archived .game_main { background-color: gainsboro }
-.game_item.archived a:hover { color: mediumblue }
-
+.game_item.archived .game_head { background-color: darkgray }
+.game_item.archived .game_main { background-color: lightgray }
 .game_item.your_turn .game_head { background-color: gold }
 .game_item.your_turn .game_main { background-color: lightyellow }
-.game_item.your_turn a:hover { color: #860 }
-
-/* DARK MODE */
-@media (prefers-color-scheme: dark) {
-	body { background-color: silver }
-	header { background-color: darkgray }
-	table, div.post { background-color: gainsboro }
-	thead, tfoot, div.post > div.head { background-color: darkgray }
-	input, textarea { background-color: gainsboro }
-	input:focus, textarea:focus { outline-color: cornflowerblue }
-}

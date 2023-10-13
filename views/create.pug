@@ -4,11 +4,10 @@ html
 	head
 		include head
 		title= title.title_name
-		style.
-			form { margin-left: 200px; width: calc(50rem - 200px); }
 	body
 		include header
 		article
+
 			h1= title.title_name
 
 			div.logo
@@ -23,11 +22,12 @@ html
 								option(value=scenario)= scenario
 				else
 					input(type="hidden" name="scenario" value=scenarios[0])
+
 				| !{ title.create_html }
 
 				p Notice:
 					br
-					input(type="text" autocomplete="off" name="notice" size=50 placeholder="What are you looking for?")
+					input(type="text" autocomplete="off" name="notice" size=45 placeholder="What are you looking for?")
 
 				p Pace:
 					br

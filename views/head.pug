@@ -21,7 +21,7 @@ mixin gamecover(title_id)
 mixin forumpost(row,show_buttons)
 	.post(id=row.post_id)
 		.head
-			.from: a(href="/user/"+row.author_name)= row.author_name
+			.from: b: a.black(href="/user/"+row.author_name)= row.author_name
 			.time= row.ctime
 				if row.edited
 					|
