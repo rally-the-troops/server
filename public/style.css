@@ -275,6 +275,10 @@ div.post + div.edit {
 	text-align: right;
 }
 
+div.body img {
+	max-width: 100%;
+}
+
 /* GAME BOXES */
 
 .game_list {
