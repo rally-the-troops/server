@@ -1,5 +1,7 @@
 "use strict"
 
+// TODO: hide more functions and globals in anonymous function scope
+
 let params = {
 	mode: "play",
 	title_id: window.location.pathname.split("/")[1],
@@ -272,7 +274,7 @@ function init_notepad() {
 	notepad_window.innerHTML = `
 		<div id="notepad_header">Notepad: ${player}</div>
 		<div id="notepad_x" onclick="toggle_notepad()">\u274c</div>
-		<textarea id="notepad_input" cols="55" rows="10" maxlength="16000" oninput="dirty_notepad()"></textarea>
+		<textarea id="notepad_input" maxlength="16000" oninput="dirty_notepad()"></textarea>
 		<div id="notepad_footer"><button id="notepad_save" onclick="save_notepad()" disabled>Save</button></div>
 		`
 	document.querySelector("body").appendChild(notepad_window)
@@ -350,19 +352,17 @@ window.addEventListener("keyup", (evt) => {
 
 /* REMATCH BUTTON */
 
-function add_icon_button(where, id, img, title, fn) {
+function add_icon_button(where, id, img, fn) {
 	let button = document.getElementById(id)
 	if (!button) {
-		button = document.createElement("div")
+		button = document.createElement("button")
 		button.id = id
-		button.title = title
-		button.className = "icon_button"
 		button.innerHTML = '<img src="/images/' + img + '.svg">'
 		button.addEventListener("click", fn)
 		if (where)
-			document.getElementById("toolbar").appendChild(button)
+			document.querySelector("#toolbar").appendChild(button)
 		else
-			document.querySelector(".menu").after(button)
+			document.querySelector("#toolbar details").after(button)
 	}
 	return button
 }
@@ -383,9 +383,9 @@ function goto_replay() {
 }
 
 function on_game_over() {
-	add_icon_button(1, "replay_button", "sherlock-holmes-mirror", "Watch replay", goto_replay)
+	add_icon_button(1, "replay_button", "sherlock-holmes-mirror", goto_replay)
 	if (player !== "Observer")
-		add_icon_button(1, "rematch_button", "cycle", "Propose a rematch!", goto_rematch)
+		add_icon_button(1, "rematch_button", "cycle", goto_rematch)
 	remove_resign_menu()
 }
 
@@ -713,59 +713,60 @@ function init_replay() {
 	document.body.appendChild(script)
 }
 
-window.addEventListener("load", function () {
-	zoom_map()
-	if (params.mode === "debug")
-		init_replay()
-	else if (params.mode === "replay")
-		init_replay()
-	else if (params.mode === "play")
-		connect_play()
-	else
-		document.getElementById("prompt").textContent = "Invalid mode: " + params.mode
-})
-
 /* MAIN MENU */
 
-add_icon_button(0, "chat_button", "chat-bubble", "Open chat", toggle_chat).classList.add("hide")
-add_icon_button(0, "zoom_button", "magnifying-glass", "Zoom", () => toggle_zoom())
-add_icon_button(0, "log_button", "scroll-quill", "Hide log", toggle_log)
-add_icon_button(0, "fullscreen_button", "expand", "Fullscreen", toggle_fullscreen)
+add_icon_button(0, "chat_button", "chat-bubble", toggle_chat).classList.add("hide")
+add_icon_button(0, "zoom_button", "magnifying-glass", () => toggle_zoom())
+add_icon_button(0, "log_button", "scroll-quill", toggle_log)
+add_icon_button(0, "fullscreen_button", "expand", toggle_fullscreen)
 
-function init_main_menu() {
-	let popup = document.querySelector(".menu_popup")
-	let sep = document.createElement("div")
-	sep.className = "menu_separator"
-	sep.id = "main_menu_separator"
+function add_main_menu_separator() {
+	let popup = document.querySelector("#toolbar details menu")
+	let sep = document.createElement("li")
+	sep.className = "separator"
 	popup.insertBefore(sep, popup.firstChild)
 }
 
 function add_main_menu_item(text, onclick) {
-	let popup = document.querySelector(".menu_popup")
-	let sep = document.getElementById("main_menu_separator")
-	let item = document.createElement("div")
-	item.className = "menu_item"
+	let popup = document.querySelector("#toolbar details menu")
+	let sep = popup.querySelector(".separator")
+	let item = document.createElement("li")
 	item.onclick = onclick
 	item.textContent = text
 	popup.insertBefore(item, sep)
 }
 
 function add_main_menu_item_link(text, url) {
-	let popup = document.querySelector(".menu_popup")
-	let sep = document.getElementById("main_menu_separator")
-	let item = document.createElement("a")
-	item.className = "menu_item"
-	item.href = url
-	item.textContent = text
+	let popup = document.querySelector("#toolbar details menu")
+	let sep = popup.querySelector(".separator")
+	let item = document.createElement("li")
+	let a = document.createElement("a")
+	a.href = url
+	a.textContent = text
+	item.appendChild(a)
 	popup.insertBefore(item, sep)
 }
 
-init_main_menu()
+add_main_menu_separator()
 if (params.mode === "play" && params.role !== "Observer") {
 	add_main_menu_item_link("Go home", "/games/active")
 	add_main_menu_item_link("Go to next game", "/games/next")
 } else {
 	add_main_menu_item_link("Go home", "/")
+}
+
+function close_menus(self) {
+	for (let node of document.querySelectorAll("#toolbar > details"))
+		if (node !== self)
+			node.removeAttribute("open")
+}
+
+for (let node of document.querySelectorAll("#toolbar > details")) {
+	node.onclick = function () { close_menus(node) }
+	node.onmouseleave = function () { node.removeAttribute("open") }
+}
+for (let node of document.querySelectorAll("#toolbar > details > menu")) {
+	node.onclick = function () { close_menus(null) }
 }
 
 function toggle_fullscreen() {
@@ -857,44 +858,20 @@ function on_snap_stop() {
 
 function toggle_log() {
 	document.querySelector("aside").classList.toggle("hide")
-	zoom_map()
+	update_layout()
 }
 
 var toggle_zoom = function () {}
-
-function zoom_map() {
-	let mapwrap = document.getElementById("mapwrap")
-	if (mapwrap) {
-		let main = document.querySelector("main")
-		let map = document.getElementById("map")
-		map.style.transform = null
-		mapwrap.style.width = null
-		mapwrap.style.height = null
-		if (mapwrap.classList.contains("fit")) {
-			let { width: gw, height: gh } = main.getBoundingClientRect()
-			let { width: ww, height: wh } = mapwrap.getBoundingClientRect()
-			let { width: cw, height: ch } = map.getBoundingClientRect()
-			let scale = Math.min(ww / cw, gh / ch)
-			if (scale < 1) {
-				map.style.transform = "scale(" + scale + ")"
-				mapwrap.style.width = (cw * scale) + "px"
-				mapwrap.style.height = (ch * scale) + "px"
-			}
-		}
-	}
-}
-
-window.addEventListener("resize", zoom_map)
+var update_layout = function () {}
 
 /* PAN & ZOOM GAME BOARD */
 
 ;(function panzoom_init() {
-	const MIN_ZOOM = 0.5
-	const MAX_ZOOM = 1.5
+	var MIN_ZOOM = Number(document.querySelector("main").dataset.minZoom) || 0.5
+	var MAX_ZOOM = Number(document.querySelector("main").dataset.maxZoom) || 1.5
+
 	const THRESHOLD = 0.0625
 	const DECELERATION = 125
-
-	console.log("DPX", window.devicePixelRatio)
 
 	const e_scroll = document.querySelector("main")
 	e_scroll.style.touchAction = "none"
@@ -914,11 +891,11 @@ window.addEventListener("resize", zoom_map)
 	e_scroll.appendChild(e_outer)
 
 	const mapwrap = document.getElementById("mapwrap")
-	const map = document.getElementById("map") || e_inner.firstChild
+	const map = document.getElementById("map") || e_inner.querySelector("div")
 	const map_w = mapwrap ? mapwrap.clientWidth : map.clientWidth
 	const map_h = mapwrap ? mapwrap.clientHeight : map.clientHeight
 
-	console.log("MAP", map_w, map_h)
+	console.log("INIT MAP", map, map_w, map_h, window.devicePixelRatio)
 
 	var transform0 = { x: 0, y: 0, scale: 1 }
 	var transform1 = { x: 0, y: 0, scale: 1 }
@@ -940,14 +917,9 @@ window.addEventListener("resize", zoom_map)
 	var mom_vx = 0
 	var mom_vy = 0
 
-	try {
-		new ResizeObserver(update_transform_resize).observe(document.getElementById("log"))
-	} catch (err) {
-		window.addEventListener("resize", function (evt) {
-			old_scale = 0
-			update_transform()
-		})
-	}
+	// set globals to our scoped functions
+	toggle_zoom = toggle_zoom_imp
+	update_layout = update_layout_imp
 
 	function clamp_scale(scale) {
 		let win_w = e_scroll.clientWidth
@@ -981,10 +953,10 @@ window.addEventListener("resize", zoom_map)
 
 	function toggle_zoom_imp() {
 		if (transform1.scale === 1) {
-			if (window.innerWidth >= 800) {
+			if (window.innerWidth > 800) {
 				if (mapwrap) {
 					mapwrap.classList.toggle("fit")
-					zoom_map()
+					update_map_fit()
 					return
 				}
 			}
@@ -998,10 +970,38 @@ window.addEventListener("resize", zoom_map)
 		return false
 	}
 
+	function update_layout_imp() {
+		update_map_fit()
+		update_transform_resize()
+		scroll_log_to_end()
+	}
+
+	function update_map_fit() {
+		let mapwrap = document.getElementById("mapwrap")
+		if (mapwrap) {
+			let main = document.querySelector("main")
+			let map = document.getElementById("map")
+			map.style.transform = null
+			mapwrap.style.width = null
+			mapwrap.style.height = null
+			if (mapwrap.classList.contains("fit")) {
+				let { width: gw, height: gh } = main.getBoundingClientRect()
+				let { width: ww, height: wh } = mapwrap.getBoundingClientRect()
+				let { width: cw, height: ch } = map.getBoundingClientRect()
+				let scale = Math.min(ww / cw, gh / ch)
+				if (scale < 1) {
+					map.style.transform = "scale(" + scale + ")"
+					mapwrap.style.width = (cw * scale) + "px"
+					mapwrap.style.height = (ch * scale) + "px"
+				}
+			}
+		}
+	}
+
 	function disable_map_fit() {
 		if (mapwrap && mapwrap.classList.contains("fit")) {
 			mapwrap.classList.remove("fit")
-			zoom_map()
+			update_map_fit()
 		}
 	}
 
@@ -1046,6 +1046,12 @@ window.addEventListener("resize", zoom_map)
 			e_outer.style.width = (e_inner.clientWidth * transform1.scale) + "px"
 			old_scale = transform1.scale
 		}
+	}
+
+	function update_transform_resize() {
+		old_scale = 0
+		anchor_transform()
+		update_transform()
 	}
 
 	function start_measure(time) {
@@ -1213,6 +1219,23 @@ window.addEventListener("resize", zoom_map)
 		},
 		{ passive: false }
 	)
-
-	toggle_zoom = toggle_zoom_imp
 })()
+
+/* INITIALIZE */
+
+window.addEventListener("resize", () => update_layout())
+
+window.addEventListener("load", function () {
+	if (window.innerWidth <= 800)
+		document.querySelector("aside").classList.add("hide")
+	update_layout()
+
+	if (params.mode === "debug")
+		init_replay()
+	else if (params.mode === "replay")
+		init_replay()
+	else if (params.mode === "play")
+		connect_play()
+	else
+		document.getElementById("prompt").textContent = "Invalid mode: " + params.mode
+})
