@@ -1,0 +1,35 @@
+/* light tan */
+:root {
+	--color-head: hsl(35, 15%, 85%);
+	--color-body: hsl(35, 15%, 95%);
+	--color-text: hsl(35, 15%, 100%);
+
+	--color-post-head: hsl(35, 15%, 85%);
+	--color-post-body: hsl(35, 15%, 98%);
+
+	--color-table-head: hsl(35, 15%, 85%);
+	--color-table-foot: hsl(35, 15%, 90%);
+	--color-table-body: hsl(35, 15%, 98%);
+	--color-table-stripe: hsl(35, 20%, 95%);
+
+	--color-accent: hsl(340, 60%, 40%);
+}
+
+/* dark tan */
+@media (prefers-color-scheme: dark) {
+:root {
+	--color-head: hsl(35, 15%, 75%);
+	--color-body: hsl(35, 15%, 85%);
+	--color-text: hsl(35, 15%, 95%);
+
+	--color-post-head: hsl(35, 15%, 75%);
+	--color-post-body: hsl(35, 15%, 90%);
+
+	--color-table-head: hsl(35, 15%, 75%);
+	--color-table-foot: hsl(35, 15%, 80%);
+	--color-table-body: hsl(35, 15%, 90%);
+	--color-table-stripe: hsl(35, 15%, 87%);
+
+	--color-accent: hsl(340, 60%, 35%);
+}}
+

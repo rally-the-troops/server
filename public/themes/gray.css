@@ -1,0 +1,46 @@
+/* light gray */
+:root {
+	--color-head: hsl(0, 0%, 85%);
+	--color-body: hsl(0, 0%, 95%);
+	--color-text: hsl(0, 0%, 100%);
+
+	--color-post-head: hsl(0, 0%, 85%);
+	--color-post-body: hsl(0, 0%, 98%);
+
+	--color-table-head: hsl(0, 0%, 85%);
+	--color-table-foot: hsl(0, 0%, 90%);
+	--color-table-body: hsl(0, 0%, 98%);
+	--color-table-stripe: hsl(0, 0%, 96%);
+
+	--color-focus: hsl(210, 40%, 65%);
+
+	--color-blue: hsl(240, 100%, 50%);
+	--color-red: hsl(0, 100%, 35%);
+	--color-green: hsl(120, 100%, 30%);
+
+	--color-accent: hsl(0, 60%, 40%);
+}
+
+/* dark gray */
+@media (prefers-color-scheme: dark) {
+:root {
+	--color-head: hsl(0, 0%, 75%);
+	--color-body: hsl(0, 0%, 85%);
+	--color-text: hsl(0, 0%, 95%);
+
+	--color-post-head: hsl(0, 0%, 75%);
+	--color-post-body: hsl(0, 0%, 90%);
+
+	--color-table-head: hsl(0, 0%, 75%);
+	--color-table-foot: hsl(0, 0%, 80%);
+	--color-table-body: hsl(0, 0%, 90%);
+	--color-table-stripe: hsl(0, 0%, 88%);
+
+	--color-focus: hsl(210, 40%, 60%);
+
+	--color-blue: hsl(240, 100%, 40%);
+	--color-red: hsl(0, 100%, 35%);
+	--color-green: hsl(120, 100%, 30%);
+
+	--color-accent: hsl(0, 60%, 35%);
+}}

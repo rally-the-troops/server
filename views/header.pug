@@ -1,6 +1,9 @@
 header
 	a(href="/")
-		img(src="/images/rally-the-troops.svg" width=48 height=48)
+		if SITE_ICON
+			img(src="/images/"+SITE_ICON width=48 height=48)
+		else
+			img(src="/images/rally-the-troops.svg" width=48 height=48)
 	nav
 		a(href="/about") About
 		if user

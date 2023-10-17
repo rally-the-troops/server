@@ -35,7 +35,7 @@ create table if not exists users (
 
 insert or ignore into
 	users (user_id, name, mail, ctime)
-	values (0, 'Deleted', 'deleted@rally-the-troops.com', null)
+	values (0, 'Deleted', 'deleted@nowhere', null)
 ;
 
 create table if not exists user_last_seen (

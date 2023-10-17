@@ -4,6 +4,8 @@ meta(name="viewport" content="width=device-width,initial-scale=1")
 link(rel="icon" type="image/svg+xml" href="/favicon.svg")
 link(rel="stylesheet" href="/fonts/fonts.css")
 link(rel="stylesheet" href="/style.css")
+if SITE_THEME
+	link(rel="stylesheet" href="/themes/"+SITE_THEME)
 
 mixin social(title,description,game)
 	meta(property="og:title" content=title)
@@ -11,7 +13,10 @@ mixin social(title,description,game)
 	if game
 		meta(property="og:image" content=SITE_URL+"/"+game+"/cover.2x.jpg")
 	else
-		meta(property="og:image" content=SITE_URL+"/images/rally-the-troops.png")
+		if SITE_ICON
+			meta(property="og:image" content=SITE_URL+"/images/"+SITE_ICON)
+		else
+			meta(property="og:image" content=SITE_URL+"/images/rally-the-troops.png")
 	meta(property="og:description" content=description)
 
 mixin gamecover(title_id)
