@@ -135,19 +135,15 @@ function init_chat() {
 	let chat_window = document.createElement("div")
 	chat_window.id = "chat_window"
 	chat_window.innerHTML = `
-		<div id="chat_x" onclick="toggle_chat()">\u274c</div>
 		<div id="chat_header">Chat</div>
+		<div id="chat_x" onclick="toggle_chat()">\u274c</div>
 		<div id="chat_text"></div>
 		<form id="chat_form" action=""><input id="chat_input" autocomplete="off"></form>
 		`
 	document.querySelector("body").appendChild(chat_window)
 
-	let chat_button = document.createElement("div")
-	chat_button.id = "chat_button"
-	chat_button.className = "icon_button"
-	chat_button.innerHTML = '<img src="/images/chat-bubble.svg">'
-	chat_button.addEventListener("click", toggle_chat)
-	document.querySelector("#toolbar").appendChild(chat_button)
+	let chat_button = document.getElementById("chat_button")
+	chat_button.classList.remove("hide")
 
 	chat = {
 		is_visible: false,
@@ -274,9 +270,9 @@ function init_notepad() {
 	let notepad_window = document.createElement("div")
 	notepad_window.id = "notepad_window"
 	notepad_window.innerHTML = `
-		<div id="notepad_x" onclick="toggle_notepad()">\u274c</div>
 		<div id="notepad_header">Notepad: ${player}</div>
-		<textarea id="notepad_input" cols="55" rows="20" maxlength="16000" oninput="dirty_notepad()"></textarea>
+		<div id="notepad_x" onclick="toggle_notepad()">\u274c</div>
+		<textarea id="notepad_input" cols="55" rows="10" maxlength="16000" oninput="dirty_notepad()"></textarea>
 		<div id="notepad_footer"><button id="notepad_save" onclick="save_notepad()" disabled>Save</button></div>
 		`
 	document.querySelector("body").appendChild(notepad_window)
@@ -338,7 +334,23 @@ function toggle_notepad() {
 		show_notepad()
 }
 
-function add_icon_button(parent, id, img, title, fn) {
+window.addEventListener("keydown", (evt) => {
+	if (document.activeElement === document.getElementById("chat_input"))
+		return
+	if (document.activeElement === document.getElementById("notepad_input"))
+		return
+	if (evt.key === "Shift")
+		document.querySelector("body").classList.add("shift")
+})
+
+window.addEventListener("keyup", (evt) => {
+	if (evt.key === "Shift")
+		document.querySelector("body").classList.remove("shift")
+})
+
+/* REMATCH BUTTON */
+
+function add_icon_button(where, id, img, title, fn) {
 	let button = document.getElementById(id)
 	if (!button) {
 		button = document.createElement("div")
@@ -347,12 +359,13 @@ function add_icon_button(parent, id, img, title, fn) {
 		button.className = "icon_button"
 		button.innerHTML = '<img src="/images/' + img + '.svg">'
 		button.addEventListener("click", fn)
-		parent.appendChild(button)
+		if (where)
+			document.getElementById("toolbar").appendChild(button)
+		else
+			document.querySelector(".menu").after(button)
 	}
 	return button
 }
-
-/* REMATCH BUTTON */
 
 function remove_resign_menu() {
 	document.querySelectorAll(".resign").forEach(x => x.remove())
@@ -370,9 +383,9 @@ function goto_replay() {
 }
 
 function on_game_over() {
-	add_icon_button(document.querySelector("header"), "replay_button", "sherlock-holmes-mirror", "Watch replay", goto_replay)
+	add_icon_button(1, "replay_button", "sherlock-holmes-mirror", "Watch replay", goto_replay)
 	if (player !== "Observer")
-		add_icon_button(document.querySelector("header"), "rematch_button", "cycle", "Propose a rematch!", goto_rematch)
+		add_icon_button(1, "rematch_button", "cycle", "Propose a rematch!", goto_rematch)
 	remove_resign_menu()
 }
 
@@ -517,7 +530,7 @@ function connect_play() {
 			if (snap_count === 0)
 				replay_panel.remove()
 			else
-				document.querySelector("aside").appendChild(replay_panel)
+				document.querySelector("body").appendChild(replay_panel)
 			console.log("SNAPSIZE", snap_count)
 			break
 
@@ -608,59 +621,6 @@ try {
 	window.addEventListener("resize", scroll_log_to_end)
 }
 
-/* MAP ZOOM */
-
-function toggle_log() {
-	document.querySelector("aside").classList.toggle("hide")
-	zoom_map()
-}
-
-function toggle_zoom() {
-	let mapwrap = document.getElementById("mapwrap")
-	if (mapwrap) {
-		mapwrap.classList.toggle("fit")
-		zoom_map()
-	}
-}
-
-function zoom_map() {
-	let mapwrap = document.getElementById("mapwrap")
-	if (mapwrap) {
-		let main = document.querySelector("main")
-		let map = document.getElementById("map")
-		map.style.transform = null
-		mapwrap.style.width = null
-		mapwrap.style.height = null
-		if (mapwrap.classList.contains("fit")) {
-			let { width: gw, height: gh } = main.getBoundingClientRect()
-			let { width: ww, height: wh } = mapwrap.getBoundingClientRect()
-			let { width: cw, height: ch } = map.getBoundingClientRect()
-			let scale = Math.min(ww / cw, gh / ch)
-			if (scale < 1) {
-				map.style.transform = "scale(" + scale + ")"
-				mapwrap.style.width = (cw * scale) + "px"
-				mapwrap.style.height = (ch * scale) + "px"
-			}
-		}
-	}
-}
-
-window.addEventListener("resize", zoom_map)
-
-window.addEventListener("keydown", (evt) => {
-	if (document.activeElement === document.getElementById("chat_input"))
-		return
-	if (document.activeElement === document.getElementById("notepad_input"))
-		return
-	if (evt.key === "Shift")
-		document.querySelector("body").classList.add("shift")
-})
-
-window.addEventListener("keyup", (evt) => {
-	if (evt.key === "Shift")
-		document.querySelector("body").classList.remove("shift")
-})
-
 /* ACTIONS */
 
 function action_button_imp(action, label, callback) {
@@ -745,24 +705,6 @@ function send_restore() {
 	send_message("restore", window.localStorage[params.title_id + "/save"])
 }
 
-/* MOBILE PHONE LAYOUT */
-
-let mobile_scroll_header = document.querySelector("header")
-let mobile_scroll_last_y = 0
-
-window.addEventListener("scroll", function scroll_mobile_fix (evt) {
-	if (mobile_scroll_header.clientWidth <= 640) {
-		if (window.scrollY > 40) {
-			if (mobile_scroll_last_y <= 40)
-				mobile_scroll_header.classList.add("mobilefix")
-		} else {
-			if (mobile_scroll_last_y > 40)
-				mobile_scroll_header.classList.remove("mobilefix")
-		}
-		mobile_scroll_last_y = window.scrollY
-	}
-})
-
 /* REPLAY */
 
 function init_replay() {
@@ -784,6 +726,11 @@ window.addEventListener("load", function () {
 })
 
 /* MAIN MENU */
+
+add_icon_button(0, "chat_button", "chat-bubble", "Open chat", toggle_chat).classList.add("hide")
+add_icon_button(0, "zoom_button", "magnifying-glass", "Zoom", () => toggle_zoom())
+add_icon_button(0, "log_button", "scroll-quill", "Hide log", toggle_log)
+add_icon_button(0, "fullscreen_button", "expand", "Fullscreen", toggle_fullscreen)
 
 function init_main_menu() {
 	let popup = document.querySelector(".menu_popup")
@@ -819,6 +766,13 @@ if (params.mode === "play" && params.role !== "Observer") {
 	add_main_menu_item_link("Go to next game", "/games/next")
 } else {
 	add_main_menu_item_link("Go home", "/")
+}
+
+function toggle_fullscreen() {
+	if (document.fullscreenElement)
+		document.exitFullscreen()
+	else
+		document.documentElement.requestFullscreen()
 }
 
 /* SNAPSHOT VIEW */
@@ -898,3 +852,367 @@ function on_snap_stop() {
 		on_update_log(game_log.length, game_log.length)
 	}
 }
+
+/* TOGGLE ZOOM MAP TO FIT */
+
+function toggle_log() {
+	document.querySelector("aside").classList.toggle("hide")
+	zoom_map()
+}
+
+var toggle_zoom = function () {}
+
+function zoom_map() {
+	let mapwrap = document.getElementById("mapwrap")
+	if (mapwrap) {
+		let main = document.querySelector("main")
+		let map = document.getElementById("map")
+		map.style.transform = null
+		mapwrap.style.width = null
+		mapwrap.style.height = null
+		if (mapwrap.classList.contains("fit")) {
+			let { width: gw, height: gh } = main.getBoundingClientRect()
+			let { width: ww, height: wh } = mapwrap.getBoundingClientRect()
+			let { width: cw, height: ch } = map.getBoundingClientRect()
+			let scale = Math.min(ww / cw, gh / ch)
+			if (scale < 1) {
+				map.style.transform = "scale(" + scale + ")"
+				mapwrap.style.width = (cw * scale) + "px"
+				mapwrap.style.height = (ch * scale) + "px"
+			}
+		}
+	}
+}
+
+window.addEventListener("resize", zoom_map)
+
+/* PAN & ZOOM GAME BOARD */
+
+;(function panzoom_init() {
+	const MIN_ZOOM = 0.5
+	const MAX_ZOOM = 1.5
+	const THRESHOLD = 0.0625
+	const DECELERATION = 125
+
+	console.log("DPX", window.devicePixelRatio)
+
+	const e_scroll = document.querySelector("main")
+	e_scroll.style.touchAction = "none"
+
+	const e_inner = document.createElement("div")
+	e_inner.id = "pan_zoom_main"
+	e_inner.style.transformOrigin = "0 0"
+	e_inner.style.height = "120px"
+	while (e_scroll.firstChild)
+		e_inner.appendChild(e_scroll.firstChild)
+
+	const e_outer = document.createElement("div")
+	e_outer.id = "pan_zoom_wrap"
+	e_outer.style.height = "120px"
+	e_outer.appendChild(e_inner)
+
+	e_scroll.appendChild(e_outer)
+
+	const mapwrap = document.getElementById("mapwrap")
+	const map = document.getElementById("map") || e_inner.firstChild
+	const map_w = mapwrap ? mapwrap.clientWidth : map.clientWidth
+	const map_h = mapwrap ? mapwrap.clientHeight : map.clientHeight
+
+	console.log("MAP", map_w, map_h)
+
+	var transform0 = { x: 0, y: 0, scale: 1 }
+	var transform1 = { x: 0, y: 0, scale: 1 }
+	var old_scale = 1
+
+	// touch finger tracking
+	var last_touch_x = {}
+	var last_touch_y = {}
+	var last_touch_length = 0
+
+	// momentum velocity tracking
+	var mom_last_t = null
+	var mom_last_x = null
+	var mom_last_y = null
+
+	// momentum auto-scroll
+	var timer = 0
+	var mom_time = 0
+	var mom_vx = 0
+	var mom_vy = 0
+
+	try {
+		new ResizeObserver(update_transform_resize).observe(document.getElementById("log"))
+	} catch (err) {
+		window.addEventListener("resize", function (evt) {
+			old_scale = 0
+			update_transform()
+		})
+	}
+
+	function clamp_scale(scale) {
+		let win_w = e_scroll.clientWidth
+		let win_h = e_scroll.clientHeight
+		let real_min_zoom = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
+		if (scale * transform0.scale > MAX_ZOOM)
+			scale = MAX_ZOOM / transform0.scale
+		if (scale * transform0.scale < real_min_zoom)
+			scale = real_min_zoom / transform0.scale
+		return scale
+	}
+
+	function anchor_transform(touches) {
+		// in case it changed from outside
+		transform1.x = -e_scroll.scrollLeft
+		transform1.y = -e_scroll.scrollTop
+
+		transform0.scale = transform1.scale
+		transform0.x = transform1.x
+		transform0.y = transform1.y
+		if (touches) {
+			for (let touch of touches) {
+				last_touch_x[touch.identifier] = touch.clientX
+				last_touch_y[touch.identifier] = touch.clientY
+			}
+			last_touch_length = touches.length
+		} else {
+			last_touch_length = 0
+		}
+	}
+
+	function toggle_zoom_imp() {
+		if (transform1.scale === 1) {
+			if (window.innerWidth >= 800) {
+				if (mapwrap) {
+					mapwrap.classList.toggle("fit")
+					zoom_map()
+					return
+				}
+			}
+			let win_w = e_scroll.clientWidth
+			let win_h = e_scroll.clientHeight
+			let min_z = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
+			zoom_to(min_z)
+		} else {
+			zoom_to(1)
+		}
+		return false
+	}
+
+	function disable_map_fit() {
+		if (mapwrap && mapwrap.classList.contains("fit")) {
+			mapwrap.classList.remove("fit")
+			zoom_map()
+		}
+	}
+
+	function zoom_to(new_scale) {
+		let cx = e_scroll.clientWidth / 2
+		let cy = 0
+
+		// in case changed from outside
+		transform1.x = -e_scroll.scrollLeft
+		transform1.y = -e_scroll.scrollTop
+
+		transform1.x -= cx
+		transform1.y -= cy
+		transform1.x *= new_scale / transform1.scale
+		transform1.y *= new_scale / transform1.scale
+		transform1.scale = new_scale
+		transform1.x += cx
+		transform1.y += cy
+
+		update_transform()
+	}
+
+	function update_transform() {
+		let win_w = e_scroll.clientWidth
+		let win_h = e_scroll.clientHeight
+
+		// clamp zoom
+		let real_min_zoom = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
+		transform1.scale = Math.max(real_min_zoom, Math.min(MAX_ZOOM, transform1.scale))
+
+		e_scroll.scrollLeft = -transform1.x
+		e_scroll.scrollTop = -transform1.y
+
+		if (transform1.scale !== old_scale) {
+			if (transform1.scale === 1) {
+				e_inner.style.transform = null
+			} else {
+				e_inner.style.transform = `scale(${transform1.scale})`
+				disable_map_fit()
+			}
+			e_inner.style.width = (win_w / transform1.scale) + "px"
+			e_outer.style.width = (e_inner.clientWidth * transform1.scale) + "px"
+			old_scale = transform1.scale
+		}
+	}
+
+	function start_measure(time) {
+		mom_last_t = [ time, time, time ]
+		mom_last_x = [ transform1.x, transform1.x, transform1.x ]
+		mom_last_y = [ transform1.y, transform1.y, transform1.y ]
+	}
+
+	function abort_measure(time) {
+		mom_last_t = mom_last_x = mom_last_y = null
+	}
+
+	function move_measure(time) {
+		if (mom_last_t) {
+			mom_last_t[0] = time
+			mom_last_x[0] = transform1.x
+			mom_last_y[0] = transform1.y
+			if (mom_last_t[0] - mom_last_t[1] > 15) {
+				mom_last_t[2] = mom_last_t[1]
+				mom_last_x[2] = mom_last_x[1]
+				mom_last_y[2] = mom_last_y[1]
+				mom_last_t[1] = mom_last_t[0]
+				mom_last_x[1] = mom_last_x[0]
+				mom_last_y[1] = mom_last_y[0]
+			}
+		}
+	}
+
+	function start_momentum() {
+		if (mom_last_t) {
+			let dt = mom_last_t[0] - mom_last_t[2]
+			if (dt > 5) {
+				mom_time = Date.now()
+				mom_vx = (mom_last_x[0] - mom_last_x[2]) / dt
+				mom_vy = (mom_last_y[0] - mom_last_y[2]) / dt
+				if (Math.hypot(mom_vx, mom_vy) < THRESHOLD)
+					mom_vx = mom_vy = 0
+				if (mom_vx || mom_vy)
+					timer = requestAnimationFrame(update_momentum)
+			}
+		}
+	}
+
+	function stop_momentum() {
+		cancelAnimationFrame(timer)
+		timer = 0
+	}
+
+	function update_momentum() {
+		var now = Date.now()
+		var dt = now - mom_time
+		mom_time = now
+
+		transform1.x = transform1.x + mom_vx * dt
+		transform1.y = transform1.y + mom_vy * dt
+		update_transform()
+
+		var decay = Math.pow(0.5, dt / DECELERATION)
+		mom_vx *= decay
+		mom_vy *= decay
+
+		if (Math.hypot(mom_vx, mom_vy) < THRESHOLD)
+			mom_vx = mom_vy = 0
+
+		if (mom_vx || mom_vy)
+			timer = requestAnimationFrame(update_momentum)
+	}
+
+	e_scroll.ontouchstart = function (evt) {
+		anchor_transform(evt.touches)
+		stop_momentum()
+		start_measure(evt.timeStamp)
+	}
+
+	e_scroll.ontouchend = function (evt) {
+		anchor_transform(evt.touches)
+		if (evt.touches.length === 0)
+			start_momentum()
+	}
+
+	e_scroll.ontouchmove = function (evt) {
+		if (evt.touches.length !== last_touch_length)
+			anchor_transform(evt.touches)
+
+		if (evt.touches.length === 1 || evt.touches.length === 2) {
+			let a = evt.touches[0]
+
+			let dx = a.clientX - last_touch_x[a.identifier]
+			let dy = a.clientY - last_touch_y[a.identifier]
+
+			transform1.scale = transform0.scale
+			transform1.x = transform0.x + dx
+			transform1.y = transform0.y + dy
+
+			if (evt.touches.length === 1)
+				move_measure(evt.timeStamp)
+			else
+				abort_measure()
+
+			// zoom
+			if (evt.touches.length === 2) {
+				let b = evt.touches[1]
+
+				let old_x = last_touch_x[a.identifier] - last_touch_x[b.identifier]
+				let old_y = last_touch_y[a.identifier] - last_touch_y[b.identifier]
+				let old = Math.sqrt(old_x * old_x + old_y * old_y)
+
+				let cur_x = a.clientX - b.clientX
+				let cur_y = a.clientY - b.clientY
+				let cur = Math.sqrt(cur_x * cur_x + cur_y * cur_y)
+
+				let scale = clamp_scale(cur / old)
+
+				let cx = a.clientX
+				let cy = a.clientY
+
+				transform1.x -= cx
+				transform1.y -= cy
+
+				transform1.scale *= scale
+				transform1.x *= scale
+				transform1.y *= scale
+
+				transform1.x += cx
+				transform1.y += cy
+			}
+
+			update_transform()
+		}
+	}
+
+	e_scroll.addEventListener(
+		"wheel",
+		function (evt) {
+			if (evt.ctrlKey) {
+				anchor_transform(null)
+
+				let win_w = e_scroll.clientWidth
+				let win_h = e_scroll.clientHeight
+				let real_min_zoom = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
+
+				// one "click" of 120 units -> 10% change
+				let new_scale = Math.max(real_min_zoom, Math.min(MAX_ZOOM, transform1.scale + event.wheelDeltaY / 1200))
+
+				// snap to 1 if close
+				console.log("WHEEL ", new_scale, Math.abs(event.wheelDeltaY / 2400))
+				if (Math.abs(1 - new_scale) < Math.abs(event.wheelDeltaY / 2400)) {
+					console.log("SNAP TO 1 ", Math.abs(event.wheelDeltaY / 2400))
+					new_scale = 1
+				}
+
+				transform1.x -= event.clientX
+				transform1.y -= event.clientY
+
+				transform1.x *= new_scale / transform1.scale
+				transform1.y *= new_scale / transform1.scale
+				transform1.scale = new_scale
+
+				transform1.x += event.clientX
+				transform1.y += event.clientY
+
+				update_transform()
+				evt.preventDefault()
+			}
+		},
+		{ passive: false }
+	)
+
+	toggle_zoom = toggle_zoom_imp
+})()

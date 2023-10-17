@@ -1,10 +1,10 @@
 /* BATTLE DIALOG FOR COLUMBIA BLOCK GAMES */
 
 #battle {
-	position: fixed;
+	position: absolute;
 	min-width: 524px; /* 6 blocks wide */
 	left: 12px;
-	top: 56px;
+	top: 12px;
 	z-index: 50;
 	box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.5);
 	background-color: white;
@@ -87,18 +87,3 @@
 .battle_menu.storm .action.storm { display: block; }
 .battle_menu.sally .action.sally { display: block; }
 .battle_menu.hit .action.hit { display: block; }
-
-/* MOBILE PHONE LAYOUT */
-
-@media (max-width: 640px) {
-	#battle {
-		position: static;
-		grid-column: 1;
-		grid-row: 3;
-		min-width: auto !important;
-		box-shadow: none;
-		border-top: none;
-		border-left: none;
-		border-right: none;
-	}
-}

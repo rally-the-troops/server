@@ -143,27 +143,38 @@ body {
 
 header {
 	display: flex;
-	align-items: center;
+	align-items: end;
 	justify-content: space-between;
-	padding-right: 1em;
+	padding-right: 12px;
 	background-color: var(--color-head);
 	border-bottom: 2px solid var(--color-accent);
 }
 
 header img {
 	display: block;
-	margin: 4px 0 -2px 2px;
+	margin: 0 0 -2px 2px;
 }
 
-header nav {
+nav {
 	display: flex;
+	align-items: center;
 	flex-wrap: wrap;
 	justify-content: end;
+	min-height: 42px;
+	padding: 4px;
+	gap: 8px;
 }
 
-header nav > * {
+nav a {
+	padding: 0 4px;
 	display: block;
-	padding: 0 8px;
+}
+
+@media (pointer: coarse) {
+	nav {
+		padding: 8px;
+		gap: 12px;
+	}
 }
 
 article {
@@ -327,8 +338,6 @@ div.body img {
 	margin: 4px 0 4px 4px;
 	border: var(--thin-border);
 }
-
-/* LIGHT MODE - GAME BOXES */
 
 .game_item .game_head { background-color: gainsboro }
 .game_item .game_main { background-color: whitesmoke }

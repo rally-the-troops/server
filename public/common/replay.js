@@ -308,7 +308,7 @@ async function load_replay() {
 			set_hash(replay.length)
 		on_hash_change()
 		window.addEventListener("hashchange", on_hash_change)
-		document.querySelector("aside").appendChild(replay_panel)
+		document.querySelector("body").appendChild(replay_panel)
 	} else {
 		console.log("REPLAY NOT AVAILABLE")
 		replay_state = body.state
@@ -322,7 +322,7 @@ async function load_replay() {
 	for (let r of roles)
 		create_viewpoint_button(viewpoint_panel, r.role, r.role)
 	create_viewpoint_button(viewpoint_panel, "Observer", "Observer")
-	document.querySelector("header").appendChild(viewpoint_panel)
+	document.getElementById("actions").appendChild(viewpoint_panel)
 
 	// Adjust replay panel
 	document.getElementById("replay_step_prev").classList.remove("hide")

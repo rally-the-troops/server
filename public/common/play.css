@@ -43,6 +43,7 @@ button {
 	background-color: gainsboro;
 	border: 2px solid;
 	outline: 1px solid black;
+	white-space: nowrap;
 }
 
 button:disabled {
@@ -68,41 +69,20 @@ body {
 	display: grid;
 	overflow: clip;
 	grid-template-columns: minmax(0, 1fr) auto;
-	grid-template-rows: auto minmax(0, 1fr);
-	width: 100vw;
-	height: 100vh;
+	grid-template-rows: auto minmax(0, 1fr) auto;
+	width: 100dvw;
+	height: 100dvh;
 }
 
 header {
 	grid-column: 1/3;
 	grid-row: 1;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	border-bottom: 1px solid black;
-	background-color: gainsboro;
-}
-
-#toolbar {
-	display: flex;
-	flex-wrap: wrap;
-}
-
-header.disconnected {
-	background-color: red !important;
-}
-
-header.your_turn {
-	background-color: orange;
-}
-
-header.replay {
-	background-image: repeating-linear-gradient(45deg, gainsboro, gainsboro 40px, silver 40px, silver 80px);
 }
 
 main {
+	position: relative;
 	grid-column: 1;
-	grid-row: 2;
+	grid-row: 2/4;
 	overflow: auto;
 	scrollbar-width: none;
 }
@@ -112,7 +92,7 @@ aside {
 	grid-row: 2;
 	display: grid;
 	overflow: clip;
-	grid-template-rows: auto minmax(0, 1fr) auto;
+	grid-template-rows: auto minmax(0, 1fr);
 	width: 212px;
 	border-left: 1px solid black;
 }
@@ -124,7 +104,7 @@ aside {
 
 #turn_info {
 	border-bottom: 1px solid black;
-	padding: 8px;
+	padding: 4px 8px;
 	white-space: pre-line;
 	font-style: italic;
 	font-size: 12px;
@@ -232,25 +212,41 @@ a.menu_item {
 	filter: invert(100%);
 }
 
-header #actions {
+header {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
+	gap: 0 8px;
+	border-bottom: 1px solid black;
+	background-color: gainsboro;
+}
+
+#toolbar {
+	display: flex;
+}
+
+header.disconnected {
+	background-color: red !important;
+}
+
+header.your_turn {
+	background-color: orange;
+}
+
+header.replay {
+	background-image: repeating-linear-gradient(45deg, gainsboro, gainsboro 40px, silver 40px, silver 80px);
+}
+
+#actions, #viewpoint_panel {
+	display: flex;
 	justify-content: end;
+	align-items: center;
+}
+
+#actions {
+	flex-wrap: wrap;
+	padding: 4px 8px;
 	gap: 8px;
-	padding: 0 8px;
-	margin: 4px 0;
-}
-
-header #viewpoint_panel {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: end;
-	padding: 0 8px;
-	margin: 4px 0;
-}
-
-header .viewpoint_button {
-	margin-right: 0;
 }
 
 header .viewpoint_button.selected {
@@ -263,7 +259,7 @@ header .viewpoint_button.selected:active:hover {
 }
 
 #prompt {
-	padding-left: 20px;
+	padding-left: 12px;
 	font-size: 18px;
 	flex: 1 1 200px;
 	text-overflow: ellipsis;
@@ -272,9 +268,12 @@ header .viewpoint_button.selected:active:hover {
 }
 
 #replay_panel {
+	grid-column: 2;
+	grid-row: 3;
 	display: flex;
 	height: 24px;
 	border-top: 1px solid black;
+	border-left: 1px solid black;
 	background-color: silver;
 }
 
@@ -368,16 +367,21 @@ header .viewpoint_button.selected:active:hover {
 	left: 24px;
 	top: 68px;
 	width: 640px;
+	z-index: 499;
 }
 
 #notepad_window {
 	left: 60px;
 	top: 200px;
+	height: auto;
+	z-index: 498;
 }
 
 #chat_window, #notepad_window {
 	position: fixed;
-	z-index: 500;
+	display: grid;
+	grid-template-rows: min-content 1fr min-content;
+	grid-template-columns: 1fr 30px;
 	border: 1px solid black;
 	background-color: white;
 	box-shadow: 0px 4px 8px 0px rgba(0,0,0,0.5);
@@ -389,6 +393,8 @@ header .viewpoint_button.selected:active:hover {
 }
 
 #chat_header, #notepad_header {
+	grid-row: 1;
+	grid-column: 1/3;
 	user-select: none;
 	cursor: move;
 	background-color: gainsboro;
@@ -397,12 +403,13 @@ header .viewpoint_button.selected:active:hover {
 }
 
 #chat_x, #notepad_x {
+	grid-row: 1;
+	grid-column: 2;
 	user-select: none;
 	cursor: pointer;
-	position: absolute;
-	right: 3px;
-	top: 3px;
-	padding: 0px 2px;
+	margin: 5px 5px;
+	height: 24px;
+	text-align: right;
 }
 
 #chat_x:hover, #notepad_x:hover {
@@ -411,10 +418,12 @@ header .viewpoint_button.selected:active:hover {
 }
 
 #chat_text, #notepad_input {
+	grid-row: 2;
+	grid-column: 1/3;
 	margin: 0;
 	font-size: 16px;
 	line-height: 24px;
-	height: 216px;
+	min-height: 216px;
 	padding: 0px 4px;
 	overflow-y: scroll;
 }
@@ -424,7 +433,8 @@ header .viewpoint_button.selected:active:hover {
 }
 
 #chat_form {
-	display: block;
+	grid-row: 3;
+	grid-column: 1/3;
 	margin: 0;
 	padding: 0;
 	border-top: 1px solid black;
@@ -446,6 +456,8 @@ header .viewpoint_button.selected:active:hover {
 }
 
 #notepad_footer {
+	grid-row: 3;
+	grid-column: 1/3;
 	display: flex;
 	justify-content: end;
 	padding: 8px;
@@ -455,43 +467,72 @@ header .viewpoint_button.selected:active:hover {
 
 /* MOBILE PHONE LAYOUT */
 
-@media (max-width: 640px) {
+#fullscreen_button {
+	display: none;
+}
+
+@media (pointer: coarse) and (max-width: 400px) {
+	#fullscreen_button { display: block; }
+	#zoom_button { display: none; }
+}
+
+@media (pointer: coarse) {
+	#replay_panel, .replay_button {
+		height: 36px;
+	}
+}
+
+@media (max-height: 600px) {
+	.role_name:not(:hover) .role_user {
+		display: none;
+	}
+}
+
+@media (max-width: 800px) {
 	body {
-		width: 100%;
-		height: auto;
-		grid-template-columns: 1fr;
-		grid-template-rows: 108px min-content;
-		overflow-x: clip;
-		overflow-y: auto;
-	}
-	footer {
-		width: 100%;
-		background-color: rgba(255,255,255,0.9);
-	}
-	header.mobilefix {
-		position: fixed;
-		top: -40px;
+		grid-template-columns: 1fr min-content;
+		grid-template-rows: min-content 1fr min-content;
 	}
 	header {
-		position: absolute;
-		min-height: 108px;
-		top: 0;
-		left: 0;
-		right: 0;
-		display: block;
-		z-index: 1000;
+		grid-column: 1/3;
+		grid-row: 1;
+	}
+	main {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	aside {
+		grid-column: 2;
+		grid-row: 2/4;
+	}
+	footer {
+		background-color: #fffc;
+	}
+	#replay_panel {
+		grid-column: 1;
+		grid-row: 3;
+		border-left: none;
+		z-index: 496;
+	}
+	header {
+		display: grid;
+		grid-template-columns: min-content auto;
+	}
+	#toolbar {
+		grid-row: 1;
+		grid-column: 1;
 	}
 	#prompt {
-		padding-left: 8px;
-		display: block;
+		grid-row: 2;
+		grid-column: 1/3;
+		padding: 0 8px 3px 8px;
+	}
+	#prompt:hover {
 		white-space: normal;
 	}
-
-	#replay_panel {
-		position: fixed;
-		z-index: 500;
-		bottom: 0;
-		width: 100%;
+	#actions {
+		grid-row: 1;
+		grid-column: 2;
 	}
 
 	#chat_window, #notepad_window {
@@ -501,30 +542,32 @@ header .viewpoint_button.selected:active:hover {
 		display: none;
 		width: auto;
 		box-shadow: none;
-		border-top: none;
+		border: none;
 	}
 	#chat_window.show, #notepad_window.show {
-		display: block;
+		display: grid;
 	}
+}
 
-	/* game specific dialogs in rows 3-9 */
+@media (max-width: 800px) { footer { bottom: 25px } }
+@media (pointer: coarse) and (max-width: 800px) { footer { bottom: 37px } }
 
-	main {
-		grid-column: 1;
-		grid-row: 10;
+@media (max-width: 400px) {
+	body {
+		grid-template-columns: 1fr;
+	}
+	header {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto auto auto;
 	}
 	aside {
 		grid-column: 1;
-		grid-row: 11;
-		width: auto !important;
-		border-left: none;
-		border-top: 1px solid black;
-		margin-bottom: 25px; /* space for replay panel */
+		grid-row: 2/3;
+		z-index: 497;
+		width: 100vw;
+		border: none;
 	}
-	#log {
-		height: 50vh;
-	}
-	#replay_button, #rematch_button {
-		display: inline-block;
-	}
+	#toolbar { grid-row: 1; grid-column: 1; }
+	#actions { grid-row: 2; grid-column: 1; }
+	#prompt { grid-row: 3; grid-column: 1; }
 }
