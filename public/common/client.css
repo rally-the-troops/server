@@ -1,14 +1,19 @@
 /* COMMON GRID LAYOUT */
 
 :root {
-	--font-normal:  "Source Serif", "Georgia", "Noto Emoji", "Dingbats", serif;
-	--font-small: "Source Serif SmText", "Georgia", "Noto Emoji", "Dingbats", serif;
-	--font-widget: "Source Sans", "Verdana", "Noto Emoji", "Dingbats", sans-serif;
+	--font-normal:  "Source Serif", "Circled Numbers", "Georgia", "Noto Emoji", "Dingbats", serif;
+	--font-small: "Source Serif SmText", "Circled Numbers", "Georgia", "Noto Emoji", "Dingbats", serif;
+	--font-widget: "Source Sans", "Circled Numbers", "Verdana", "Noto Emoji", "Dingbats", sans-serif;
 }
 
 html {
 	image-rendering: -webkit-optimize-contrast; /* try to fix chromium's terrible image rescaling */
+	image-rendering: high-quality;
 	-webkit-tap-highlight-color: transparent; /* disable blue flashes when tapping on chrome mobile */
+}
+
+summary::-webkit-details-marker {
+	display: none;
 }
 
 html, button, input, select, textarea {
@@ -43,30 +48,28 @@ body.Observer .resign {
 /* BUTTON */
 
 button {
-	box-sizing: border-box;
-	font-size: 16px;
-	height: 28px;
-	padding: 1px 12px 1px 12px;
-	background-color: gainsboro;
-	border: 2px solid;
-	outline: 1px solid black;
+	flex: 0 0 auto;
 	white-space: nowrap;
+
+	padding: 1px 10px;
+	vertical-align: middle;
+	border: 2px solid;
+
+	background-color: gainsboro;
+	border-color: white darkgray darkgray white;
 	color: black;
+	outline: 1px solid black;
+}
+
+button:enabled:active:hover {
+	border-color: darkgray white white darkgray;
+	padding: 2px 9px 0px 11px;
 }
 
 button:disabled {
 	color: gray;
 	border-color: gainsboro;
 	outline-color: gray;
-}
-
-button:enabled {
-	border-color: white darkgray darkgray white;
-}
-
-button:enabled:active:hover {
-	border-color: darkgray white white darkgray;
-	padding: 2px 11px 0px 13px;
 }
 
 /* MAIN GRID */
@@ -97,6 +100,7 @@ body {
 }
 
 main {
+	user-select: none;
 	position: relative;
 	grid-column: 1;
 	grid-row: 2/4;
@@ -158,13 +162,9 @@ footer {
 /* HEADER */
 
 header {
+	user-select: none;
 	grid-column: 1/3;
 	grid-row: 1;
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: right;
-	align-items: center;
-	gap: 0 8px;
 	border-bottom: 1px solid black;
 	background-color: gainsboro;
 }
@@ -191,43 +191,60 @@ header.replay {
 }
 
 #prompt {
-	flex: 1 1 300px;
-	padding-left: 4px;
+	box-sizing: border-box;
+	min-width: 300px;
 	font-size: 18px;
-	line-height: 18px;
-	padding: 4px 0 4px 4px;
+	line-height: 22px;
+
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	overflow: hidden;
+
+	margin-top: 11px;
+	margin-bottom: 5px;
+	padding: 0 8px;
 }
 
 #prompt:hover {
 	white-space: normal;
 }
 
-#actions, #viewpoint_panel {
+#toolbar {
+	float: left;
 	display: flex;
-	justify-content: end;
-	align-items: center;
+	flex-wrap: wrap;
 }
 
 #actions {
+	user-select: none;
+	float: right;
+	min-width: 100px;
+
+	display: flex;
+	justify-content: end;
+	align-items: center;
 	flex-wrap: wrap;
-	align-content: space-between;
-	padding: 4px 8px;
+
+	min-height: 32px;
+	padding: 6px 7px;
 	gap: 8px;
 }
 
-/* TOOLBAR & MENUS */
-
-#toolbar {
-	display: flex;
-	user-select: none;
+@media (pointer: coarse) {
+	#toolbar { gap: 8px; }
+	#actions { gap: 12px 8px; }
 }
 
-details summary::-webkit-details-marker {
-	display: none;
+@media (max-width: 400px) {
+	#toolbar, #actions {
+		float: none;
+	}
+	#prompt {
+		margin-top: 0;
+	}
 }
+
+/* MENUS AND ICONS */
 
 details menu {
 	display: block;
@@ -406,6 +423,11 @@ menu li:hover img {
 /* MAP */
 
 #mapwrap {
+	position: relative;
+	margin: 0 auto;
+}
+
+#map {
 	position: relative;
 	margin: 0 auto;
 }
@@ -599,17 +621,6 @@ menu li:hover img {
 	#chat_window.show, #notepad_window.show {
 		display: grid;
 	}
-}
-
-@media (max-width: 600px) {
-	header {
-		display: grid;
-		grid-template-columns: 1fr;
-		grid-template-rows: min-content minmax(36px, auto) auto;
-	}
-	#toolbar { grid-column: 1; grid-row: 1 }
-	#actions { grid-column: 1; grid-row: 2 }
-	#prompt { grid-column: 1; grid-row: 3 }
 }
 
 @media (max-width: 400px) {

@@ -94,7 +94,7 @@ input:focus, textarea:focus {
 	outline: 2px solid var(--color-focus);
 }
 
-select:focus, button:focus {
+button:focus, select:focus {
 	box-shadow: 0 0 0 3px var(--color-focus);
 }
 
@@ -111,6 +111,7 @@ button, select {
 
 	background-color: gainsboro;
 	border-color: white darkgray darkgray white;
+	color: var(--color-black);
 	outline: 1px solid var(--color-black);
 }
 

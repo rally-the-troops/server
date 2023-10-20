@@ -12,6 +12,10 @@
 	display: none;
 }
 
+#battle .block {
+	position: static;
+}
+
 #battle.show {
 	display: block;
 }

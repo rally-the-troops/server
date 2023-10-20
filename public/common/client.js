@@ -1,5 +1,7 @@
 "use strict"
 
+/* global on_update, on_replay, on_log */
+
 // TODO: hide more functions and globals in anonymous function scope
 
 let params = {
@@ -715,10 +717,15 @@ function init_replay() {
 
 /* MAIN MENU */
 
+/* avoid margin collapse at bottom of main */
+document.querySelector("main").insertAdjacentHTML("beforeend", "<div style='height:1px'></div>")
+
+document.querySelector("header").insertAdjacentHTML("beforeend", "<div id='actions'>")
+document.querySelector("header").insertAdjacentHTML("beforeend", "<div id='prompt'>")
+
 add_icon_button(0, "chat_button", "chat-bubble", toggle_chat).classList.add("hide")
 add_icon_button(0, "zoom_button", "magnifying-glass", () => toggle_zoom())
 add_icon_button(0, "log_button", "scroll-quill", toggle_log)
-add_icon_button(0, "fullscreen_button", "expand", toggle_fullscreen)
 
 function add_main_menu_separator() {
 	let popup = document.querySelector("#toolbar details menu")
@@ -770,10 +777,21 @@ for (let node of document.querySelectorAll("#toolbar > details > menu")) {
 }
 
 function toggle_fullscreen() {
+	// Safari on iPhone doesn't support Fullscreen
+	if (typeof document.documentElement.requestFullscreen !== "function")
+		return
+
 	if (document.fullscreenElement)
 		document.exitFullscreen()
 	else
 		document.documentElement.requestFullscreen()
+
+	event.preventDefault()
+}
+
+if ("ontouchstart" in window) {
+	document.querySelector("header").ondblclick = toggle_fullscreen
+	document.querySelector("main").ondblclick = toggle_fullscreen
 }
 
 /* SNAPSHOT VIEW */
@@ -892,8 +910,13 @@ var update_layout = function () {}
 
 	const mapwrap = document.getElementById("mapwrap")
 	const map = document.getElementById("map") || e_inner.querySelector("div")
-	const map_w = mapwrap ? mapwrap.clientWidth : map.clientWidth
-	const map_h = mapwrap ? mapwrap.clientHeight : map.clientHeight
+	var map_w = mapwrap ? mapwrap.clientWidth : map.clientWidth
+	var map_h = mapwrap ? mapwrap.clientHeight : map.clientHeight
+
+	if (e_scroll.dataset.mapHeight)
+		map_h = Number(e_scroll.dataset.mapHeight)
+	if (e_scroll.dataset.mapWidth)
+		map_w = Number(e_scroll.dataset.mapWidth)
 
 	console.log("INIT MAP", map, map_w, map_h, window.devicePixelRatio)
 
@@ -961,7 +984,7 @@ var update_layout = function () {}
 				}
 			}
 			let win_w = e_scroll.clientWidth
-			let win_h = e_scroll.clientHeight
+			let win_h = e_scroll.offsetHeight
 			let min_z = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
 			zoom_to(min_z)
 		} else {
@@ -985,23 +1008,28 @@ var update_layout = function () {}
 			mapwrap.style.width = null
 			mapwrap.style.height = null
 			if (mapwrap.classList.contains("fit")) {
-				let { width: gw, height: gh } = main.getBoundingClientRect()
-				let { width: ww, height: wh } = mapwrap.getBoundingClientRect()
-				let { width: cw, height: ch } = map.getBoundingClientRect()
-				let scale = Math.min(ww / cw, gh / ch)
+				let cw = map.clientWidth
+				let ch = map.clientHeight
+				let scale = Math.min(
+					main.clientWidth / cw,
+					main.offsetHeight / ch
+				)
 				if (scale < 1) {
 					map.style.transform = "scale(" + scale + ")"
 					mapwrap.style.width = (cw * scale) + "px"
 					mapwrap.style.height = (ch * scale) + "px"
 				}
 			}
+			update_transform_resize()
 		}
 	}
 
 	function disable_map_fit() {
 		if (mapwrap && mapwrap.classList.contains("fit")) {
 			mapwrap.classList.remove("fit")
-			update_map_fit()
+			map.style.transform = null
+			mapwrap.style.width = null
+			mapwrap.style.height = null
 		}
 	}
 
