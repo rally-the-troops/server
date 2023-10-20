@@ -791,7 +791,6 @@ function toggle_fullscreen() {
 
 if ("ontouchstart" in window) {
 	document.querySelector("header").ondblclick = toggle_fullscreen
-	document.querySelector("main").ondblclick = toggle_fullscreen
 }
 
 /* SNAPSHOT VIEW */
