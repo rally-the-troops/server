@@ -36,6 +36,17 @@ let snap_count = 0
 let snap_this = 0
 let snap_view = null
 
+function scroll_into_view(e) {
+	if (window.innerWidth <= 800)
+		document.querySelector("aside").classList.add("hide")
+	e.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" })
+}
+
+function scroll_into_view_if_mobile(e) {
+	if (window.innerWidth <= 800)
+		scroll_into_view(e)
+}
+
 function scroll_with_middle_mouse(panel_sel, multiplier) {
 	let panel = document.querySelector(panel_sel)
 	let down_x, down_y, scroll_x, scroll_y
