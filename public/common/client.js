@@ -901,8 +901,11 @@ var update_layout = function () {}
 /* PAN & ZOOM GAME BOARD */
 
 ;(function panzoom_init() {
+	var PAN_SPEED = Number(document.querySelector("main").dataset.panSpeed) || 1
 	var MIN_ZOOM = Number(document.querySelector("main").dataset.minZoom) || 0.5
 	var MAX_ZOOM = Number(document.querySelector("main").dataset.maxZoom) || 1.5
+
+	scroll_with_middle_mouse("main", PAN_SPEED)
 
 	const THRESHOLD = 0.0625
 	const DECELERATION = 125
