@@ -769,12 +769,29 @@ function close_menus(self) {
 }
 
 for (let node of document.querySelectorAll("#toolbar > details")) {
-	node.onclick = function () { close_menus(node) }
-	node.onmouseleave = function () { node.removeAttribute("open") }
+	//node.onclick = function () { close_menus(node) }
+	//node.onmouseleave = function () { node.removeAttribute("open") }
 }
+
+/* close menu after selecting something */
 for (let node of document.querySelectorAll("#toolbar > details > menu")) {
 	node.onclick = function () { close_menus(null) }
 }
+
+/* click anywhere else than menu to close it */
+window.addEventListener("mousedown", function (evt) {
+	let e = evt.target
+	while (e) {
+		if (e.tagName === "DETAILS")
+			return
+		e = e.parentElement
+	}
+	close_menus(null)
+})
+
+window.addEventListener("blur", function (evt) {
+	close_menus(null)
+})
 
 function toggle_fullscreen() {
 	// Safari on iPhone doesn't support Fullscreen
