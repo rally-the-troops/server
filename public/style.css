@@ -1,5 +1,13 @@
 /* RALLY THE TROOPS - MAIN SITE STYLE */
 
+html {
+	image-rendering: -webkit-optimize-contrast; /* try to fix chromium's terrible image rescaling */
+	image-rendering: high-quality;
+	text-size-adjust: none; /* should disable font boosting - but has no effect ... */
+}
+
+* { max-height: 100000px; /* disable chrome's "font boosting" algorithm */ }
+
 :root {
 	--font-normal:  "Source Serif", "Georgia", "Noto Emoji", "Dingbats", serif;
 	--font-small: "Source Serif SmText", "Georgia", "Noto Emoji", "Dingbats", serif;
