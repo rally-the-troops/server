@@ -1255,11 +1255,8 @@ var update_layout = function () {}
 				let new_scale = Math.max(real_min_zoom, Math.min(MAX_ZOOM, transform1.scale + event.wheelDeltaY / 1200))
 
 				// snap to 1 if close
-				console.log("WHEEL ", new_scale, Math.abs(event.wheelDeltaY / 2400))
-				if (Math.abs(1 - new_scale) < Math.abs(event.wheelDeltaY / 2400)) {
-					console.log("SNAP TO 1 ", Math.abs(event.wheelDeltaY / 2400))
+				if (Math.abs(1 - new_scale) < Math.abs(event.wheelDeltaY / 2400))
 					new_scale = 1
-				}
 
 				transform1.x -= event.clientX
 				transform1.y -= event.clientY
