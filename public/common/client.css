@@ -20,7 +20,7 @@ html {
 	user-select: none;
 }
 
-#log, #prompt {
+#log, #prompt, #chat_text {
 	user-select: text;
 }
 
@@ -513,7 +513,7 @@ menu li:hover img {
 	margin: 0;
 	font-size: 16px;
 	line-height: 24px;
-	min-height: 216px;
+	height: 216px;
 	padding: 0px 4px;
 	overflow-y: scroll;
 }
@@ -557,16 +557,11 @@ menu li:hover img {
 
 /* MOBILE PHONE LAYOUT */
 
-#fullscreen_button {
-	display: none;
-}
-
 @media (min-width: 1900px) {
 	#log_button { display: none; }
 }
 
 @media (pointer: coarse) and ( (max-width: 400px) or (max-height: 400px) ) {
-	#fullscreen_button { display: block; }
 	#zoom_button { display: none; }
 }
 
@@ -576,6 +571,9 @@ menu li:hover img {
 @media (pointer: coarse) {
 	#replay_panel, .replay_button {
 		height: 36px;
+	}
+	#prompt {
+		user-select: none;
 	}
 }
 
@@ -621,7 +619,7 @@ menu li:hover img {
 		border: none;
 	}
 	#chat_text, #notepad_input {
-		min-height: 48px;
+		height: auto;
 	}
 	#chat_window.show, #notepad_window.show {
 		display: grid;
