@@ -944,6 +944,11 @@ var update_layout = function () {}
 	e_scroll.appendChild(e_outer)
 
 	const mapwrap = document.getElementById("mapwrap")
+	if (mapwrap) {
+		mapwrap.dataset.fit = "none"
+		mapwrap.dataset.scale = 1
+	}
+
 	const map = document.getElementById("map") || e_inner.querySelector("div")
 	var map_w = mapwrap ? mapwrap.clientWidth : map.clientWidth
 	var map_h = mapwrap ? mapwrap.clientHeight : map.clientHeight
@@ -1009,62 +1014,107 @@ var update_layout = function () {}
 		}
 	}
 
+	function should_fit_width(old) {
+		return (map_w <= map_h) && (e_scroll.clientWidth / map_w < old)
+	}
+
+	function should_fit_both(old) {
+		return (e_scroll.clientWidth / map_w < old) || (e_scroll.offsetHeight / map_h < old)
+	}
+
 	function toggle_zoom_imp() {
 		if (transform1.scale === 1) {
-			if (window.innerWidth > 800) {
-				if (mapwrap) {
-					mapwrap.classList.toggle("fit")
-					update_map_fit()
-					return
-				}
+			if (mapwrap && window.innerWidth > 800) {
+				cycle_map_fit()
+				return
 			}
-			let win_w = e_scroll.clientWidth
-			let win_h = e_scroll.offsetHeight
-			let min_z = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
-			zoom_to(min_z)
-		} else {
-			zoom_to(1)
 		}
-		return false
+
+		if (transform1.scale > 1)
+			zoom_to(1)
+		else if (should_fit_width(transform1.scale))
+			zoom_to(e_scroll.clientWidth / map_w)
+		else if (should_fit_both(transform1.scale))
+			zoom_to(Math.min(e_scroll.clientWidth / map_w, e_scroll.offsetHeight / map_h))
+		else
+			zoom_to(1)
 	}
 
 	function update_layout_imp() {
 		update_map_fit()
-		update_transform_resize()
+		update_transform_on_resize()
 		scroll_log_to_end()
 	}
 
-	function update_map_fit() {
-		let mapwrap = document.getElementById("mapwrap")
+	function disable_map_fit() {
 		if (mapwrap) {
-			let main = document.querySelector("main")
+			let scale = Number(mapwrap.dataset.scale)
+			if (scale !== 1) {
+				transform1.x = -e_scroll.scrollLeft
+				transform1.y = -e_scroll.scrollTop
+				transform1.scale = scale
+			}
+
+			mapwrap.dataset.fit = "none"
+			mapwrap.dataset.scale = 1
+			mapwrap.style.width = null
+			mapwrap.style.height = null
+			map.style.transform = null
+
+			if (scale !== 1)
+				update_transform()
+		}
+	}
+
+	function cycle_map_fit() {
+		switch (mapwrap.dataset.fit) {
+			default:
+			case "none":
+				if (should_fit_width(1)) {
+					mapwrap.dataset.fit = "width"
+					break
+				}
+			case "width":
+				if (should_fit_both(1)) {
+					mapwrap.dataset.fit = "both"
+					break
+				}
+			case "both":
+				mapwrap.dataset.fit = "none"
+		}
+		update_map_fit()
+	}
+
+	function update_map_fit() {
+		if (mapwrap) {
 			let map = document.getElementById("map")
 			map.style.transform = null
 			mapwrap.style.width = null
 			mapwrap.style.height = null
-			if (mapwrap.classList.contains("fit")) {
-				let cw = map.clientWidth
-				let ch = map.clientHeight
-				let scale = Math.min(
-					main.clientWidth / cw,
-					main.offsetHeight / ch
-				)
-				if (scale < 1) {
-					map.style.transform = "scale(" + scale + ")"
-					mapwrap.style.width = (cw * scale) + "px"
-					mapwrap.style.height = (ch * scale) + "px"
-				}
-			}
-			update_transform_resize()
-		}
-	}
 
-	function disable_map_fit() {
-		if (mapwrap && mapwrap.classList.contains("fit")) {
-			mapwrap.classList.remove("fit")
-			map.style.transform = null
-			mapwrap.style.width = null
-			mapwrap.style.height = null
+			let sx = e_scroll.clientWidth / map_w
+			let sy = e_scroll.offsetHeight / map_h
+
+			let scale = 1
+			switch (mapwrap.dataset.fit) {
+				case "width":
+					scale = sx
+					break
+				case "both":
+					scale = Math.min(sx, sy)
+					break
+			}
+
+			if (scale < 1) {
+				map.style.transform = "scale(" + scale + ")"
+				mapwrap.style.width = (map.clientWidth * scale) + "px"
+				mapwrap.style.height = (map.clientHeight * scale) + "px"
+				mapwrap.dataset.scale = scale
+			} else {
+				mapwrap.dataset.scale = 1
+			}
+
+			update_transform_on_resize()
 		}
 	}
 
@@ -1103,7 +1153,6 @@ var update_layout = function () {}
 				e_inner.style.transform = null
 			} else {
 				e_inner.style.transform = `scale(${transform1.scale})`
-				disable_map_fit()
 			}
 			e_inner.style.width = (win_w / transform1.scale) + "px"
 			e_outer.style.width = (e_inner.clientWidth * transform1.scale) + "px"
@@ -1111,7 +1160,7 @@ var update_layout = function () {}
 		}
 	}
 
-	function update_transform_resize() {
+	function update_transform_on_resize() {
 		old_scale = 0
 		anchor_transform()
 		update_transform()
@@ -1184,6 +1233,8 @@ var update_layout = function () {}
 	}
 
 	e_scroll.ontouchstart = function (evt) {
+		if (evt.touches.length === 2)
+			disable_map_fit()
 		anchor_transform(evt.touches)
 		stop_momentum()
 		start_measure(evt.timeStamp)
@@ -1250,7 +1301,7 @@ var update_layout = function () {}
 		"wheel",
 		function (evt) {
 			if (evt.ctrlKey) {
-				anchor_transform(null)
+				disable_map_fit()
 
 				let win_w = e_scroll.clientWidth
 				let win_h = e_scroll.clientHeight
@@ -1317,13 +1368,12 @@ var update_layout = function () {}
 
 /* INITIALIZE */
 
+if (window.innerWidth <= 800)
+	document.querySelector("aside").classList.add("hide")
+
 window.addEventListener("resize", () => update_layout())
 
 window.addEventListener("load", function () {
-	if (window.innerWidth <= 800)
-		document.querySelector("aside").classList.add("hide")
-	update_layout()
-
 	if (params.mode === "debug")
 		init_replay()
 	else if (params.mode === "replay")
