@@ -35,11 +35,16 @@
 	overflow: hidden;
 	list-style: none;
 	cursor: s-resize;
+
+	background-repeat: no-repeat;
+	background-position: 100% 50%;
+	background-image: url(/images/gui_box_maximize.svg);
 }
 
 #battle[open] #battle_header {
 	cursor: n-resize;
 	border-bottom: 1px solid black;
+	background-image: url(/images/gui_box_minimize.svg);
 }
 
 #battle_message {
