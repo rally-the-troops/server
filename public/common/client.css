@@ -557,10 +557,6 @@ menu li:hover img {
 
 /* MOBILE PHONE LAYOUT */
 
-@media (min-width: 1900px) {
-	#log_button { display: none; }
-}
-
 @media (pointer: coarse) and ( (max-width: 400px) or (max-height: 400px) ) {
 	#zoom_button { display: none; }
 }
