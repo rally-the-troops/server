@@ -42,9 +42,13 @@ function scroll_into_view(e) {
 	e.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" })
 }
 
-function scroll_into_view_if_mobile(e) {
-	if (window.innerWidth <= 800)
-		scroll_into_view(e)
+function scroll_into_view_if_needed(e) {
+	if (window.innerWidth <= 800) {
+		// TODO: close log on mobile?
+		e.scrollIntoView({ block: "start", inline: "center", behavior: "smooth" })
+	} else {
+		e.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" })
+	}
 }
 
 function scroll_with_middle_mouse(panel_sel, multiplier) {
