@@ -927,6 +927,7 @@ var update_layout = function () {}
 
 	const e_scroll = document.querySelector("main")
 	e_scroll.style.touchAction = "none"
+	e_scroll.tabIndex = 1 // enable keyboard scrolling
 
 	const e_inner = document.createElement("div")
 	e_inner.id = "pan_zoom_main"
@@ -1278,6 +1279,40 @@ var update_layout = function () {}
 		},
 		{ passive: false }
 	)
+
+	window.addEventListener("keydown", function (event) {
+		if (event.ctrlKey || event.metaKey) {
+			switch (event.keyCode) {
+			// '=' / '+' on various keyboards
+			case 61:
+			case 107:
+			case 187:
+			case 171:
+				disable_map_fit()
+				zoom_to(Math.min(MAX_ZOOM, transform1.scale + 0.1))
+				event.preventDefault()
+				break
+			// '-'
+			case 173:
+			case 109:
+			case 189:
+				disable_map_fit()
+				let win_w = e_scroll.clientWidth
+				let win_h = e_scroll.clientHeight
+				let real_min_zoom = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
+				zoom_to(Math.max(real_min_zoom, transform1.scale - 0.1))
+				event.preventDefault()
+				break
+			// '0'
+			case 48:
+			case 96:
+				disable_map_fit()
+				zoom_to(1)
+				event.preventDefault()
+				break
+			}
+		}
+	})
 })()
 
 /* INITIALIZE */
