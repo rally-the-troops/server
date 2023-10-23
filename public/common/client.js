@@ -39,15 +39,20 @@ let snap_view = null
 function scroll_into_view(e) {
 	if (window.innerWidth <= 800)
 		document.querySelector("aside").classList.add("hide")
-	e.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" })
+	setTimeout(function () {
+		e.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" })
+	}, 0)
 }
 
 function scroll_into_view_if_needed(e) {
 	if (window.innerWidth <= 800) {
-		// TODO: close log on mobile?
-		e.scrollIntoView({ block: "start", inline: "center", behavior: "smooth" })
+		setTimeout(function () {
+			e.scrollIntoView({ block: "start", inline: "center", behavior: "smooth" })
+		}, 0)
 	} else {
-		e.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" })
+		setTimeout(function () {
+			e.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" })
+		}, 0)
 	}
 }
 
@@ -1302,6 +1307,7 @@ var update_layout = function () {}
 		function (evt) {
 			if (evt.ctrlKey) {
 				disable_map_fit()
+				anchor_transform(evt.touches)
 
 				let win_w = e_scroll.clientWidth
 				let win_h = e_scroll.clientHeight
