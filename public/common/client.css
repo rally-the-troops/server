@@ -262,12 +262,6 @@ details menu {
 	min-width: 140px;
 }
 
-menu li a {
-	display: block;
-	text-decoration: none;
-	color: inherit;
-}
-
 summary img, #toolbar button img {
 	display: block;
 	height: 36px;
@@ -312,6 +306,14 @@ menu {
 menu li {
 	padding: 4px 8px;
 	cursor: pointer;
+}
+
+menu li a {
+	display: block;
+	margin: -4px -8px;
+	padding: 4px 8px;
+	text-decoration: none;
+	color: inherit;
 }
 
 menu li:hover {
