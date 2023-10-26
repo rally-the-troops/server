@@ -127,6 +127,7 @@ aside {
 	overflow: clip;
 	grid-template-rows: auto minmax(0, 1fr);
 	width: 212px;
+	background-color: white;
 	border-left: 1px solid black;
 }
 
