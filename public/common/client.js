@@ -372,6 +372,10 @@ window.addEventListener("keyup", (evt) => {
 		document.querySelector("body").classList.remove("shift")
 })
 
+window.addEventListener("blur", function (evt) {
+	document.querySelector("body").classList.remove("shift")
+})
+
 /* REMATCH BUTTON */
 
 function add_icon_button(where, id, img, fn) {
