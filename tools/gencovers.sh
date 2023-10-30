@@ -4,6 +4,9 @@ do
 	B=$(echo $F | sed s/.jpg// | sed s/.png//)
 	D=$(dirname $F)
 
+	if [ $F -nt $D/thumbnail.jpg ]
+	then
+
 	PORTRAIT=$(convert $F -format '%[fx:w<h]' info:)
 	SQUARE=$(convert $F -format '%[fx:w=h]' info:)
 
@@ -38,4 +41,6 @@ do
 	convert -colorspace RGB -resize $SIZE_TH $F -colorspace sRGB $D/thumbnail.png
 	pngtopnm $D/thumbnail.png | cjpeg -progressive -optimize -sample 1x1 -quality 95 > $D/thumbnail.jpg
 	rm -f $D/thumbnail.png
+
+	fi
 done
