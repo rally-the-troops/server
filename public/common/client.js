@@ -792,9 +792,9 @@ function close_menus(self) {
 			node.removeAttribute("open")
 }
 
+/* close menu if opening another */
 for (let node of document.querySelectorAll("#toolbar > details")) {
-	//node.onclick = function () { close_menus(node) }
-	//node.onmouseleave = function () { node.removeAttribute("open") }
+	node.onclick = function () { close_menus(node) }
 }
 
 /* close menu after selecting something */
