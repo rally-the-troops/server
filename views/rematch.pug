@@ -1,0 +1,55 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= title.title_name
+	body
+		include header
+		article
+			if game.scenario === "Standard"
+				h1 #{title.title_name}
+			else
+				h1 #{title.title_name} - #{game.scenario}
+
+			div.logo
+				+gamecover(title.title_id)
+
+			p Suggest rematch with
+				each p, i in players
+					if i > 0 && players.length > 2
+						| ,
+					if i === players.length - 1
+						|
+						| and
+					|
+					| <a href="#{p.name}">#{p.name}</a>
+				| ?
+
+			form(method="post" action="/rematch/"+game.game_id)
+				p Player roles:
+					if title.is_symmetric
+						br
+						label
+							input(type="radio" name="order" value="keep")
+							| Keep
+						br
+						label
+							input(type="radio" name="order" value="random" checked)
+							| Random
+					else
+						br
+						label
+							input(type="radio" name="order" value="swap" checked)
+							| Swap
+						br
+						label
+							input(type="radio" name="order" value="keep")
+							| Keep
+						br
+						label
+							input(type="radio" name="order" value="random")
+							| Random
+
+				p
+					button(type="submit") Rematch

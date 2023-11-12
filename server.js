@@ -1270,7 +1270,7 @@ const SQL_INSERT_REMATCH = SQL(`
 	insert or ignore into games
 		(owner_id, title_id, scenario, options, player_count, pace, is_private, is_random, notice)
 	select
-		$owner_id, title_id, scenario, options, player_count, pace, is_private, 0, $magic
+		$owner_id, title_id, scenario, options, player_count, pace, is_private, $random, $magic
 	from
 		games
 	where
@@ -1653,7 +1653,7 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 	res.redirect('/'+title_id)
 })
 
-function insert_replay_players(old_game_id, new_game_id, req_user_id) {
+function insert_replay_players(old_game_id, new_game_id, req_user_id, order) {
 	let game = SQL_SELECT_GAME.get(old_game_id)
 	let players = SQL_SELECT_PLAYERS_JOIN.all(old_game_id)
 	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
@@ -1662,13 +1662,27 @@ function insert_replay_players(old_game_id, new_game_id, req_user_id) {
 	if (players.length !== n)
 		throw new Error("missing players")
 
-	if (TITLE_TABLE[game.title_id].is_symmetric)
-		shuffle(players)
-	else
+	switch (order) {
+	default:
+	case "swap":
 		players.sort((a, b) => roles.indexOf(a.role) - roles.indexOf(b.role))
-
-	for (let i = 0; i < n; ++i)
-		players[i].role = roles[(i+1) % n]
+		for (let i = 0; i < n; ++i)
+			players[i].role = roles[(i+1) % n]
+		break
+	case "keep":
+		// do nothing
+		break
+	case "shuffle":
+		// unused for now - random but known
+		shuffle(players)
+		for (let i = 0; i < n; ++i)
+			players[i].role = roles[i]
+		break
+	case "random":
+		for (let i = 0; i < n; ++i)
+			players[i].role = "Random " + (i+1)
+		break
+	}
 
 	for (let p of players)
 		SQL_INSERT_PLAYER_ROLE.run(new_game_id, p.role, p.user_id, p.user_id !== req_user_id ? 1 : 0)
@@ -1677,13 +1691,31 @@ function insert_replay_players(old_game_id, new_game_id, req_user_id) {
 app.get('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 	let old_game_id = req.params.old_game_id | 0
 	let magic = "\u{1F503} " + old_game_id
+	let new_game_id = SQL_SELECT_REMATCH.get(magic)
+	if (new_game_id)
+		return res.redirect("/join/" + new_game_id)
+
+	let game = SQL_SELECT_GAME.get(old_game_id)
+	let players = SQL_SELECT_PLAYERS_JOIN.all(old_game_id)
+	res.render("rematch.pug", {
+		user: req.user,
+		title: TITLE_TABLE[game.title_id],
+		game,
+		players,
+	})
+})
+
+app.post('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
+	let old_game_id = req.params.old_game_id | 0
+	let magic = "\u{1F503} " + old_game_id
 	let new_game_id = 0
+	let order = req.body.order
 
 	SQL_BEGIN.run()
 	try {
-		new_game_id = SQL_INSERT_REMATCH.get({owner_id: req.user.user_id, old_game_id, magic})
+		new_game_id = SQL_INSERT_REMATCH.get({owner_id: req.user.user_id, random: order === "random" ? 1 : 0, old_game_id, magic})
 		if (new_game_id)
-			insert_replay_players(old_game_id, new_game_id, req.user.user_id)
+			insert_replay_players(old_game_id, new_game_id, req.user.user_id, order)
 		else
 			new_game_id = SQL_SELECT_REMATCH.get(magic)
 		SQL_COMMIT.run()
