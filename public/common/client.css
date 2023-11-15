@@ -270,6 +270,8 @@ summary img, #toolbar button img {
 
 #toolbar button {
 	background-color: transparent;
+	width: 44px;
+	height: 44px;
 	border: none;
 	outline: none;
 	height: auto;
