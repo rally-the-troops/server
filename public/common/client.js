@@ -1,31 +1,24 @@
 "use strict"
 
-/* global on_update, on_replay, on_log */
+/* global on_update, on_reply, on_log */
 
-// TODO: hide more functions and globals in anonymous function scope
+/* PUBLIC GLOBALS */
 
-let params = {
-	mode: "play",
+var roles = Array.from(document.querySelectorAll(".role")).map(x=>({id:x.id,role:x.id.replace(/^role_/,"").replace(/_/g," ")}))
+var player = "Observer"
+var view = null
+
+/* PRIVATE GLOBALS */
+
+var search_params = new URLSearchParams(window.location.search)
+var params = {
 	title_id: window.location.pathname.split("/")[1],
-	game_id: 0,
-	role: "Observer",
+	game_id: search_params.get("game") || 0,
+	role: search_params.get("role") || "Observer",
+	mode: search_params.get("mode") || "play",
 }
 
-function init_params() {
-	let search = new URLSearchParams(window.location.search)
-	params.game_id = search.get("game")
-	params.role = search.get("role") || "Observer"
-	params.mode = search.get("mode") || "play"
-}
-
-init_params()
-
-let roles = Array.from(document.querySelectorAll(".role")).map(x=>({id:x.id,role:x.id.replace(/^role_/,"").replace(/_/g," ")}))
-
-let view = null
-let player = "Observer"
 let socket = null
-let chat = null
 
 let game_log = []
 let game_cookie = 0
@@ -35,6 +28,10 @@ let snap_cache = []
 let snap_count = 0
 let snap_this = 0
 let snap_view = null
+
+var replay_panel = null
+
+/* PUBLIC UTILITY FUNCTIONS */
 
 function scroll_into_view(e) {
 	if (window.innerWidth <= 800)
@@ -148,6 +145,8 @@ function stop_blinker() {
 window.addEventListener("focus", stop_blinker)
 
 /* CHAT */
+
+let chat = null
 
 function init_chat() {
 	// only fetch new messages when we reconnect!
@@ -358,65 +357,31 @@ function toggle_notepad() {
 		show_notepad()
 }
 
-window.addEventListener("keydown", (evt) => {
-	if (document.activeElement === document.getElementById("chat_input"))
-		return
-	if (document.activeElement === document.getElementById("notepad_input"))
-		return
-	if (evt.key === "Shift")
-		document.querySelector("body").classList.add("shift")
-})
-
-window.addEventListener("keyup", (evt) => {
-	if (evt.key === "Shift")
-		document.querySelector("body").classList.remove("shift")
-})
-
-window.addEventListener("blur", function (evt) {
-	document.querySelector("body").classList.remove("shift")
-})
-
-/* REMATCH BUTTON */
-
-function add_icon_button(where, id, img, fn) {
-	let button = document.getElementById(id)
-	if (!button) {
-		button = document.createElement("button")
-		button.id = id
-		button.innerHTML = '<img src="/images/' + img + '.svg">'
-		button.addEventListener("click", fn)
-		if (where)
-			document.querySelector("#toolbar").appendChild(button)
-		else
-			document.querySelector("#toolbar details").after(button)
-	}
-	return button
-}
-
-function remove_resign_menu() {
-	document.querySelectorAll(".resign").forEach(x => x.remove())
-}
-
-function goto_rematch() {
-	window.location = "/rematch/" + params.game_id
-}
-
-function goto_replay() {
-	let search = new URLSearchParams(window.location.search)
-	search.delete("role")
-	search.set("mode", "replay")
-	window.location.search = search
-}
+/* REMATCH & REPLAY BUTTONS WHEN GAME OVER */
 
 function on_game_over() {
-	add_icon_button(1, "replay_button", "sherlock-holmes-mirror", goto_replay)
-	if (player !== "Observer")
-		add_icon_button(1, "rematch_button", "cycle", goto_rematch)
 	remove_resign_menu()
+
+	add_icon_button(1, "replay_button", "sherlock-holmes-mirror",
+		function goto_replay() {
+			search_params.delete("role")
+			search_params.set("mode", "replay")
+			window.location.search = search_params
+		}
+	)
+
+	if (player !== "Observer") {
+		add_icon_button(1, "rematch_button", "cycle",
+			function goto_rematch() {
+				window.location = "/rematch/" + params.game_id
+			}
+		)
+	}
 }
 
 /* CONNECT TO GAME SERVER */
 
+// XXX
 function init_player_names(players) {
 	for (let i = 0; i < roles.length; ++i) {
 		let p = players.find(p => p.role === roles[i].role)
@@ -741,6 +706,25 @@ function init_replay() {
 
 /* MAIN MENU */
 
+function add_icon_button(where, id, img, fn) {
+	let button = document.getElementById(id)
+	if (!button) {
+		button = document.createElement("button")
+		button.id = id
+		button.innerHTML = '<img src="/images/' + img + '.svg">'
+		button.addEventListener("click", fn)
+		if (where)
+			document.querySelector("#toolbar").appendChild(button)
+		else
+			document.querySelector("#toolbar details").after(button)
+	}
+	return button
+}
+
+function remove_resign_menu() {
+	document.querySelectorAll(".resign").forEach(x => x.remove())
+}
+
 /* avoid margin collapse at bottom of main */
 document.querySelector("main").insertAdjacentHTML("beforeend", "<div style='height:1px'></div>")
 
@@ -786,7 +770,7 @@ if (params.mode === "play" && params.role !== "Observer") {
 	add_main_menu_item_link("Go home", "/")
 }
 
-function close_menus(self) {
+function close_toolbar_menus(self) {
 	for (let node of document.querySelectorAll("#toolbar > details"))
 		if (node !== self)
 			node.removeAttribute("open")
@@ -794,12 +778,12 @@ function close_menus(self) {
 
 /* close menu if opening another */
 for (let node of document.querySelectorAll("#toolbar > details")) {
-	node.onclick = function () { close_menus(node) }
+	node.onclick = function () { close_toolbar_menus(node) }
 }
 
 /* close menu after selecting something */
 for (let node of document.querySelectorAll("#toolbar > details > menu")) {
-	node.onclick = function () { close_menus(null) }
+	node.onclick = function () { close_toolbar_menus(null) }
 }
 
 /* click anywhere else than menu to close it */
@@ -810,12 +794,15 @@ window.addEventListener("mousedown", function (evt) {
 			return
 		e = e.parentElement
 	}
-	close_menus(null)
+	close_toolbar_menus(null)
 })
 
+/* close menus if window loses focus */
 window.addEventListener("blur", function (evt) {
-	close_menus(null)
+	close_toolbar_menus(null)
 })
+
+/* FULLSCREEN TOGGLE */
 
 function toggle_fullscreen() {
 	// Safari on iPhone doesn't support Fullscreen
@@ -836,31 +823,26 @@ if ("ontouchstart" in window) {
 
 /* SNAPSHOT VIEW */
 
-var replay_panel = null
+replay_panel = document.createElement("div")
+replay_panel.id = "replay_panel"
 
-function add_replay_button(parent, id, callback) {
+function add_replay_button(id, callback) {
 	let button = document.createElement("div")
 	button.className = "replay_button"
 	button.id = id
 	button.onclick = callback
-	parent.appendChild(button)
+	replay_panel.appendChild(button)
 	return button
 }
 
-function init_snap() {
-	replay_panel = document.createElement("div")
-	replay_panel.id = "replay_panel"
-	add_replay_button(replay_panel, "replay_first", on_snap_first)
-	add_replay_button(replay_panel, "replay_prev", on_snap_prev)
-	add_replay_button(replay_panel, "replay_step_prev", null).classList.add("hide")
-	add_replay_button(replay_panel, "replay_step_next", null).classList.add("hide")
-	add_replay_button(replay_panel, "replay_next", on_snap_next)
-	add_replay_button(replay_panel, "replay_last", null).classList.add("hide")
-	add_replay_button(replay_panel, "replay_play", on_snap_stop)
-	add_replay_button(replay_panel, "replay_stop", null).classList.add("hide")
-}
-
-init_snap()
+add_replay_button("replay_first", on_snap_first)
+add_replay_button("replay_prev", on_snap_prev)
+add_replay_button("replay_step_prev", null).classList.add("hide")
+add_replay_button("replay_step_next", null).classList.add("hide")
+add_replay_button("replay_next", on_snap_next)
+add_replay_button("replay_last", null).classList.add("hide")
+add_replay_button("replay_play", on_snap_stop)
+add_replay_button("replay_stop", null).classList.add("hide")
 
 function request_snap(snap_id) {
 	if (snap_id >= 1 && snap_id <= snap_count) {
@@ -912,19 +894,39 @@ function on_snap_stop() {
 	}
 }
 
+/* SHIFT KEY CSS TOGGLE */
+
+window.addEventListener("keydown", (evt) => {
+	if (document.activeElement === document.getElementById("chat_input"))
+		return
+	if (document.activeElement === document.getElementById("notepad_input"))
+		return
+	if (evt.key === "Shift")
+		document.querySelector("body").classList.add("shift")
+})
+
+window.addEventListener("keyup", (evt) => {
+	if (evt.key === "Shift")
+		document.querySelector("body").classList.remove("shift")
+})
+
+window.addEventListener("blur", function (evt) {
+	document.querySelector("body").classList.remove("shift")
+})
+
 /* TOGGLE ZOOM MAP TO FIT */
 
 function toggle_log() {
 	document.querySelector("aside").classList.toggle("hide")
-	update_layout()
+	update_zoom()
 }
 
 var toggle_zoom = function () {}
-var update_layout = function () {}
+var update_zoom = function () {}
 
 /* PAN & ZOOM GAME BOARD */
 
-;(function panzoom_init() {
+;(function () {
 	var PAN_SPEED = Number(document.querySelector("main").dataset.panSpeed) || 1
 	var MIN_ZOOM = Number(document.querySelector("main").dataset.minZoom) || 0.5
 	var MAX_ZOOM = Number(document.querySelector("main").dataset.maxZoom) || 1.5
@@ -989,10 +991,6 @@ var update_layout = function () {}
 	var mom_vx = 0
 	var mom_vy = 0
 
-	// set globals to our scoped functions
-	toggle_zoom = toggle_zoom_imp
-	update_layout = update_layout_imp
-
 	function clamp_scale(scale) {
 		let win_w = e_scroll.clientWidth
 		let win_h = e_scroll.clientHeight
@@ -1031,7 +1029,8 @@ var update_layout = function () {}
 		return (e_scroll.clientWidth / map_w < old) || (e_scroll.offsetHeight / map_h < old)
 	}
 
-	function toggle_zoom_imp() {
+	// export function
+	toggle_zoom = function () {
 		if (transform1.scale === 1) {
 			if (mapwrap && window.innerWidth > 800) {
 				cycle_map_fit()
@@ -1049,7 +1048,8 @@ var update_layout = function () {}
 			zoom_to(1)
 	}
 
-	function update_layout_imp() {
+	// export function
+	update_zoom = function () {
 		update_map_fit()
 		update_transform_on_resize()
 		scroll_log_to_end()
@@ -1374,14 +1374,14 @@ var update_layout = function () {}
 			}
 		}
 	})
+
+	window.addEventListener("resize", update_zoom)
 })()
 
 /* INITIALIZE */
 
 if (window.innerWidth <= 800)
 	document.querySelector("aside").classList.add("hide")
-
-window.addEventListener("resize", () => update_layout())
 
 window.addEventListener("load", function () {
 	if (params.mode === "debug")

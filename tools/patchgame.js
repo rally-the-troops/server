@@ -183,7 +183,7 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 
 	} catch (err) {
 		if (err !== "invalid action")
-			console.error("ERROR", game_id, title_id, err.message)
+			console.error("ERROR", game_id, title_id, err)
 		if (delete_invalid) {
 			delete_replay.run(game_id)
 			delete_snap.run(game_id)
