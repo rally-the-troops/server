@@ -1286,11 +1286,13 @@ const SQL_INSERT_REMATCH_PLAYERS = SQL("insert into players (game_id, user_id, r
 
 const QUERY_LIST_PUBLIC_GAMES_OPEN = SQL(`
 	select * from game_view where status=0 and not is_private and join_count > 0 and join_count < player_count
+	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
 
 const QUERY_LIST_PUBLIC_GAMES_REPLACEMENT = SQL(`
 	select * from game_view where status=1 and not is_private and join_count < player_count
+	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
 
@@ -1308,6 +1310,7 @@ const QUERY_LIST_PUBLIC_GAMES_FINISHED = SQL(`
 
 const QUERY_LIST_GAMES_OF_TITLE_OPEN = SQL(`
 	select * from game_view where title_id=? and not is_private and status=0 and join_count > 0 and join_count < player_count
+	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
 
@@ -1318,6 +1321,7 @@ const QUERY_LIST_GAMES_OF_TITLE_READY = SQL(`
 
 const QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT = SQL(`
 	select * from game_view where title_id=? and not is_private and status=1 and join_count < player_count
+	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
 
@@ -1535,8 +1539,8 @@ app.get('/games/public', function (req, res) {
 		unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
 	}
 
-	let open_games = QUERY_LIST_PUBLIC_GAMES_OPEN.all()
-	let replacement_games = QUERY_LIST_PUBLIC_GAMES_REPLACEMENT.all()
+	let open_games = QUERY_LIST_PUBLIC_GAMES_OPEN.all(user_id)
+	let replacement_games = QUERY_LIST_PUBLIC_GAMES_REPLACEMENT.all(user_id)
 	let active_games = QUERY_LIST_PUBLIC_GAMES_ACTIVE.all()
 	let finished_games = QUERY_LIST_PUBLIC_GAMES_FINISHED.all()
 
@@ -1563,9 +1567,9 @@ function get_title_page(req, res, title_id) {
 		unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
 	let user_id = req.user ? req.user.user_id : 0
 
-	let open_games = QUERY_LIST_GAMES_OF_TITLE_OPEN.all(title_id)
+	let open_games = QUERY_LIST_GAMES_OF_TITLE_OPEN.all(title_id, user_id)
 	let ready_games = QUERY_LIST_GAMES_OF_TITLE_READY.all(title_id)
-	let replacement_games = QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT.all(title_id)
+	let replacement_games = QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT.all(title_id, user_id)
 	let active_games = QUERY_LIST_GAMES_OF_TITLE_ACTIVE.all(title_id)
 	let finished_games = QUERY_LIST_GAMES_OF_TITLE_FINISHED.all(title_id)
 
