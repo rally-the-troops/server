@@ -4,7 +4,7 @@
 
 /* PUBLIC GLOBALS */
 
-var roles = Array.from(document.querySelectorAll(".role")).map(x=>({id:x.id,role:x.id.replace(/^role_/,"").replace(/_/g," ")}))
+var roles = null
 var player = "Observer"
 var view = null
 
@@ -163,7 +163,7 @@ function init_chat() {
 		<div id="chat_text"></div>
 		<form id="chat_form" action=""><input id="chat_input" autocomplete="off"></form>
 		`
-	document.querySelector("body").appendChild(chat_window)
+	document.body.appendChild(chat_window)
 
 	let chat_button = document.getElementById("chat_button")
 	chat_button.classList.remove("hide")
@@ -191,7 +191,7 @@ function init_chat() {
 		}
 	})
 
-	document.querySelector("body").addEventListener("keydown", e => {
+	document.body.addEventListener("keydown", e => {
 		if (e.key === "Escape") {
 			if (chat.is_visible) {
 				e.preventDefault()
@@ -298,7 +298,7 @@ function init_notepad() {
 		<textarea id="notepad_input" maxlength="16000" oninput="dirty_notepad()"></textarea>
 		<div id="notepad_footer"><button id="notepad_save" onclick="save_notepad()" disabled>Save</button></div>
 		`
-	document.querySelector("body").appendChild(notepad_window)
+	document.body.appendChild(notepad_window)
 
 	notepad = {
 		is_visible: false,
@@ -379,18 +379,45 @@ function on_game_over() {
 	}
 }
 
-/* CONNECT TO GAME SERVER */
+/* PLAYER ROLE LIST */
 
-// XXX
+function init_role_element(role_id, role_name) {
+	let e_role = document.createElement("div")
+	e_role.id = role_id
+	e_role.className = "role"
+	e_role.innerHTML =
+		`<div class="role_name"><span>${role_name}</span></div>` +
+		`<div class="role_stat"></div>` +
+		`<div class="role_user"></div>` +
+		`<div class="role_info"></div>`
+	document.getElementById("roles").appendChild(e_role)
+	return e_role
+}
+
 function init_player_names(players) {
-	for (let i = 0; i < roles.length; ++i) {
-		let p = players.find(p => p.role === roles[i].role)
-		if (p)
-			document.getElementById(roles[i].id).querySelector(".role_user").innerHTML = `<a href="/user/${p.name}" target="_blank">${p.name}</a>`
+	roles = {}
+	for (let pp of players) {
+		let class_name = pp.role.replace(/\W/g, "_")
+		let id = "role_" + class_name
+		let e = document.getElementById(id)
+		if (!e)
+			e = init_role_element(id, pp.role)
+		let obj = roles[pp.role] = {
+			class_name: class_name,
+			id: id,
+			element: e,
+			name: e.querySelector(".role_name"),
+			stat: e.querySelector(".role_stat"),
+			user: e.querySelector(".role_user"),
+		}
+		if (pp.name)
+			obj.user.innerHTML = `<a href="/user/${pp.name}" target="_blank">${pp.name}</a>`
 		else
-			document.getElementById(roles[i].id).querySelector(".role_user").textContent = "NONE"
+			obj.user.textContent = 'NONE'
 	}
 }
+
+/* CONNECT TO GAME SERVER */
 
 function send_message(cmd, arg) {
 	let data = JSON.stringify([ cmd, arg ])
@@ -476,7 +503,7 @@ function connect_play() {
 
 		case "players":
 			player = arg[0]
-			document.querySelector("body").classList.add(player.replace(/ /g, "_"))
+			document.body.classList.add(player.replace(/\W/g, "_"))
 			if (player !== "Observer") {
 				init_chat()
 				init_notepad()
@@ -487,13 +514,8 @@ function connect_play() {
 			break
 
 		case "presence":
-			{
-				let list = Array.isArray(arg) ? arg : Object.keys(arg)
-				for (let i = 0; i < roles.length; ++i) {
-					let elt = document.getElementById(roles[i].id)
-					elt.classList.toggle("present", list.includes(roles[i].role))
-				}
-			}
+			for (let role in roles)
+				roles[role].element.classList.toggle("present", arg.includes(role))
 			break
 
 		case "state":
@@ -509,6 +531,7 @@ function connect_play() {
 				game_log.push(line)
 
 			on_update_header()
+			on_update_roles()
 			if (typeof on_update === "function")
 				on_update()
 			on_update_log(view.log_start, game_log.length)
@@ -521,12 +544,10 @@ function connect_play() {
 			if (snap_count === 0)
 				replay_panel.remove()
 			else
-				document.querySelector("body").appendChild(replay_panel)
-			console.log("SNAPSIZE", snap_count)
+				document.body.appendChild(replay_panel)
 			break
 
 		case "snap":
-			console.log("SNAP", arg[0])
 			snap_active[arg[0]] = arg[1]
 			snap_cache[arg[0]] = arg[2]
 			show_snap(arg[0])
@@ -569,6 +590,12 @@ function on_update_header() {
 	old_active = view.active
 }
 
+function on_update_roles() {
+	if (view.active !== undefined)
+		for (let role in roles)
+			roles[role].element.classList.toggle("active", view.active === role)
+}
+
 /* LOG */
 
 function on_update_log(change_start, end) {
@@ -591,7 +618,7 @@ function on_update_log(change_start, end) {
 			entry.style.textDecoration = "none"
 			div.appendChild(entry)
 		} else if (typeof on_log === "function") {
-			div.appendChild(on_log(text))
+			div.appendChild(on_log(text, i))
 		} else {
 			let entry = document.createElement("div")
 			entry.textContent = text
@@ -860,6 +887,7 @@ function show_snap(snap_id) {
 	view = snap_cache[snap_id]
 	view.prompt = "Replay " + snap_id + " / " + snap_count + " \u2013 " + snap_active[snap_id]
 	on_update_header()
+	on_update_roles()
 	on_update()
 	on_update_log(view.log, view.log)
 }
@@ -889,6 +917,7 @@ function on_snap_stop() {
 		view = snap_view
 		snap_view = null
 		on_update_header()
+		on_update_roles()
 		on_update()
 		on_update_log(game_log.length, game_log.length)
 	}
@@ -902,16 +931,16 @@ window.addEventListener("keydown", (evt) => {
 	if (document.activeElement === document.getElementById("notepad_input"))
 		return
 	if (evt.key === "Shift")
-		document.querySelector("body").classList.add("shift")
+		document.body.classList.add("shift")
 })
 
 window.addEventListener("keyup", (evt) => {
 	if (evt.key === "Shift")
-		document.querySelector("body").classList.remove("shift")
+		document.body.classList.remove("shift")
 })
 
 window.addEventListener("blur", function (evt) {
-	document.querySelector("body").classList.remove("shift")
+	document.body.classList.remove("shift")
 })
 
 /* TOGGLE ZOOM MAP TO FIT */
@@ -975,8 +1004,6 @@ var update_zoom = function () {}
 	}
 
 	update_map_size()
-
-	console.log("INIT MAP", map, map_w, map_h, window.devicePixelRatio)
 
 	var transform0 = { x: 0, y: 0, scale: 1 }
 	var transform1 = { x: 0, y: 0, scale: 1 }

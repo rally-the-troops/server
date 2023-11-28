@@ -137,11 +137,9 @@ function update_replay_view() {
 			player = "Observer"
 	}
 
-	let body = document.querySelector("body")
-	body.classList.remove("Observer")
-	for (let i = 0; i < roles.length; ++i)
-		body.classList.remove(roles[i].role.replace(/ /g, "_"))
-	body.classList.add(player.replace(/ /g, "_"))
+	document.body.classList.toggle("Observer", player === "Observer")
+	for (let r in roles)
+		document.body.classList.toggle(roles[r].class_name, player === r)
 
 	view = rules.view(replay_state, player)
 	if (params.mode !== "debug")
@@ -153,7 +151,7 @@ function update_replay_view() {
 		view.game_over = 1
 
 	if (replay.length > 0) {
-		if (document.querySelector("body").classList.contains("shift")) {
+		if (document.body.classList.contains("shift")) {
 			view.prompt = `[${replay_this}/${replay.length}] ${replay_state.active} / ${replay_state.state}`
 			if (replay_this < replay.length)
 				view.prompt += ` / ${replay[replay_this][1]} ${replay[replay_this][2]}`
@@ -308,7 +306,7 @@ async function load_replay() {
 			set_hash(replay.length)
 		on_hash_change()
 		window.addEventListener("hashchange", on_hash_change)
-		document.querySelector("body").appendChild(replay_panel)
+		document.body.appendChild(replay_panel)
 	} else {
 		console.log("REPLAY NOT AVAILABLE")
 		replay_state = body.state
@@ -319,8 +317,8 @@ async function load_replay() {
 	let viewpoint_panel = document.createElement("div")
 	viewpoint_panel.id = "viewpoint_panel"
 	create_viewpoint_button(viewpoint_panel, "Active", "Active")
-	for (let r of roles)
-		create_viewpoint_button(viewpoint_panel, r.role, r.role)
+	for (let r in roles)
+		create_viewpoint_button(viewpoint_panel, r, r)
 	create_viewpoint_button(viewpoint_panel, "Observer", "Observer")
 	document.getElementById("actions").appendChild(viewpoint_panel)
 

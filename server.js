@@ -2737,8 +2737,8 @@ wss.on('connection', (socket, req) => {
 	SLOG(socket, "OPEN " + socket.seen)
 
 	try {
-		let title_id = SQL_SELECT_GAME_TITLE.get(socket.game_id)
-		if (title_id !== socket.title_id)
+		let game = SQL_SELECT_GAME.get(socket.game_id)
+		if (game.title_id !== socket.title_id)
 			return socket.close(1000, "Invalid game ID.")
 
 		let players = socket.players = SQL_SELECT_PLAYERS_JOIN.all(socket.game_id)
@@ -2756,8 +2756,13 @@ wss.on('connection', (socket, req) => {
 			}
 		}
 
-		if (socket.seen === 0)
-			send_message(socket, 'players', [socket.role, players.map(p => ({ name: p.name, role: p.role }))])
+		if (socket.seen === 0) {
+			let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
+			send_message(socket, 'players', [
+				socket.role,
+				roles.map(r => ({ role: r, name: players.find(p => p.role === r)?.name }))
+			])
+		}
 
 		if (game_clients[socket.game_id]) {
 			game_clients[socket.game_id].push(socket)
