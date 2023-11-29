@@ -40,7 +40,8 @@ insert or ignore into
 
 create table if not exists user_last_seen (
 	user_id integer primary key,
-	atime datetime
+	atime datetime,
+	ip text
 );
 
 create table if not exists tokens (

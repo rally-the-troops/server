@@ -319,7 +319,7 @@ const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?")
 const SQL_UPDATE_USER_VERIFIED = SQL("UPDATE users SET is_verified=? WHERE user_id=?")
 const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?")
 const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?")
-const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime) VALUES (?,datetime())")
+const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime,ip) VALUES (?,datetime(),?)")
 const SQL_UPDATE_USER_IS_BANNED = SQL("update users set is_banned=? where name=?")
 
 const SQL_SELECT_WEBHOOK = SQL("SELECT * FROM webhooks WHERE user_id=?")
@@ -349,7 +349,7 @@ app.use(function (req, res, next) {
 		if (user_id) {
 			login_touch(res, sid)
 			req.user = SQL_SELECT_USER_DYNAMIC.get(user_id)
-			SQL_UPDATE_USER_LAST_SEEN.run(user_id)
+			SQL_UPDATE_USER_LAST_SEEN.run(user_id, ip)
 			if (req.user.is_banned)
 				return res.status(403).send("")
 		}
@@ -2684,16 +2684,18 @@ wss.on('connection', (socket, req) => {
 		return setTimeout(() => socket.close(1000, "Invalid request."), 30000)
 	req.query = u.query
 
+	let ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
+
 	let user_id = 0
 	let sid = login_cookie(req)
 	if (sid)
 		user_id = login_sql_select.get(sid)
 	if (user_id) {
 		socket.user = SQL_SELECT_USER_VIEW.get(user_id)
-		SQL_UPDATE_USER_LAST_SEEN.run(user_id)
+		SQL_UPDATE_USER_LAST_SEEN.run(user_id, ip)
 	}
 
-	socket.ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
+	socket.ip = ip
 	socket.title_id = req.query.title || "unknown"
 	socket.game_id = req.query.game | 0
 	socket.role = req.query.role
