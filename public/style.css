@@ -88,7 +88,7 @@ input[type="checkbox"], input[type="radio"] {
 	accent-color: currentcolor;
 }
 
-input[type="text"], input[type="password"], input[type="email"], textarea {
+input[type="text"], input[type="password"], input[type="email"], textarea, select[size] {
 	background-color: var(--color-text);
 	color: var(--color-black);
 	border: var(--thin-border);
@@ -98,11 +98,11 @@ input[type="text"], input[type="password"], input[type="email"], textarea {
 	vertical-align: middle;
 }
 
-input:focus, textarea:focus {
+input:focus, textarea:focus, select[size]:focus {
 	outline: 2px solid var(--color-focus);
 }
 
-button:focus, select:focus {
+button:focus, select:not([size]):focus {
 	box-shadow: 0 0 0 3px var(--color-focus);
 }
 
@@ -111,7 +111,7 @@ option {
 	color: var(--color-black);
 }
 
-button, select {
+button, select:not([size]) {
 	margin: 5px 10px 5px 0;
 	padding: 1px 10px;
 	vertical-align: middle;
@@ -123,7 +123,7 @@ button, select {
 	outline: 1px solid var(--color-black);
 }
 
-button:enabled:active:hover, select:active {
+button:enabled:active:hover, select:not([size]):active {
 	border-color: darkgray white white darkgray;
 	padding: 2px 9px 0px 11px;
 }
