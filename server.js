@@ -1171,7 +1171,7 @@ const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
 const SQL_START_GAME = SQL(`
 	update games set
 		status = 1,
-		is_private = (is_private or user_count < player_count),
+		is_private = (is_private or user_count = 1 or user_count < player_count),
 		mtime = datetime(),
 		active = ?
 	where
