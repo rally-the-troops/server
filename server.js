@@ -1291,7 +1291,7 @@ const QUERY_LIST_PUBLIC_GAMES_OPEN = SQL(`
 	`)
 
 const QUERY_LIST_PUBLIC_GAMES_REPLACEMENT = SQL(`
-	select * from game_view where status=1 and not is_private and join_count < player_count
+	select * from game_view where status=1 and not is_private and join_count > 0 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
