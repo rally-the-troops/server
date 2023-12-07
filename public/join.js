@@ -148,6 +148,10 @@ function action_link(player, action, color, text) {
 }
 
 function update() {
+	if (game.scenario !== "Standard")
+		document.querySelector("h1").textContent = game.title_name + " - " + game.scenario
+	else
+		document.querySelector("h1").textContent = game.title_name
 	for (let i = 0; i < roles.length; ++i) {
 		let role = roles[i]
 		let role_id = "role_" + role.replace(/ /g, "_")

@@ -1189,6 +1189,7 @@ const SQL_FINISH_GAME = SQL(`
 `)
 
 const SQL_UPDATE_GAME_ACTIVE = SQL("update games set active=?,mtime=datetime(),moves=moves+1 where game_id=?")
+const SQL_UPDATE_GAME_SCENARIO = SQL("update games set scenario=? where game_id=?")
 
 const SQL_SELECT_GAME_STATE = SQL("select state from game_state where game_id=?").pluck()
 const SQL_INSERT_GAME_STATE = SQL("insert or replace into game_state (game_id,state) values (?,?)")
@@ -1624,6 +1625,18 @@ function options_json_replacer(key, value) {
 	return value
 }
 
+function is_random_scenario(title_id, scenario) {
+	if (RULES[title_id].is_random_scenario)
+		return RULES[title_id].is_random_scenario(scenario)
+	return false
+}
+
+function select_random_scenario(title_id, scenario, seed) {
+	if (RULES[title_id].select_random_scenario)
+		return RULES[title_id].select_random_scenario(scenario, seed)
+	return scenario
+}
+
 app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 	let title_id = req.params.title_id
 	let priv = req.body.is_private === "true" ? 1 : 0
@@ -1640,8 +1653,9 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 
 	if (!(title_id in RULES))
 		return res.send("Invalid title.")
-	if (!RULES[title_id].scenarios.includes(scenario))
-		return res.send("Invalid scenario.")
+
+	if (is_random_scenario(title_id, scenario))
+		rand = 1
 
 	let player_count = get_game_roles(title_id, scenario, parse_game_options(options)).length
 
@@ -1936,12 +1950,19 @@ app.post('/start/:game_id', must_be_logged_in, function (req, res) {
 function start_game(game) {
 	let options = parse_game_options(game.options)
 	let seed = random_seed()
-	let state = RULES[game.title_id].setup(seed, game.scenario, options)
+	let state = null
 
 	SQL_BEGIN.run()
 	try {
+		if (is_random_scenario(game.title_id, game.scenario)) {
+			game.scenario = select_random_scenario(game.title_id, game.scenario, seed)
+			SQL_UPDATE_GAME_SCENARIO.run(game.scenario, game.game_id)
+		}
+
 		if (game.is_random)
 			assign_random_roles(game, options, SQL_SELECT_PLAYERS_JOIN.all(game.game_id))
+
+		state = RULES[game.title_id].setup(seed, game.scenario, options)
 
 		SQL_START_GAME.run(state.active, game.game_id)
 		put_replay(game.game_id, null, ".setup", [seed, game.scenario, options])
