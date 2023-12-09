@@ -120,11 +120,11 @@ function start_event_source() {
 }
 
 function is_friend(p) {
-	return whitelist.includes(p.user_id)
+	return whitelist && whitelist.includes(p.user_id)
 }
 
 function is_enemy(p) {
-	return blacklist.includes(p.user_id)
+	return blacklist && blacklist.includes(p.user_id)
 }
 
 function is_active(player, role) {
@@ -148,10 +148,81 @@ function action_link(player, action, color, text) {
 }
 
 function update() {
+	update_common()
+	if (user_id)
+		update_login()
+	else
+		update_no_login()
+}
+
+function update_common() {
 	if (game.scenario !== "Standard")
 		document.querySelector("h1").textContent = game.title_name + " - " + game.scenario
 	else
 		document.querySelector("h1").textContent = game.title_name
+
+	let message = window.message
+	if (game.status === 0) {
+		if (ready && (game.owner_id === user_id))
+			message.innerHTML = "Ready to start..."
+		else if (ready)
+			message.innerHTML = `Waiting for ${game.owner_name} to start the game...`
+		else
+			message.innerHTML = "Waiting for players to join..."
+	} else if (game.status === 1) {
+		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Observe</a>`
+	} else if (game.status === 2) {
+		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Review</a>`
+	} else if (game.status === 3) {
+		message.innerHTML = "Archived"
+	}
+}
+
+function update_no_login() {
+	for (let i = 0; i < roles.length; ++i) {
+		let role = roles[i]
+		let role_id = "role_" + role.replace(/ /g, "_")
+		if (game.is_random && game.status === 0)
+			role = "Random " + (i+1)
+		document.getElementById(role_id + "_name").textContent = role
+		let player = players.find(p => p.role === role)
+		let element = document.getElementById(role_id)
+
+		if (player) {
+			element.classList.remove("is_invite")
+			switch (game.status) {
+			case 3:
+				element.innerHTML = player.name
+				break
+			case 2:
+				element.innerHTML = user_link(player)
+				break
+			case 1:
+				if (player.is_invite) {
+					element.classList.add("is_invite")
+					element.innerHTML = user_link(player) + " ?"
+				} else {
+					element.classList.toggle("is_active", is_active(player, role))
+					element.innerHTML = user_link(player)
+				}
+				break
+			case 0:
+				if (player.is_invite) {
+					element.classList.add("is_invite")
+					element.innerHTML = user_link(player) + " ?"
+				} else {
+					element.innerHTML = user_link(player)
+				}
+				break
+			}
+		} else {
+			element.classList.remove("is_invite")
+			element.innerHTML = `<i>Empty</i>`
+		}
+	}
+}
+
+function update_login() {
 	for (let i = 0; i < roles.length; ++i) {
 		let role = roles[i]
 		let role_id = "role_" + role.replace(/ /g, "_")
@@ -257,22 +328,6 @@ function update() {
 		}
 	}
 
-	let message = window.message
-	if (game.status === 0) {
-		if (ready && (game.owner_id === user_id))
-			message.innerHTML = "Ready to start..."
-		else if (ready)
-			message.innerHTML = `Waiting for ${game.owner_name} to start the game...`
-		else
-			message.innerHTML = "Waiting for players to join..."
-	} else if (game.status === 1) {
-		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Observe</a>`
-	} else if (game.status === 2) {
-		message.innerHTML = `<a href="/${game.title_id}/play.html?game=${game.game_id}">Review</a>`
-	} else if (game.status === 3) {
-		message.innerHTML = "Archived"
-	}
-
 	if (game.owner_id === user_id) {
 		window.start_button.disabled = !ready
 		window.start_button.classList = (game.status === 0) ? "" : "hide"
@@ -291,7 +346,7 @@ function update() {
 
 window.onload = function () {
 	update()
-	if (game.status < 2) {
+	if (user_id && game.status < 2) {
 		start_event_source()
 		timer = setInterval(start_event_source, 15000)
 	}

@@ -1789,7 +1789,7 @@ function update_join_clients_players(game_id) {
 	}
 }
 
-app.get('/join/:game_id', must_be_logged_in, function (req, res) {
+app.get('/join/:game_id', function (req, res) {
 	let game_id = req.params.game_id | 0
 	let game = SQL_SELECT_GAME_VIEW.get(game_id)
 	if (!game)
@@ -1800,17 +1800,24 @@ app.get('/join/:game_id', must_be_logged_in, function (req, res) {
 
 	let roles = get_game_roles(game.title_id, game.scenario, options)
 	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
-	let whitelist = SQL_SELECT_CONTACT_WHITELIST.all(req.user.user_id)
-	let blacklist = SQL_SELECT_CONTACT_BLACKLIST.all(req.user.user_id)
+
+	let whitelist = null
+	let blacklist = null
 	let friends = null
-	if (game.owner_id === req.user.user_id)
-		friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
+
+	if (req.user) {
+		whitelist = SQL_SELECT_CONTACT_WHITELIST.all(req.user.user_id)
+		blacklist = SQL_SELECT_CONTACT_BLACKLIST.all(req.user.user_id)
+		if (game.owner_id === req.user.user_id)
+			friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
+	}
+
 	let ready = (game.status === STATUS_OPEN) && is_game_ready(game.player_count, players)
 	game.ctime = human_date(game.ctime)
 	game.mtime = human_date(game.mtime)
 	res.render('join.pug', {
 		user: req.user, game, roles, players, ready, whitelist, blacklist, friends,
-		limit: check_join_game_limit(req.user)
+		limit: req.user ? check_join_game_limit(req.user) : null
 	})
 })
 

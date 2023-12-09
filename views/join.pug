@@ -22,7 +22,7 @@ html
 			let game = !{ JSON.stringify(game) }
 			let roles = !{ JSON.stringify(roles) }
 			let players = !{ JSON.stringify(players) }
-			let user_id = !{ user.user_id }
+			let user_id = !{ user ? user.user_id : 0 }
 			let whitelist = !{ JSON.stringify(whitelist) }
 			let blacklist = !{ JSON.stringify(blacklist) }
 			let friends = !{ JSON.stringify(friends) }
@@ -37,12 +37,14 @@ html
 			else
 				h1 #{game.title_name} - #{game.scenario}
 
-			if limit && game.status < 1
-				p.error= limit
-			p.error#error
-
 			div.logo
 				+gamecover(game.title_id)
+
+			if limit && game.status < 1
+				p.error= limit
+			if !user
+				p.error You are not logged in!
+			p.error#error
 
 			if game.owner_id
 				if game.is_private
@@ -54,7 +56,7 @@ html
 
 			if game.status > 1
 				p Finished #{game.mtime}.
-			else if game.mtime !== "never"
+			else if game.status > 0
 				p Last changed #{game.mtime}.
 
 			unless game.human_options === "None"
@@ -72,17 +74,18 @@ html
 				p
 					i= game.notice
 
-			dialog(id="invite")
-				| Invite a friend:
-				br
-				input(id="invite_user" type="text" list="friends" onchange="send_invite()")
-				datalist(id="friends")
-					if friends
-						each who in friends
-							option= who
-				br
-				button(onclick="send_invite()") Invite
-				button(onclick="hide_invite()") Cancel
+			if user
+				dialog(id="invite")
+					| Invite a friend:
+					br
+					input(id="invite_user" type="text" list="friends" onchange="send_invite()")
+					datalist(id="friends")
+						if friends
+							each who in friends
+								option= who
+					br
+					button(onclick="send_invite()") Invite
+					button(onclick="hide_invite()") Cancel
 
 			p
 			table
@@ -98,3 +101,6 @@ html
 			p
 				button.hide#delete_button(onclick="confirm_delete()") Delete
 				button.hide#start_button(onclick="start()" disabled) Start
+
+			if !user && !ready
+				p <a href="/login">Login</a> or <a href="/signup">sign up</a> to play this game.
