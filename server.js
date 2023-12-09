@@ -1435,7 +1435,7 @@ function annotate_game_info(game, user_id, unread) {
 		if (p.user_id === user_id) {
 			your_role = p.role
 			your_count++
-			if ((p_is_active || p_is_owner) && game.is_ready)
+			if (p_is_active && game.is_ready)
 				game.your_turn = true
 			if (p.is_invite)
 				game.your_turn = true
@@ -1459,6 +1459,9 @@ function annotate_game_info(game, user_id, unread) {
 		if (game.result === p.role)
 			game.result = `${link} (${game.result})`
 	}
+
+	if (game.status === STATUS_OPEN && game.is_ready && game.owner_id === user_id)
+		game.your_turn = true
 
 	if (your_count > 0) {
 		game.is_yours = true
