@@ -1322,7 +1322,7 @@ const QUERY_LIST_GAMES_OF_TITLE_READY = SQL(`
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT = SQL(`
-	select * from game_view where title_id=? and not is_private and status=1 and join_count < player_count
+	select * from game_view where title_id=? and not is_private and status=1 and join_count > 0 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
