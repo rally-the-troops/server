@@ -166,6 +166,7 @@ function set_static_headers(res, path) {
 let app = express()
 
 app.locals.SITE_NAME = SITE_NAME
+app.locals.SITE_NAME_P = SITE_NAME.endsWith("!") ? SITE_NAME : SITE_NAME + "."
 app.locals.SITE_URL = SITE_URL
 app.locals.SITE_THEME = process.env.SITE_THEME
 app.locals.SITE_ICON = process.env.SITE_ICON
