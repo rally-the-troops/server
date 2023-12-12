@@ -11,6 +11,10 @@ html
 			if flash
 				p.error= flash
 
+			if redirect
+				p You need to be logged in to view this page!
+				p Log in below, or <a href="/signup">sign up</a> for a free account.
+
 			if user
 				p You're already logged in!
 			else

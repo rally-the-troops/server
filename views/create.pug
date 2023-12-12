@@ -13,6 +13,9 @@ html
 			div.logo
 				+gamecover(title.title_id)
 
+			if !user
+				p.error You are not logged in!
+
 			form(method="post" action="/create/"+title.title_id)
 				if Array.isArray(scenarios)
 					if scenarios.length > 1
@@ -38,43 +41,48 @@ html
 
 				| !{ title.create_html }
 
-				p Notice:
-					br
-					input(type="text" autocomplete="off" name="notice" size=45 placeholder="What are you looking for?")
+				if user
+					p Notice:
+						br
+						input(type="text" autocomplete="off" name="notice" size=45 placeholder="What are you looking for?")
 
-				p Pace:
-					br
-					label
-						input(type="radio" name="pace" value="0" checked)
-						| Any
+					p Pace:
+						br
+						label
+							input(type="radio" name="pace" value="0" checked)
+							| Any
 
-					br
-					label
-						input(type="radio" name="pace" value="1")
-						| #{EMOJI_LIVE} Live
+						br
+						label
+							input(type="radio" name="pace" value="1")
+							| #{EMOJI_LIVE} Live
 
-					br
-					label
-						input(type="radio" name="pace" value="2")
-						| #{EMOJI_FAST} Fast <i>&ndash; many moves per day</i>
+						br
+						label
+							input(type="radio" name="pace" value="2")
+							| #{EMOJI_FAST} Fast <i>&ndash; many moves per day</i>
 
-					br
-					label
-						input(type="radio" name="pace" value="3")
-						| #{EMOJI_SLOW} Slow <i>&ndash; one move per day</i>
+						br
+						label
+							input(type="radio" name="pace" value="3")
+							| #{EMOJI_SLOW} Slow <i>&ndash; one move per day</i>
 
-				p
-					label
-						input(type="checkbox" name="is_random" value="true")
-						| Random player roles
-
-				p
-					label
-						input(type="checkbox" name="is_private" value="true")
-						| Private
-
-				if limit
-					p.error= limit
-				else
 					p
-						button(type="submit") Create
+						label
+							input(type="checkbox" name="is_random" value="true")
+							| Random player roles
+
+					p
+						label
+							input(type="checkbox" name="is_private" value="true")
+							| Private
+
+					if limit
+						p.error= limit
+					else
+						p
+							button(type="submit") Create
+
+				else
+					p <a href="/login">Login</a> or <a href="/signup">sign up</a> to play.
+

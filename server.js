@@ -381,7 +381,7 @@ app.get('/', function (req, res) {
 	res.render('index.pug', { user: req.user })
 })
 
-app.get('/create', must_be_logged_in, function (req, res) {
+app.get('/create', function (req, res) {
 	res.render('create-index.pug', { user: req.user })
 })
 
@@ -399,7 +399,7 @@ app.post('/logout', function (req, res) {
 app.get('/login', function (req, res) {
 	if (req.user)
 		return res.redirect('/')
-	res.render('login.pug', { redirect: req.query.redirect || '/profile' })
+	res.render('login.pug', { redirect: req.query.redirect })
 })
 
 app.post('/login', function (req, res) {
@@ -414,7 +414,7 @@ app.post('/login', function (req, res) {
 	if (!user || is_blacklisted(user.mail) || hash_password(password, user.salt) != user.password)
 		return setTimeout(() => res.render('login.pug', { flash: "Invalid login." }), 1000)
 	login_insert(res, user.user_id)
-	res.redirect(redirect)
+	res.redirect(redirect || "/profile")
 })
 
 app.get('/signup', function (req, res) {
@@ -1598,7 +1598,7 @@ function get_title_page(req, res, title_id) {
 for (let title of TITLE_LIST)
 	app.get('/' + title.title_id, (req, res) => get_title_page(req, res, title.title_id))
 
-app.get('/create/:title_id', must_be_logged_in, function (req, res) {
+app.get('/create/:title_id', function (req, res) {
 	let title_id = req.params.title_id
 	let title = TITLE_TABLE[title_id]
 	if (!title)
@@ -1606,7 +1606,7 @@ app.get('/create/:title_id', must_be_logged_in, function (req, res) {
 	res.render('create.pug', {
 		user: req.user,
 		title: title,
-		limit: check_create_game_limit(req.user),
+		limit: req.user ? check_create_game_limit(req.user) : null,
 		scenarios: RULES[title_id].scenarios,
 	})
 })
