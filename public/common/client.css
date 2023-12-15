@@ -439,6 +439,7 @@ menu li:hover img {
 	grid-row: 1;
 	grid-column: 2;
 	text-align: right;
+	padding-left: 8px;
 	padding-right: 4px;
 }
 
