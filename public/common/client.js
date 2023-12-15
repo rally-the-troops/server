@@ -651,7 +651,7 @@ function action_button_imp(action, label, callback) {
 		button.id = id
 		button.textContent = label
 		button.addEventListener("click", callback)
-		document.getElementById("actions").appendChild(button)
+		document.getElementById("actions").prepend(button)
 	}
 	if (view.actions && action in view.actions) {
 		button.classList.remove("hide")

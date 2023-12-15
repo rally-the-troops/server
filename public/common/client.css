@@ -240,6 +240,7 @@ header.replay {
 	display: flex;
 	justify-content: end;
 	align-items: center;
+	flex-direction: row-reverse;
 	flex-wrap: wrap;
 
 	min-height: 32px;
@@ -249,7 +250,7 @@ header.replay {
 
 @media (pointer: coarse) {
 	#toolbar { gap: 8px; }
-	#actions { gap: 12px 8px; }
+	#actions { gap: 16px 8px; }
 }
 
 @media (max-width: 400px) {
