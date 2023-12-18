@@ -46,8 +46,10 @@ function accept(role) {
 
 function send_invite() {
 	let invite_user = document.getElementById("invite_user").value
-	post(`/invite/${game.game_id}/${encodeURIComponent(invite_role)}/${encodeURIComponent(invite_user)}`)
-	document.getElementById("invite").close()
+	if (invite_user) {
+		post(`/invite/${game.game_id}/${encodeURIComponent(invite_role)}/${encodeURIComponent(invite_user)}`)
+		document.getElementById("invite").close()
+	}
 }
 
 function show_invite(role) {
