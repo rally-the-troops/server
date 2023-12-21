@@ -231,7 +231,10 @@ function update_chat(chat_id, raw_date, user, message) {
 	}
 	function add_chat_line(time, user, message) {
 		let line = document.createElement("div")
-		line.textContent = "[" + time + "] " + user + " \xbb " + message
+		if (user)
+			line.textContent = "[" + time + "] " + user + " \xbb " + message
+		else
+			line.textContent = "[" + time + "] " + message
 		chat.text_element.appendChild(line)
 		chat.text_element.scrollTop = chat.text_element.scrollHeight
 	}

@@ -1265,6 +1265,7 @@ const SQL_SELECT_PLAYERS_JOIN = SQL("select role, user_id, name, is_invite from 
 const SQL_UPDATE_PLAYER_ACCEPT = SQL("UPDATE players SET is_invite=0 WHERE game_id=? AND role=? AND user_id=?")
 const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?")
 const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
+const SQL_SELECT_PLAYER_NAME = SQL("SELECT name FROM players JOIN users using(user_id) WHERE game_id=? AND role=?").pluck()
 const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
 
@@ -1865,7 +1866,7 @@ app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	res.write("data: " + JSON.stringify(players) + "\n\n")
 })
 
-function do_join(res, game_id, role, user_id, is_invite) {
+function do_join(res, game_id, role, user_id, user_name, is_invite) {
 	let game = SQL_SELECT_GAME.get(game_id)
 	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
 	if (game.is_random && game.status === STATUS_OPEN) {
@@ -1880,6 +1881,12 @@ function do_join(res, game_id, role, user_id, is_invite) {
 	if (info.changes === 1) {
 		update_join_clients_players(game_id)
 		res.send("SUCCESS")
+
+		// send chat message about player joining a game in progress
+		if (game.status > 0 && user_name && !is_invite) {
+			send_chat_message(game_id, null, null, `${user_name} joined as ${role}.`)
+		}
+
 	} else {
 		if (is_invite)
 			res.send("Could not invite.")
@@ -1894,7 +1901,7 @@ app.post('/join/:game_id/:role', must_be_logged_in, function (req, res) {
 	let limit = check_join_game_limit(req.user)
 	if (limit)
 		return res.send(limit)
-	do_join(res, game_id, role, req.user.user_id, 0)
+	do_join(res, game_id, role, req.user.user_id, req.user.name, 0)
 })
 
 app.post('/invite/:game_id/:role/:user', must_be_logged_in, function (req, res) {
@@ -1902,7 +1909,7 @@ app.post('/invite/:game_id/:role/:user', must_be_logged_in, function (req, res) 
 	let role = req.params.role
 	let user_id = SQL_SELECT_USER_ID.get(req.params.user)
 	if (user_id)
-		do_join(res, game_id, role, user_id, 1)
+		do_join(res, game_id, role, user_id, null, 1)
 	else
 		res.send("User not found.")
 })
@@ -1923,9 +1930,19 @@ app.post('/accept/:game_id/:role', must_be_logged_in, function (req, res) {
 app.post('/part/:game_id/:role', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let role = req.params.role
+	let user_name = SQL_SELECT_PLAYER_NAME.get(game_id, role)
+	let game = SQL_SELECT_GAME.get(game_id)
 	SQL_DELETE_PLAYER_ROLE.run(game_id, role)
 	update_join_clients_players(game_id)
 	res.send("SUCCESS")
+
+	// send chat message about player leaving a game in progress
+	if (game.status > 0) {
+		if (user_name !== req.user.name)
+			send_chat_message(game_id, null, null, `${user_name} (${role}) left the game (kicked by ${req.user.name}).`)
+		else
+			send_chat_message(game_id, null, null, `${user_name} (${role}) left the game.`)
+	}
 })
 
 function assign_random_roles(game, options, players) {
@@ -2618,25 +2635,34 @@ function on_getchat(socket, seen) {
 function on_chat(socket, message) {
 	message = message.substring(0,4000)
 	try {
-		let chat = SQL_INSERT_GAME_CHAT.get(socket.game_id, socket.game_id, socket.user.user_id, message)
-		chat[2] = socket.user.name
 		SLOG(socket, "CHAT")
-		for (let other of game_clients[socket.game_id])
-			if (other.role !== "Observer")
-				send_message(other, 'chat', chat)
-
-		let users = SQL_SELECT_PLAYERS_ID.all(socket.game_id)
-		for (let user_id of users) {
-			let found = false
-			for (let other of game_clients[socket.game_id])
-				if (other.user && other.user.user_id === user_id && other.role !== "Observer")
-					found = true
-			if (!found)
-				SQL_INSERT_UNREAD_CHAT.run(user_id, socket.game_id)
-		}
+		send_chat_message(socket.game_id, socket.user.user_id, socket.user.name, message)
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, 'error', err.toString())
+	}
+}
+
+function send_chat_message(game_id, from_id, from_name, message) {
+	let chat = SQL_INSERT_GAME_CHAT.get(game_id, game_id, from_id, message)
+	chat[2] = from_name
+
+	if (game_clients[game_id]) {
+		for (let other of game_clients[game_id])
+			if (other.role !== "Observer")
+				send_message(other, "chat", chat)
+	}
+
+	let users = SQL_SELECT_PLAYERS_ID.all(game_id)
+	for (let user_id of users) {
+		let found = false
+		if (game_clients[game_id]) {
+			for (let other of game_clients[game_id])
+				if (other.user && other.user.user_id === user_id && other.role !== "Observer")
+					found = true
+		}
+		if (!found)
+			SQL_INSERT_UNREAD_CHAT.run(user_id, game_id)
 	}
 }
 

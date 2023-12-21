@@ -405,7 +405,7 @@ create view game_chat_view as
 		game_id, chat_id, time, name, message
 	from
 		game_chat
-		join users using(user_id)
+		left join users using(user_id)
 	;
 
 create table if not exists game_replay (
