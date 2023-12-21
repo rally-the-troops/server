@@ -2514,15 +2514,37 @@ function on_action(socket, action, args, cookie) {
 function on_resign(socket) {
 	SLOG(socket, "RESIGN")
 	try {
-		// TODO: shared "resign" function
-		let state = get_game_state(socket.game_id)
-		let old_active = state.active
-		state = socket.rules.resign(state, socket.role)
-		put_new_state(socket.game_id, state, old_active, socket.role, ".resign", null)
+		do_resign(socket.game_id, socket.role, "resigned")
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, 'error', err.toString())
 	}
+}
+
+function do_resign(game_id, role, how) {
+	let game = SQL_SELECT_GAME_VIEW.get(game_id)
+	let state = get_game_state(game_id)
+	let old_active = state.active
+
+	let result = "None"
+
+	if (game.player_count === 2) {
+		if (game.moves > 6) {
+			let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
+			for (let r of roles)
+				if (r !== role)
+					result = r
+		}
+	}
+
+	state.state = "game_over"
+	state.active = "None"
+	state.result = result
+	state.victory = role + " " + how + "."
+	state.log.push("")
+	state.log.push(state.victory)
+
+	put_new_state(game_id, state, old_active, role, ".resign", null)
 }
 
 function on_restore(socket, state_text) {
