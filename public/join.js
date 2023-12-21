@@ -190,6 +190,17 @@ function update_no_login() {
 		let player = players.find(p => p.role === role)
 		let element = document.getElementById(role_id)
 
+		if (game.is_match) {
+			if (player) {
+				if (game.status === 1)
+					element.classList.toggle("is_active", is_active(player, role))
+				element.innerHTML = user_link(player)
+			} else {
+				element.innerHTML = `<i>Empty</i>`
+			}
+			continue
+		}
+
 		if (player) {
 			element.classList.remove("is_invite")
 			switch (game.status) {
