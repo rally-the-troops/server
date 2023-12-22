@@ -160,9 +160,9 @@ function login_delete(res, sid) {
 
 function set_static_headers(res, path) {
 	if (path.match(/\.(jpg|png|svg|webp|ico|woff2)$/))
-		res.setHeader("Cache-Control", "max-age=86400")
+		res.setHeader("Cache-Control", "max-age=86400, must-revalidate")
 	else
-		res.setHeader("Cache-Control", "max-age=60")
+		res.setHeader("Cache-Control", "no-cache")
 }
 
 let app = express()
@@ -383,6 +383,11 @@ function must_be_administrator(req, res, next) {
 
 app.get('/', function (req, res) {
 	res.render('index.pug', { user: req.user })
+})
+
+app.get("/clear-cache", function (req, res) {
+	res.setHeader("Clear-Site-Data", `"cache"`)
+	res.send("Did it work?")
 })
 
 app.get('/create', function (req, res) {
