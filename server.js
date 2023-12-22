@@ -28,6 +28,8 @@ const LIMIT_ACTIVE_GAMES = (process.env.LIMIT_ACTIVE_GAMES | 0) || 29
 const REGEX_MAIL = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
 const REGEX_NAME = /^[\p{Alpha}\p{Number}'_-]+( [\p{Alpha}\p{Number}'_-]+)*$/u
 
+const FORBIDDEN_NAME = /^(Deleted|None|Draw|Both|All|null|admin)/i
+
 const WEBHOOKS = process.env.WEBHOOKS | 0
 if (WEBHOOKS)
 	console.log("Webhook notifications enabled.")
@@ -280,6 +282,8 @@ function is_valid_user_name(name) {
 	if (name.length < 2)
 		return false
 	if (name.length > 50)
+		return false
+	if (FORBIDDEN_NAME.test(name))
 		return false
 	return REGEX_NAME.test(name)
 }
