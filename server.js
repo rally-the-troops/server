@@ -176,6 +176,7 @@ app.locals.ENABLE_MAIL = !!mailer
 app.locals.ENABLE_WEBHOOKS = !!WEBHOOKS
 app.locals.ENABLE_FORUM = process.env.FORUM | 0
 
+app.locals.EMOJI_MATCH = "\u{1f3c6}"
 app.locals.EMOJI_LIVE = "\u{1f465}"
 app.locals.EMOJI_FAST = "\u{1f3c1}"
 app.locals.EMOJI_SLOW = "\u{1f40c}"
@@ -1269,6 +1270,8 @@ const SQL_SELECT_PLAYER_NAME = SQL("SELECT name FROM players JOIN users using(us
 const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
 
+const SQL_SELECT_PLAYERS_FULL = SQL("select * from player_view where game_id = ?")
+
 const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN}`).pluck()
 const SQL_COUNT_ACTIVE_GAMES = SQL(`
 	select count(*) from games
@@ -1408,18 +1411,6 @@ function check_join_game_limit(user) {
 	return null
 }
 
-function annotate_game_players(game) {
-	game.players = SQL_SELECT_PLAYERS_JOIN.all(game.game_id)
-	if (game.player_count === game.join_count) {
-		game.is_ready = true
-		for (let p of game.players)
-			if (p.is_invite)
-				game.is_ready = false
-	} else {
-		game.is_ready = false
-	}
-}
-
 function annotate_game_info(game, user_id, unread) {
 	let options = parse_game_options(game.options)
 	game.human_options = format_options(game.options, options)
@@ -1430,24 +1421,18 @@ function annotate_game_info(game, user_id, unread) {
 	let your_role = null
 
 	let roles = get_game_roles(game.title_id, game.scenario, options)
+
+	game.players = SQL_SELECT_PLAYERS_FULL.all(game.game_id)
 	for (let p of game.players)
 		p.index = roles.indexOf(p.role)
 	game.players.sort((a, b) => a.index - b.index)
 
 	game.player_names = ""
 	for (let p of game.players) {
-		let p_is_owner = false
-		if (game.status === STATUS_OPEN && (game.owner_id === p.user_id))
-			p_is_owner = true
-
-		let p_is_active = false
-		if (game.status === STATUS_ACTIVE && (game.active === p.role || game.active === "Both"))
-			p_is_active = true
-
 		if (p.user_id === user_id) {
 			your_role = p.role
 			your_count++
-			if (p_is_active && game.is_ready)
+			if (p.is_active && game.is_ready && game.status < 2)
 				game.your_turn = true
 			if (p.is_invite)
 				game.your_turn = true
@@ -1455,9 +1440,9 @@ function annotate_game_info(game, user_id, unread) {
 
 		let link
 		if (p.is_invite)
-			link = `<span class="is_invite"><a href="/user/${p.name}">${p.name}?</a></span>`
-		else if (p_is_active || p_is_owner)
-			link = `<span class="is_active"><a href="/user/${p.name}">${p.name}</a></span>`
+			link = `<a class="is_invite" href="/user/${p.name}">${p.name}?</a>`
+		else if (p.is_active)
+			link = `<a class="is_active" href="/user/${p.name}">${p.name}</a>`
 		else
 			link = `<a href="/user/${p.name}">${p.name}</a>`
 
@@ -1466,10 +1451,8 @@ function annotate_game_info(game, user_id, unread) {
 		else
 			game.player_names = link
 
-		if (game.active === p.role)
-			game.active = link
 		if (game.result === p.role)
-			game.result = `${link} (${game.result})`
+			game.result = `<a href="/user/${p.name}">${p.name}</a> (${game.result})`
 	}
 
 	if (game.status === STATUS_OPEN && game.is_ready && game.owner_id === user_id)
@@ -1486,10 +1469,8 @@ function annotate_game_info(game, user_id, unread) {
 }
 
 function annotate_games(list, user_id, unread) {
-	for (let game of list) {
-		annotate_game_players(game)
+	for (let game of list)
 		annotate_game_info(game, user_id, unread)
-	}
 	return list
 }
 
@@ -1810,7 +1791,7 @@ app.get('/join/:game_id', function (req, res) {
 	game.human_options = format_options(game.options, options)
 
 	let roles = get_game_roles(game.title_id, game.scenario, options)
-	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
+	let players = SQL_SELECT_PLAYERS_FULL.all(game_id)
 
 	let whitelist = null
 	let blacklist = null
@@ -1835,7 +1816,7 @@ app.get('/join/:game_id', function (req, res) {
 app.get('/join-events/:game_id', must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let game = SQL_SELECT_GAME_VIEW.get(game_id)
-	let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
+	let players = SQL_SELECT_PLAYERS_FULL.all(game_id)
 
 	res.setHeader("Content-Type", "text/event-stream")
 	res.setHeader("Connection", "keep-alive")

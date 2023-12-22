@@ -373,7 +373,10 @@ create table if not exists games (
 	mtime datetime default current_timestamp,
 	moves integer default 0,
 	active text,
-	result text
+	result text,
+
+	is_opposed boolean generated as ( user_count = join_count and join_count > 1 ),
+	is_ready boolean generated as ( player_count = join_count and invite_count = 0 )
 );
 
 create index if not exists games_title_idx on games(title_id);
@@ -447,13 +450,33 @@ create view game_view as
 	select
 		games.*,
 		titles.title_name,
-		owner.name as owner_name,
-		user_count = join_count and join_count > 1 as is_opposed
+		owner.name as owner_name
 	from
 		games
 		join titles using(title_id)
 		left join users as owner
 			on owner.user_id = games.owner_id
+	;
+
+drop view if exists player_view;
+create view player_view as
+	select
+		game_id,
+		user_id,
+		name,
+		role,
+		is_invite,
+		(
+			case status
+			when 0 then owner_id = user_id
+			when 1 then active in ( 'Both', role )
+			else 0
+			end
+		) as is_active
+	from
+		games
+		join players using(game_id)
+		join users using(user_id)
 	;
 
 drop view if exists ready_to_start_reminder;
@@ -464,14 +487,7 @@ create view ready_to_start_reminder as
 		games
 		join users on user_id = owner_id
 	where
-		status = 0
-		and join_count = player_count
-		and not exists (
-			select 1 from players
-			where
-				players.game_id = games.game_id
-				and is_invite
-		)
+		status = 0 and is_ready
 	;
 
 drop view if exists your_turn_reminder;
@@ -509,7 +525,8 @@ begin
 		games
 	set
 		join_count = ( select count(1) from players where players.game_id = new.game_id ),
-		user_count = ( select count(distinct user_id) from players where players.game_id = new.game_id )
+		user_count = ( select count(distinct user_id) from players where players.game_id = new.game_id ),
+		invite_count = ( select count(1) from players where players.game_id = new.game_id and players.is_invite )
 	where
 		games.game_id = new.game_id;
 end;
@@ -521,7 +538,19 @@ begin
 		games
 	set
 		join_count = ( select count(1) from players where players.game_id = old.game_id ),
-		user_count = ( select count(distinct user_id) from players where players.game_id = old.game_id )
+		user_count = ( select count(distinct user_id) from players where players.game_id = old.game_id ),
+		invite_count = ( select count(1) from players where players.game_id = old.game_id and players.is_invite )
+	where
+		games.game_id = old.game_id;
+end;
+
+drop trigger if exists trigger_accept_invite;
+create trigger trigger_accept_invite after update of is_invite on players
+begin
+	update
+		games
+	set
+		invite_count = ( select count(1) from players where players.game_id = new.game_id and players.is_invite )
 	where
 		games.game_id = old.game_id;
 end;

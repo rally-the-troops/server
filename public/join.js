@@ -129,20 +129,12 @@ function is_enemy(p) {
 	return blacklist && blacklist.includes(p.user_id)
 }
 
-function is_active(player, role) {
-	return (game.active === role || game.active === "Both" || game.active === "All")
-}
-
-function is_solo() {
-	return players.every(p => p.user_id === players[0].user_id)
-}
-
 function user_link(player) {
 	return `<a class="black" href="/user/${player.name}">${player.name}</a>`
 }
 
 function play_link(player) {
-	return `\xbb <a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(player.role)}">Play</a>`
+	return `\xbb <a href="/${game.title_id}/play.html?game=${game.game_id}&role=${encodeURIComponent(player.role)}">${player.name}</a>`
 }
 
 function action_link(player, action, color, text) {
@@ -193,7 +185,7 @@ function update_no_login() {
 		if (game.is_match) {
 			if (player) {
 				if (game.status === 1)
-					element.classList.toggle("is_active", is_active(player, role))
+					element.classList.toggle("is_active", player.is_active)
 				element.innerHTML = user_link(player)
 			} else {
 				element.innerHTML = `<i>Empty</i>`
@@ -215,7 +207,7 @@ function update_no_login() {
 					element.classList.add("is_invite")
 					element.innerHTML = user_link(player) + " ?"
 				} else {
-					element.classList.toggle("is_active", is_active(player, role))
+					element.classList.toggle("is_active", player.is_active)
 					element.innerHTML = user_link(player)
 				}
 				break
@@ -248,7 +240,7 @@ function update_login() {
 		if (game.is_match) {
 			if (player) {
 				if (game.status === 1)
-					element.classList.toggle("is_active", is_active(player, role))
+					element.classList.toggle("is_active", player.is_active)
 				if (player.user_id === user_id && (game.status === 1 || game.status === 2))
 					element.innerHTML = play_link(player)
 				else
@@ -283,7 +275,7 @@ function update_login() {
 					else
 						element.innerHTML = user_link(player) + " ?"
 				} else {
-					element.classList.toggle("is_active", is_active(player, role))
+					element.classList.toggle("is_active", player.is_active)
 					if (player.user_id === user_id)
 						element.innerHTML = play_link(player) + action_link(player, "part", "red", "\u274c")
 					else if (game.owner_id === user_id)
@@ -344,7 +336,7 @@ function update_login() {
 	if (game.owner_id === user_id) {
 		window.start_button.disabled = !ready
 		window.start_button.classList = (game.status === 0) ? "" : "hide"
-		window.delete_button.classList = (game.status === 0 || is_solo()) ? "" : "hide"
+		window.delete_button.classList = (game.status === 0 || game.user_count <= 1) ? "" : "hide"
 		if (game.status === 0 && ready)
 			start_blinker("READY TO START")
 		else

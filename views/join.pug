@@ -57,7 +57,7 @@ html
 			if game.status > 1
 				p Finished #{game.mtime}.
 			else if game.status > 0
-				p Last changed #{game.mtime}.
+				p Last move #{game.mtime}.
 
 			unless game.human_options === "None"
 				p Options: #{game.human_options}.

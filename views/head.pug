@@ -61,14 +61,10 @@ mixin gamelist(list,hide_title=0)
 					else if (item.status === 2) className += " finished"
 					else if (item.status === 3) className += " archived"
 					if (item.is_unread) chat_icon = "\u{1f4dd}"
-					if (item.pace === 0) pace_icon = "", pace_text = ""
+					if (item.is_match) pace_icon = EMOJI_MATCH
 					else if (item.pace === 1) pace_icon = EMOJI_LIVE, pace_text = "Live!"
 					else if (item.pace === 2) pace_icon = EMOJI_FAST, pace_text = "Fast - many moves per day"
 					else if (item.pace === 3) pace_icon = EMOJI_SLOW, pace_text = "Slow - one move per day"
-					let invite_count = 0
-					for (let p of item.players)
-						if (p.is_invite)
-							invite_count++
 
 				div(class=className)
 					div.game_head
@@ -81,12 +77,9 @@ mixin gamelist(list,hide_title=0)
 
 						case item.status
 							when 0
-								if item.join_count === item.player_count
-									a(class="command" href=`/join/${item.game_id}`) Start
-								else
-									a(class="command" href=`/join/${item.game_id}`) Join
+								a(class="command" href=`/join/${item.game_id}`) Join
 							when 1
-								if item.join_count !== item.player_count || invite_count > 0
+								if !item.is_ready
 									a(class="command" href="/join/"+item.game_id) Join
 								else if item.is_yours
 									if item.your_role
@@ -124,7 +117,7 @@ mixin gamelist(list,hide_title=0)
 								when 0
 									div Created: #{item.ctime}
 								when 1
-									div Changed: #{item.mtime}
+									div Last move: #{item.mtime}
 								when 2
 									div Finished: #{item.mtime}
 									div Result: !{item.result}
