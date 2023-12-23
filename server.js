@@ -1297,8 +1297,6 @@ const SQL_INSERT_REMATCH = SQL(`
 		game_id
 `).pluck()
 
-const SQL_INSERT_REMATCH_PLAYERS = SQL("insert into players (game_id, user_id, role, is_invite) select ?, user_id, role, user_id!=? from players where game_id=?")
-
 const QUERY_LIST_PUBLIC_GAMES_OPEN = SQL(`
 	select * from game_view where status=0 and not is_private and join_count > 0 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )

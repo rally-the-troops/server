@@ -1133,11 +1133,13 @@ var update_zoom = function () {}
 					mapwrap.dataset.fit = "width"
 					break
 				}
+				// fall through
 			case "width":
 				if (should_fit_both(1)) {
 					mapwrap.dataset.fit = "both"
 					break
 				}
+				// fall through
 			case "both":
 				mapwrap.dataset.fit = "none"
 		}
@@ -1231,7 +1233,7 @@ var update_zoom = function () {}
 		mom_last_y = [ transform1.y, transform1.y, transform1.y ]
 	}
 
-	function abort_measure(time) {
+	function abort_measure() {
 		mom_last_t = mom_last_x = mom_last_y = null
 	}
 
@@ -1408,11 +1410,13 @@ var update_zoom = function () {}
 			case 109:
 			case 189:
 				disable_map_fit()
-				let win_w = e_scroll.clientWidth
-				let win_h = e_scroll.clientHeight
-				let real_min_zoom = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
-				zoom_to(Math.max(real_min_zoom, transform1.scale - 0.1))
-				event.preventDefault()
+				{
+					let win_w = e_scroll.clientWidth
+					let win_h = e_scroll.clientHeight
+					let real_min_zoom = Math.min(MIN_ZOOM, win_w / map_w, win_h / map_h)
+					zoom_to(Math.max(real_min_zoom, transform1.scale - 0.1))
+					event.preventDefault()
+				}
 				break
 			// '0'
 			case 48:
