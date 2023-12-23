@@ -506,14 +506,15 @@ function connect_play() {
 
 		case "players":
 			player = arg[0]
+			init_player_names(arg[1])
 			document.body.classList.add(player.replace(/\W/g, "_"))
 			if (player !== "Observer") {
 				init_chat()
 				init_notepad()
+				add_resign_menu()
 			} else {
 				remove_resign_menu()
 			}
-			init_player_names(arg[1])
 			break
 
 		case "presence":
@@ -713,11 +714,6 @@ function send_query(q, param) {
 		send_message("query", [ q, param ])
 }
 
-function confirm_resign() {
-	if (window.confirm("Are you sure that you want to resign?"))
-		send_message("resign")
-}
-
 function send_save() {
 	send_message("save")
 }
@@ -736,6 +732,24 @@ function init_replay() {
 
 /* MAIN MENU */
 
+function confirm_resign() {
+	if (window.confirm("Are you sure that you want to resign?"))
+		send_message("resign")
+}
+
+function add_resign_menu() {
+	if (Object.keys(roles).length <= 2) {
+		let popup = document.querySelector("#toolbar details menu")
+		popup.insertAdjacentHTML("beforeend", '<li class="resign separator">')
+		popup.insertAdjacentHTML("beforeend", '<li class="resign" onclick="confirm_resign()">Resign')
+	}
+}
+
+function remove_resign_menu() {
+	for (let e of document.querySelectorAll(".resign"))
+		e.remove()
+}
+
 function add_icon_button(where, id, img, fn) {
 	let button = document.getElementById(id)
 	if (!button) {
@@ -749,10 +763,6 @@ function add_icon_button(where, id, img, fn) {
 			document.querySelector("#toolbar details").after(button)
 	}
 	return button
-}
-
-function remove_resign_menu() {
-	document.querySelectorAll(".resign").forEach(x => x.remove())
 }
 
 /* avoid margin collapse at bottom of main */
