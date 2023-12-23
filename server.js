@@ -1684,7 +1684,7 @@ app.get('/delete/:game_id', must_be_logged_in, function (req, res) {
 	res.redirect('/'+title_id)
 })
 
-function insert_replay_players(old_game_id, new_game_id, req_user_id, order) {
+function insert_rematch_players(old_game_id, new_game_id, req_user_id, order) {
 	let game = SQL_SELECT_GAME.get(old_game_id)
 	let players = SQL_SELECT_PLAYERS_JOIN.all(old_game_id)
 	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
@@ -1746,7 +1746,7 @@ app.post('/rematch/:old_game_id', must_be_logged_in, function (req, res) {
 	try {
 		new_game_id = SQL_INSERT_REMATCH.get({owner_id: req.user.user_id, random: order === "random" ? 1 : 0, old_game_id, magic})
 		if (new_game_id)
-			insert_replay_players(old_game_id, new_game_id, req.user.user_id, order)
+			insert_rematch_players(old_game_id, new_game_id, req.user.user_id, order)
 		else
 			new_game_id = SQL_SELECT_REMATCH.get(magic)
 		SQL_COMMIT.run()
