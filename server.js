@@ -28,8 +28,6 @@ const LIMIT_ACTIVE_GAMES = (process.env.LIMIT_ACTIVE_GAMES | 0) || 29
 const REGEX_MAIL = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
 const REGEX_NAME = /^[\p{Alpha}\p{Number}'_-]+( [\p{Alpha}\p{Number}'_-]+)*$/u
 
-const FORBIDDEN_NAME = /^(Deleted|None|Draw|Both|All|null|admin)/i
-
 const WEBHOOKS = process.env.WEBHOOKS | 0
 if (WEBHOOKS)
 	console.log("Webhook notifications enabled.")
@@ -284,7 +282,7 @@ function is_valid_user_name(name) {
 		return false
 	if (name.length > 50)
 		return false
-	if (FORBIDDEN_NAME.test(name))
+	if (SQL_BLACKLIST_NAME.get(name))
 		return false
 	return REGEX_NAME.test(name)
 }
@@ -300,7 +298,8 @@ function hash_password(password, salt) {
  * USER AUTHENTICATION
  */
 
-const SQL_BLACKLIST_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM blacklist_mail WHERE ? LIKE mail )").pluck()
+const SQL_BLACKLIST_MAIL = SQL("select exists ( select 1 from blacklist_mail where ? like mail )").pluck()
+const SQL_BLACKLIST_NAME = SQL("select exists ( select 1 from blacklist_name where ? like name )").pluck()
 
 const SQL_EXISTS_USER_NAME = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE name=? )").pluck()
 const SQL_EXISTS_USER_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE mail=? )").pluck()
@@ -339,10 +338,8 @@ const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND juliand
 const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime()) RETURNING token").pluck()
 const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id=? AND julianday('now') < julianday(time, '+20 minutes') AND token=? )").pluck()
 
-function is_blacklisted(mail) {
-	if (SQL_BLACKLIST_MAIL.get(mail) === 1)
-		return true
-	return false
+function is_forbidden_mail(mail) {
+	return SQL_BLACKLIST_MAIL.get(mail)
 }
 
 app.use(function (req, res, next) {
@@ -421,7 +418,7 @@ app.post("/login", function (req, res) {
 	let user = SQL_SELECT_LOGIN_BY_NAME.get(name_or_mail)
 	if (!user)
 		user = SQL_SELECT_LOGIN_BY_MAIL.get(name_or_mail)
-	if (!user || is_blacklisted(user.mail) || hash_password(password, user.salt) != user.password)
+	if (!user || is_forbidden_mail(user.mail) || hash_password(password, user.salt) != user.password)
 		return setTimeout(() => res.render("login.pug", { flash: "Invalid login." }), 1000)
 	login_insert(res, user.user_id)
 	res.redirect(redirect || "/profile")
@@ -446,7 +443,7 @@ app.post("/signup", function (req, res) {
 		return err("Invalid user name!")
 	if (SQL_EXISTS_USER_NAME.get(name))
 		return err("That name is already taken.")
-	if (!is_valid_email(mail) || is_blacklisted(mail))
+	if (!is_valid_email(mail) || is_forbidden_mail(mail))
 		return err("Invalid mail address!")
 	if (SQL_EXISTS_USER_MAIL.get(mail))
 		return err("That mail is already taken.")

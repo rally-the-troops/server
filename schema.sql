@@ -1,6 +1,18 @@
 -- Blacklists --
 
-create table if not exists blacklist_mail ( mail text primary key ) without rowid;
+create table if not exists blacklist_mail ( mail text primary key collate nocase ) without rowid;
+create table if not exists blacklist_name ( name text primary key collate nocase ) without rowid;
+
+insert or ignore into blacklist_mail (mail) values
+	('%@example.com')
+;
+
+insert or ignore into blacklist_name (name) values
+	('None'),
+	('System'),
+	('Deleted'),
+	('null')
+;
 
 -- Titles --
 
