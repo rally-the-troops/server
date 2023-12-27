@@ -491,17 +491,6 @@ create view player_view as
 		join users using(user_id)
 	;
 
-drop view if exists ready_to_start_reminder;
-create view ready_to_start_reminder as
-	select
-		game_id, owner_id as user_id, name, mail, notify
-	from
-		games
-		join users on user_id = owner_id
-	where
-		status = 0 and is_ready
-	;
-
 drop view if exists your_turn_reminder;
 create view your_turn_reminder as
 	select
@@ -538,7 +527,8 @@ begin
 	set
 		join_count = ( select count(1) from players where players.game_id = new.game_id ),
 		user_count = ( select count(distinct user_id) from players where players.game_id = new.game_id ),
-		invite_count = ( select count(1) from players where players.game_id = new.game_id and players.is_invite )
+		invite_count = ( select count(1) from players where players.game_id = new.game_id and players.is_invite ),
+		mtime = datetime()
 	where
 		games.game_id = new.game_id;
 end;
@@ -551,7 +541,8 @@ begin
 	set
 		join_count = ( select count(1) from players where players.game_id = old.game_id ),
 		user_count = ( select count(distinct user_id) from players where players.game_id = old.game_id ),
-		invite_count = ( select count(1) from players where players.game_id = old.game_id and players.is_invite )
+		invite_count = ( select count(1) from players where players.game_id = old.game_id and players.is_invite ),
+		mtime = datetime()
 	where
 		games.game_id = old.game_id;
 end;
@@ -562,7 +553,8 @@ begin
 	update
 		games
 	set
-		invite_count = ( select count(1) from players where players.game_id = new.game_id and players.is_invite )
+		invite_count = ( select count(1) from players where players.game_id = new.game_id and players.is_invite ),
+		mtime = datetime()
 	where
 		games.game_id = old.game_id;
 end;

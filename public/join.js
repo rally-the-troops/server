@@ -157,10 +157,8 @@ function update_common() {
 
 	let message = window.message
 	if (game.status === 0) {
-		if (ready && (game.owner_id === user_id))
-			message.innerHTML = "Ready to start..."
-		else if (ready)
-			message.innerHTML = `Waiting for ${game.owner_name} to start the game...`
+		if (ready)
+			message.innerHTML = "Waiting to start..."
 		else
 			message.innerHTML = "Waiting for players to join..."
 	} else if (game.status === 1) {

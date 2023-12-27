@@ -1973,6 +1973,8 @@ function start_game(game) {
 	let seed = random_seed()
 	let state = null
 
+	console.log("STARTING GAME", game.game_id, game.title_id, game.scenario)
+
 	SQL_BEGIN.run()
 	try {
 		if (is_random_scenario(game.title_id, game.scenario)) {
@@ -2268,7 +2270,6 @@ function send_play_notification(user, game_id, message) {
 	send_notification(user, game_play_link(game_id, title_id, user), `${title_name} #${game_id} (${user.role}) - ${message}`)
 }
 
-const QUERY_LIST_READY_TO_START = SQL("select * from ready_to_start_reminder")
 const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
 const QUERY_LIST_INVITES = SQL("SELECT * FROM invite_reminder")
 
@@ -2330,25 +2331,35 @@ function notify_invited_reminder() {
 	}
 }
 
-function notify_ready_to_start_reminder() {
-	for (let item of QUERY_LIST_READY_TO_START.all()) {
-		if (!is_player_online(item.game_id, item.user_id)) {
-			if (should_send_reminder(item, item.game_id)) {
-				insert_last_notified(item, item.game_id)
-				send_join_notification(item, item.game_id, "Ready to start")
-			}
+// Send "you've been invited" notifications every 5 minutes.
+setInterval(notify_invited_reminder, 5 * 60 * 1000)
+
+// Check and send daily your turn reminders every 17 minutes.
+setInterval(notify_your_turn_reminder, 17 * 60 * 1000)
+
+const QUERY_READY_TO_START = SQL(`
+	select
+		*
+	from
+		games
+	where
+		status = 0
+		and not is_match
+		and is_ready
+		and julianday(mtime) < julianday('now', '-30 seconds')
+`)
+
+function ready_game_ticker() {
+	for (let game of QUERY_READY_TO_START.all()) {
+		try {
+			start_game(game)
+		} catch (err) {
+			console.log(err)
 		}
 	}
 }
 
-// Send "you've been invited" notifications every 5 minutes.
-setInterval(notify_invited_reminder, 5 * 60 * 1000)
-
-// Check and send ready to start notifications every 7 minutes.
-setInterval(notify_ready_to_start_reminder, 7 * 60 * 1000)
-
-// Check and send daily your turn reminders every 17 minutes.
-setInterval(notify_your_turn_reminder, 17 * 60 * 1000)
+setInterval(ready_game_ticker, 47 * 1000)
 
 /*
  * GAME SERVER
