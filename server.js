@@ -2361,6 +2361,54 @@ function ready_game_ticker() {
 
 setInterval(ready_game_ticker, 47 * 1000)
 
+const QUERY_PURGE_OPEN_GAMES = SQL(`
+	delete from
+		games
+	where
+		status = 0
+		and not is_match
+		and not is_ready
+		and julianday(ctime) < julianday('now', '-10 days')
+`)
+
+const QUERY_PURGE_ACTIVE_GAMES = SQL(`
+	delete from
+		games
+	where
+		status = 1
+		and not is_match
+		and not is_ready
+		and julianday(mtime) < julianday('now', '-10 days')
+`)
+
+// don't keep solo games in archive
+const QUERY_PURGE_FINISHED_GAMES = SQL(`
+	delete from
+		games
+	where
+		status > 1
+		and not is_opposed
+		and julianday(mtime) < julianday('now', '-10 days')
+`)
+
+const QUERY_PURGE_MESSAGES = SQL(`
+	delete from
+		messages
+	where
+		is_deleted_from_inbox and is_deleted_from_outbox
+`)
+
+function purge_game_ticker() {
+	QUERY_PURGE_OPEN_GAMES.run()
+	QUERY_PURGE_ACTIVE_GAMES.run()
+	QUERY_PURGE_FINISHED_GAMES.run()
+	QUERY_PURGE_MESSAGES.run()
+}
+
+// Purge abandoned games every 31 minutes.
+setInterval(purge_game_ticker, 31 * 60 * 1000)
+setTimeout(purge_game_ticker, 89 * 1000)
+
 /*
  * GAME SERVER
  */
