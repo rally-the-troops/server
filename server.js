@@ -2382,12 +2382,13 @@ const QUERY_PURGE_ACTIVE_GAMES = SQL(`
 `)
 
 // don't keep solo games in archive
+// don't keep games abandoned in the first turns
 const QUERY_PURGE_FINISHED_GAMES = SQL(`
 	delete from
 		games
 	where
 		status > 1
-		and not is_opposed
+		and ( not is_opposed or moves <= player_count * 3 )
 		and julianday(mtime) < julianday('now', '-10 days')
 `)
 
