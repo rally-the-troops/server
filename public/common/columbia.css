@@ -79,7 +79,6 @@
 	display: none;
 	width: 20px;
 	height: 20px;
-	border-radius: 4px;
 	padding: 3px;
 }
 
@@ -106,3 +105,20 @@
 .battle_menu.storm .action.storm { display: block; }
 .battle_menu.sally .action.sally { display: block; }
 .battle_menu.hit .action.hit { display: block; }
+
+@media (pointer: coarse) {
+	#EF > .battle_menu .action,
+	#FF > .battle_menu .action {
+		width: 30px;
+		height: 30px;
+		border-radius: 0;
+		padding: 4px;
+		opacity: 0.8;
+	}
+	#EF > .battle_menu > .battle_menu_list {
+		min-height: 38px;
+	}
+	#FF > .battle_menu > .battle_menu_list {
+		min-height: 76px;
+	}
+}
