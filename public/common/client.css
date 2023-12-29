@@ -349,12 +349,22 @@ menu li.disabled {
 }
 
 menu li img {
-	vertical-align: top;
+	vertical-align: -4px;
 	height: 20px;
+	width: 20px;
+	margin-right: 4px;
 }
 
 menu li:hover img {
 	filter: invert(100%);
+}
+
+menu li.disabled img {
+	opacity: 0.5;
+}
+
+menu li.disabled:hover img {
+	filter: none;
 }
 
 @media (pointer: coarse) {
