@@ -2935,11 +2935,9 @@ const SQL_GAME_STATS = SQL(`
 				result,
 				count(1) as n
 			from
-				game_view
+				rated_games_view
 			where
-				is_opposed
-				and ( status = ${STATUS_FINISHED} or status = ${STATUS_ARCHIVED} )
-				and ( title_id not in ( select title_id from titles where is_symmetric ) )
+				( title_id not in ( select title_id from titles where is_symmetric ) )
 			group by
 				title_id,
 				player_count,
