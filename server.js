@@ -1259,7 +1259,7 @@ const SQL_SELECT_GAME_TITLE = SQL("SELECT title_id FROM games WHERE game_id=?").
 
 const SQL_SELECT_PLAYERS_ID = SQL("SELECT DISTINCT user_id FROM players WHERE game_id=?").pluck()
 const SQL_SELECT_PLAYERS = SQL("select * from players join user_view using(user_id) where game_id=?")
-const SQL_SELECT_PLAYERS_JOIN = SQL("select role, user_id, name, is_invite from players join users using(user_id) where game_id=?")
+const SQL_SELECT_PLAYERS_WITH_NAME = SQL("select role, user_id, name from players join users using(user_id) where game_id=?")
 const SQL_UPDATE_PLAYER_ACCEPT = SQL("UPDATE players SET is_invite=0 WHERE game_id=? AND role=? AND user_id=?")
 const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?")
 const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
@@ -1267,7 +1267,7 @@ const SQL_SELECT_PLAYER_NAME = SQL("SELECT name FROM players JOIN users using(us
 const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
 
-const SQL_SELECT_PLAYERS_FULL = SQL("select * from player_view where game_id = ?")
+const SQL_SELECT_PLAYER_VIEW = SQL("select * from player_view where game_id = ?")
 
 const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN}`).pluck()
 const SQL_COUNT_ACTIVE_GAMES = SQL(`
@@ -1376,7 +1376,7 @@ const QUERY_LIST_ACTIVE_GAMES_OF_USER = SQL(`
 		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
 		and
 		( status <= ${STATUS_FINISHED} )
-	order by status asc, is_opposed desc, mtime desc
+	order by status asc, mtime desc
 	`)
 
 const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
@@ -1417,7 +1417,7 @@ function annotate_game_info(game, user_id, unread) {
 
 	let roles = get_game_roles(game.title_id, game.scenario, options)
 
-	game.players = SQL_SELECT_PLAYERS_FULL.all(game.game_id)
+	game.players = SQL_SELECT_PLAYER_VIEW.all(game.game_id)
 	for (let p of game.players)
 		p.index = roles.indexOf(p.role)
 	game.players.sort((a, b) => a.index - b.index)
@@ -1663,7 +1663,7 @@ app.get("/delete/:game_id", must_be_logged_in, function (req, res) {
 
 function insert_rematch_players(old_game_id, new_game_id, req_user_id, order) {
 	let game = SQL_SELECT_GAME.get(old_game_id)
-	let players = SQL_SELECT_PLAYERS_JOIN.all(old_game_id)
+	let players = SQL_SELECT_PLAYERS.all(old_game_id)
 	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
 	let n = roles.length
 
@@ -1704,7 +1704,7 @@ app.get("/rematch/:old_game_id", must_be_logged_in, function (req, res) {
 		return res.redirect("/join/" + new_game_id)
 
 	let game = SQL_SELECT_GAME.get(old_game_id)
-	let players = SQL_SELECT_PLAYERS_JOIN.all(old_game_id)
+	let players = SQL_SELECT_PLAYERS_WITH_NAME.all(old_game_id)
 	res.render("rematch.pug", {
 		user: req.user,
 		title: TITLE_TABLE[game.title_id],
@@ -1769,7 +1769,7 @@ function update_join_clients_game(game_id) {
 function update_join_clients_players(game_id) {
 	let list = join_clients[game_id]
 	if (list && list.length > 0) {
-		let players = SQL_SELECT_PLAYERS_JOIN.all(game_id)
+		let players = SQL_SELECT_PLAYER_VIEW.all(game_id)
 		let ready = is_game_ready(list.player_count, players)
 		for (let { res } of list) {
 			res.write("retry: 15000\n")
@@ -1791,7 +1791,7 @@ app.get("/join/:game_id", function (req, res) {
 	game.human_options = format_options(game.options, options)
 
 	let roles = get_game_roles(game.title_id, game.scenario, options)
-	let players = SQL_SELECT_PLAYERS_FULL.all(game_id)
+	let players = SQL_SELECT_PLAYER_VIEW.all(game_id)
 
 	let whitelist = null
 	let blacklist = null
@@ -1823,7 +1823,7 @@ app.get("/join/:game_id", function (req, res) {
 app.get("/join-events/:game_id", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let game = SQL_SELECT_GAME_VIEW.get(game_id)
-	let players = SQL_SELECT_PLAYERS_FULL.all(game_id)
+	let players = SQL_SELECT_PLAYER_VIEW.all(game_id)
 
 	res.setHeader("Content-Type", "text/event-stream")
 	res.setHeader("Connection", "keep-alive")
@@ -1983,7 +1983,7 @@ function start_game(game) {
 		}
 
 		if (game.is_random)
-			assign_random_roles(game, options, SQL_SELECT_PLAYERS_JOIN.all(game.game_id))
+			assign_random_roles(game, options, SQL_SELECT_PLAYERS.all(game.game_id))
 
 		state = RULES[game.title_id].setup(seed, game.scenario, options)
 
@@ -2845,7 +2845,7 @@ wss.on("connection", (socket, req) => {
 		if (game.title_id !== socket.title_id)
 			return socket.close(1000, "Invalid game ID.")
 
-		let players = socket.players = SQL_SELECT_PLAYERS_JOIN.all(socket.game_id)
+		let players = socket.players = SQL_SELECT_PLAYERS_WITH_NAME.all(socket.game_id)
 
 		if (socket.role !== "Observer") {
 			if (!socket.user)
