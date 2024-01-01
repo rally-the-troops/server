@@ -482,15 +482,51 @@ create view player_view as
 		is_invite,
 		(
 			case status
-			when 0 then owner_id = user_id
-			when 1 then active in ( 'Both', role )
-			else 0
+			when 0 then
+				owner_id = user_id
+			when 1 then
+				active in ( 'Both', role )
+			else
+				0
 			end
-		) as is_active
+		) as is_active,
+		(
+			case when pace = 0 then
+				21.0 - (julianday() - julianday(mtime))
+			else
+				case when active in ( 'Both', role ) then
+					10.0 - ((julianday() - julianday(mtime)) + time_used - time_added)
+				else
+					10.0 - (time_used - time_added)
+				end
+			end
+		) as time_left
 	from
 		games
 		join players using(game_id)
 		join users using(user_id)
+	;
+
+drop view if exists time_control_view;
+create view time_control_view as
+	select
+		game_id,
+		user_id,
+		role,
+		(
+			case when pace = 0 then
+				21.0 - (julianday() - julianday(mtime))
+			else
+				10.0 - ((julianday() - julianday(mtime)) + time_used - time_added)
+			end
+		) as time_left,
+		is_opposed
+	from
+		games
+		join players using(game_id)
+	where
+		status = 1
+		and active in ( 'Both', role )
 	;
 
 drop view if exists your_turn_reminder;
@@ -584,7 +620,6 @@ begin
 	delete from game_notes where game_id = old.game_id;
 	delete from last_notified where game_id = old.game_id;
 	delete from unread_chats where game_id = old.game_id;
-	update players set time_added = null where game_id = old.game_id;
 end;
 
 -- Triggers to clean up without relying on foreign key cascades

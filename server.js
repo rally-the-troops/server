@@ -1183,7 +1183,8 @@ function is_game_ready(player_count, players) {
 load_rules()
 
 const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,player_count,pace,is_private,is_random,notice,is_match) VALUES (?,?,?,?,?,?,?,?,?,?) returning game_id").pluck()
-const SQL_DELETE_GAME = SQL("DELETE FROM games WHERE game_id=? AND owner_id=?")
+const SQL_DELETE_GAME_BY_OWNER = SQL("delete from games where game_id=? and owner_id=?")
+const SQL_DELETE_GAME = SQL("delete from games where game_id=?")
 
 const SQL_START_GAME = SQL(`
 	update games set
@@ -1430,6 +1431,7 @@ function annotate_game_info(game, user_id, unread) {
 
 	let your_count = 0
 	let your_role = null
+	let time_left = Infinity
 
 	let roles = get_game_roles(game.title_id, game.scenario, options)
 
@@ -1448,6 +1450,9 @@ function annotate_game_info(game, user_id, unread) {
 			if (p.is_invite)
 				game.your_turn = true
 		}
+
+		if (p.is_active)
+			time_left = Math.min(time_left, p.time_left)
 
 		let link
 		if (p.is_invite)
@@ -1474,6 +1479,9 @@ function annotate_game_info(game, user_id, unread) {
 			return role
 		}).join(", ")
 	}
+
+	if (game.is_ready && game.status === 1)
+		game.time_left = time_left
 
 	if (your_count > 0) {
 		game.is_yours = true
@@ -1675,7 +1683,7 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 app.get("/delete/:game_id", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id
 	let title_id = SQL_SELECT_GAME_TITLE.get(game_id)
-	let info = SQL_DELETE_GAME.run(game_id, req.user.user_id)
+	let info = SQL_DELETE_GAME_BY_OWNER.run(game_id, req.user.user_id)
 	if (info.changes === 0)
 		return res.send("Not authorized to delete that game ID.")
 	if (info.changes === 1)
@@ -2442,6 +2450,27 @@ function purge_game_ticker() {
 // Purge abandoned games every 31 minutes.
 setInterval(purge_game_ticker, 31 * 60 * 1000)
 setTimeout(purge_game_ticker, 89 * 1000)
+
+/*
+ * TIME CONTROL
+ */
+
+const QUERY_LIST_TIME_CONTROL = SQL("select * from time_control_view join users using(user_id) where time_left < 0")
+
+function time_control_ticker() {
+	for (let item of QUERY_LIST_TIME_CONTROL.all()) {
+		if (item.is_opposed) {
+			console.log("TIMED OUT GAME:", item.game_id, item.name, item.time_left)
+			do_resign(item.game_id, item.role, "timed out")
+		} else {
+			SQL_DELETE_GAME.run(item.game_id)
+		}
+	}
+}
+
+// Run time control checks every 13 minutes.
+setInterval(time_control_ticker, 13 * 60 * 1000)
+setTimeout(time_control_ticker, 13 * 1000)
 
 /*
  * GAME SERVER
