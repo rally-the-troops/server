@@ -1213,6 +1213,13 @@ const SQL_SELECT_GAME_NOTE = SQL("SELECT note FROM game_notes WHERE game_id=? AN
 const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,role,note) VALUES (?,?,?)")
 const SQL_DELETE_GAME_NOTE = SQL("DELETE FROM game_notes WHERE game_id=? AND role=?")
 
+const SQL_UPDATE_PLAYERS_ADD_TIME = SQL(`
+	update players
+		set time_added = min(time_used, time_added + 1.5)
+	where
+		players.game_id = ? and players.role = ?
+`)
+
 const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?)")
 
 const SQL_INSERT_SNAP = SQL("insert into game_snap (game_id,snap_id,state) values (?, (select coalesce(max(snap_id), 0) + 1 from game_snap where game_id=?), ?) returning snap_id").pluck()
@@ -1264,7 +1271,7 @@ const SQL_UPDATE_PLAYER_ACCEPT = SQL("UPDATE players SET is_invite=0 WHERE game_
 const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?")
 const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
 const SQL_SELECT_PLAYER_NAME = SQL("SELECT name FROM players JOIN users using(user_id) WHERE game_id=? AND role=?").pluck()
-const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
+const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite,time_used,time_added) VALUES (?,?,?,?,0,0)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
 
 const SQL_SELECT_PLAYER_VIEW = SQL("select * from player_view where game_id = ?")
@@ -2490,9 +2497,10 @@ function put_game_state(game_id, state, old_active, current_role) {
 	SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(state))
 
 	if (state.active !== old_active) {
-		// TODO: add time spent for old_active players
-		// TODO: add time available for new_active players
 		SQL_UPDATE_GAME_ACTIVE.run(state.active, game_id)
+
+		// add time for the player who took the current action
+		SQL_UPDATE_PLAYERS_ADD_TIME.run(game_id, current_role)
 	}
 
 	if (state.state === "game_over") {

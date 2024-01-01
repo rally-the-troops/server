@@ -451,6 +451,8 @@ create table if not exists players (
 	role text,
 	user_id integer,
 	is_invite integer,
+	time_used real,
+	time_added real,
 	primary key (game_id, role)
 ) without rowid;
 
@@ -559,10 +561,21 @@ begin
 		games.game_id = old.game_id;
 end;
 
+-- Trigger to track time spent!
+
+drop trigger if exists trigger_time_used_update;
+create trigger trigger_time_used_update before update of active on games
+begin
+	update players
+		set time_used = time_used + (julianday() - julianday(old.mtime))
+	where
+		players.game_id = old.game_id and players.role in ( 'Both', old.active );
+end;
+
 -- Trigger to remove game data when filing a game as archived
 
 drop trigger if exists trigger_archive_game;
-create trigger trigger_archive_game after update on games when new.status = 3
+create trigger trigger_archive_game after update of status on games when new.status = 3
 begin
 	delete from game_state where game_id = old.game_id;
 	delete from game_chat where game_id = old.game_id;
@@ -571,6 +584,7 @@ begin
 	delete from game_notes where game_id = old.game_id;
 	delete from last_notified where game_id = old.game_id;
 	delete from unread_chats where game_id = old.game_id;
+	update players set time_added = null where game_id = old.game_id;
 end;
 
 -- Triggers to clean up without relying on foreign key cascades
