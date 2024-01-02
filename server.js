@@ -2603,13 +2603,13 @@ function do_resign(game_id, role, how) {
 
 	let result = "None"
 
+	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
 	if (game.player_count === 2) {
-		if (game.moves > 6) {
-			let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
-			for (let r of roles)
-				if (r !== role)
-					result = r
-		}
+		for (let r of roles)
+			if (r !== role)
+				result = r
+	} else {
+		result = roles.filter(r => r !== role).join(", ")
 	}
 
 	state.state = "game_over"
