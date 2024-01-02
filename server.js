@@ -2005,8 +2005,8 @@ function start_game(game) {
 			SQL_ROLLBACK.run()
 	}
 
-	update_join_clients_game(game.game_id)
 	update_join_clients_players(game.game_id)
+	update_join_clients_game(game.game_id)
 
 	send_game_started_notification_to_offline_users(game.game_id)
 	send_your_turn_notification_to_offline_users(game.game_id, null, state.active)
