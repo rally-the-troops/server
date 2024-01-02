@@ -2056,6 +2056,11 @@ const SQL_SELECT_RATING_GAME = SQL("select * from rated_games_view where game_id
 const SQL_SELECT_RATING_PLAYERS = SQL("select * from player_rating_view where game_id=?")
 const SQL_INSERT_RATING = SQL("insert or replace into ratings (title_id,user_id,rating,count,last) values (?,?,?,?,?)")
 
+function is_winner(role, result) {
+	// NOTE: uses substring matching for multiple winners instead of splitting result on comma.
+	return (result === "Draw" || result === role || result.includes(role))
+}
+
 function elo_k(a) {
 	return a.count < 10 ? 60 : 30
 }
@@ -2080,18 +2085,24 @@ function update_elo_ratings(game_id) {
 	if (!game)
 		return
 
+	if (!game.result || game.result === "None")
+		return
+
 	let players = SQL_SELECT_RATING_PLAYERS.all(game_id)
 
-	let winner = null
+	let winners = 0
 	for (let p of players)
-		if (p.role === game.result)
-			winner = p
+		if (is_winner(p.role, game.result))
+			winners ++
+
+	if (winners === 0)
+		return
 
 	for (let p of players)
-		if (winner !== null)
-			p.change = elo_change(p, players, p === winner ? 1 : 0)
+		if (is_winner(p.role, game.result))
+			p.change = elo_change(p, players, 1 / winners)
 		else
-			p.change = elo_change(p, players, 1 / players.length)
+			p.change = elo_change(p, players, 0)
 
 	for (let p of players)
 		SQL_INSERT_RATING.run(game.title_id, p.user_id, p.rating + p.change, p.count + 1, game.mtime)
@@ -2395,7 +2406,7 @@ const QUERY_PURGE_FINISHED_GAMES = SQL(`
 		games
 	where
 		status > 1
-		and ( not is_opposed or moves <= player_count * 3 )
+		and ( not is_opposed or moves < player_count * 3 )
 		and julianday(mtime) < julianday('now', '-10 days')
 `)
 
