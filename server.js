@@ -657,7 +657,7 @@ app.get("/change-mail", must_be_logged_in, function (req, res) {
 
 app.post("/change-mail", must_be_logged_in, function (req, res) {
 	let newmail = req.body.newmail
-	if (!is_valid_email(newmail))
+	if (!is_valid_email(newmail) || is_forbidden_mail(newmail))
 		return res.render("change_mail.pug", { user: req.user, flash: "Invalid mail address!" })
 	if (SQL_EXISTS_USER_MAIL.get(newmail))
 		return res.render("change_mail.pug", { user: req.user, flash: "That mail address is already taken!" })
