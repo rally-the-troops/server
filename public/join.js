@@ -102,7 +102,7 @@ function start_event_source() {
 		evtsrc.addEventListener("game", function (evt) {
 			console.log("GAME:", evt.data)
 			game = JSON.parse(evt.data)
-			if (game.status !== 0) {
+			if (game.status > 1) {
 				console.log("CLOSED EVENT SOURCE")
 				clearInterval(timer)
 				evtsrc.close()
@@ -350,7 +350,7 @@ function update_login() {
 
 window.onload = function () {
 	update()
-	if (user_id && game.status === 0 && !game.is_match) {
+	if (user_id && game.status <= 1 && !game.is_match) {
 		start_event_source()
 		timer = setInterval(start_event_source, 15000)
 	}
