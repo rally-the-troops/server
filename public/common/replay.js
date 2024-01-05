@@ -100,7 +100,13 @@ function eval_action(s, item, p) {
 	case ".resign":
 		if (params.mode === "debug")
 			s.log.push([p, item_role.substring(0,2), item_action, null])
-		return rules.resign(s, item_role)
+
+		s.state = "game_over"
+		s.active = "None"
+		s.victory = item_role + " resigned."
+		s.log.push("")
+		s.log.push(s.victory)
+		return s
 	default:
 		if (params.mode === "debug")
 			s.log.push([p, item_role.substring(0,2), item_action, item_arguments])
