@@ -577,6 +577,10 @@ app.get("/delete-account", must_be_logged_in, function (req, res) {
 	res.render("delete_account.pug", { user: req.user })
 })
 
+const SQL_SELECT_GAME_ROLE_FOR_DELETED_USER = SQL(`
+	select game_id, role from players where user_id = ? and game_id in (select game_id from games where status <= 1)
+	`)
+
 app.post("/delete-account", must_be_logged_in, function (req, res) {
 	let password = req.body.password
 	// Get full user record including password and salt
@@ -584,6 +588,11 @@ app.post("/delete-account", must_be_logged_in, function (req, res) {
 	let hash = hash_password(password, user.salt)
 	if (hash !== user.password)
 		return res.render("delete_account.pug", { user: req.user, flash: "Wrong password!" })
+
+	let list = SQL_SELECT_GAME_ROLE_FOR_DELETED_USER.all(req.user.user_id)
+	for (let item of list)
+		send_chat_message(item.game_id, null, null, `${user.name} (${item.role}) left the game.`)
+
 	SQL_DELETE_USER.run(req.user.user_id)
 	return res.send("Goodbye!")
 })

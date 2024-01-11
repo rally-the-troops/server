@@ -618,8 +618,9 @@ begin
 	delete from threads where author_id = old.user_id;
 	delete from game_chat where user_id = old.user_id;
 	delete from ratings where user_id = old.user_id;
-	update games set owner_id = 0 where owner_id = old.user_id;
+	delete from players where user_id = old.user_id and game_id in (select game_id from games where status <= 1);
 	update players set user_id = 0 where user_id = old.user_id;
+	update games set owner_id = 0 where owner_id = old.user_id;
 end;
 
 drop trigger if exists trigger_delete_on_threads;
