@@ -1475,9 +1475,6 @@ function annotate_game_info(game, user_id, unread) {
 		}).join(", ")
 	}
 
-	if (game.status === STATUS_OPEN && game.is_ready && game.owner_id === user_id)
-		game.your_turn = true
-
 	if (your_count > 0) {
 		game.is_yours = true
 		if (your_count === 1)
