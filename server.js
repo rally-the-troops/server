@@ -1466,6 +1466,15 @@ function annotate_game_info(game, user_id, unread) {
 			game.result = `<a href="/user/${p.name}">${p.name}</a> (${game.result})`
 	}
 
+	if (game.result && game.result.includes(",")) {
+		game.result = game.result.split(", ").map(role => {
+			for (let p of game.players)
+				if (p.role === role)
+					return `<a href="/user/${p.name}">${p.name}</a>`
+			return role
+		}).join(", ")
+	}
+
 	if (game.status === STATUS_OPEN && game.is_ready && game.owner_id === user_id)
 		game.your_turn = true
 
