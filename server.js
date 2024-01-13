@@ -2870,7 +2870,7 @@ wss.on("connection", (socket, req) => {
 
 	try {
 		let game = SQL_SELECT_GAME.get(socket.game_id)
-		if (game.title_id !== socket.title_id)
+		if (!game || game.title_id !== socket.title_id)
 			return socket.close(1000, "Invalid game ID.")
 
 		let players = socket.players = SQL_SELECT_PLAYERS_WITH_NAME.all(socket.game_id)
