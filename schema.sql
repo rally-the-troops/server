@@ -192,7 +192,7 @@ create view rating_view as
 		title_id, name, rating, count, last
 	from
 		ratings
-		join users using(title_id, user_id)
+		join users using(user_id)
 	order by
 		title_id,
 		rating desc
