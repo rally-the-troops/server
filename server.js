@@ -2852,6 +2852,9 @@ function handle_player_message(socket, cmd, arg) {
 	case "restore":
 		on_restore(socket, arg)
 		break
+	default:
+		send_message(socket, "error", "Invalid server command: " + cmd)
+		break
 	}
 }
 
@@ -2865,6 +2868,9 @@ function handle_observer_message(socket, cmd, arg) {
 		break
 	case 'query':
 		on_query(socket, arg[0], arg[1])
+		break
+	default:
+		send_message(socket, "error", "Invalid server command: " + cmd)
 		break
 	}
 }
