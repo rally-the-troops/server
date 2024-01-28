@@ -1213,11 +1213,12 @@ const SQL_SELECT_GAME_STATE = SQL("select state from game_state where game_id=?"
 const SQL_INSERT_GAME_STATE = SQL("insert or replace into game_state (game_id,state) values (?,?)")
 
 const SQL_SELECT_UNREAD_CHAT_GAMES = SQL("select game_id from unread_chats where user_id = ?").pluck()
+const SQL_SELECT_UNREAD_CHAT = SQL("select exists (select 1 from unread_chats where user_id = ? and game_id = ?)").pluck()
 const SQL_INSERT_UNREAD_CHAT = SQL("insert or ignore into unread_chats (user_id,game_id) values (?,?)")
 const SQL_DELETE_UNREAD_CHAT = SQL("delete from unread_chats where user_id = ? and game_id = ?")
 
 const SQL_SELECT_GAME_CHAT = SQL("SELECT chat_id,unixepoch(time),name,message FROM game_chat_view WHERE game_id=? AND chat_id>?").raw()
-const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,chat_id,user_id,message) VALUES (?, (select coalesce(max(chat_id), 0) + 1 from game_chat where game_id=?), ?,?) RETURNING chat_id,unixepoch(time),NULL,message").raw()
+const SQL_INSERT_GAME_CHAT = SQL("INSERT INTO game_chat (game_id,chat_id,user_id,message) VALUES (?, (select coalesce(max(chat_id), 0) + 1 from game_chat where game_id=?), ?,?)")
 
 const SQL_SELECT_GAME_NOTE = SQL("SELECT note FROM game_notes WHERE game_id=? AND role=?").pluck()
 const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,role,note) VALUES (?,?,?)")
@@ -2776,25 +2777,16 @@ function on_chat(socket, message) {
 }
 
 function send_chat_message(game_id, from_id, from_name, message) {
-	let chat = SQL_INSERT_GAME_CHAT.get(game_id, game_id, from_id, message)
-	chat[2] = from_name
+	SQL_INSERT_GAME_CHAT.run(game_id, game_id, from_id, message)
+
+	let users = SQL_SELECT_PLAYERS_ID.all(game_id)
+	for (let user_id of users)
+		SQL_INSERT_UNREAD_CHAT.run(user_id, game_id)
 
 	if (game_clients[game_id]) {
 		for (let other of game_clients[game_id])
 			if (other.role !== "Observer")
-				send_message(other, "chat", chat)
-	}
-
-	let users = SQL_SELECT_PLAYERS_ID.all(game_id)
-	for (let user_id of users) {
-		let found = false
-		if (game_clients[game_id]) {
-			for (let other of game_clients[game_id])
-				if (other.user && other.user.user_id === user_id && other.role !== "Observer")
-					found = true
-		}
-		if (!found)
-			SQL_INSERT_UNREAD_CHAT.run(user_id, game_id)
+				send_message(other, "newchat", 1)
 	}
 }
 
@@ -2913,6 +2905,7 @@ wss.on("connection", (socket, req) => {
 		if (socket.role !== "Observer") {
 			if (!socket.user)
 				return socket.close(1000, "You are not logged in!")
+
 			if (socket.role && socket.role !== "undefined" && socket.role !== "null") {
 				let me = players.find(p => p.user_id === socket.user.user_id && p.role === socket.role)
 				if (!me)
@@ -2921,6 +2914,9 @@ wss.on("connection", (socket, req) => {
 				let me = players.find(p => p.user_id === socket.user.user_id)
 				socket.role = me ? me.role : "Observer"
 			}
+
+			let new_chat = SQL_SELECT_UNREAD_CHAT.get(socket.user.user_id, socket.game_id)
+			send_message(socket, "newchat", new_chat)
 		}
 
 		if (socket.seen === 0) {

@@ -149,9 +149,7 @@ window.addEventListener("focus", stop_blinker)
 let chat = null
 
 function init_chat() {
-	// only fetch new messages when we reconnect!
 	if (chat !== null) {
-		send_message("getchat", chat.log)
 		return
 	}
 
@@ -171,12 +169,9 @@ function init_chat() {
 	chat = {
 		is_visible: false,
 		text_element: document.getElementById("chat_text"),
-		key: "chat/" + params.game_id,
 		last_day: null,
 		log: 0
 	}
-
-	chat.seen = window.localStorage.getItem(chat.key) | 0
 
 	drag_element_with_mouse("#chat_window", "#chat_header")
 
@@ -207,12 +202,6 @@ function init_chat() {
 			}
 		}
 	})
-
-	send_message("getchat", 0)
-}
-
-function save_chat() {
-	window.localStorage.setItem(chat.key, chat.log)
 }
 
 function update_chat(chat_id, raw_date, user, message) {
@@ -248,14 +237,24 @@ function update_chat(chat_id, raw_date, user, message) {
 		}
 		add_chat_line(format_time(date), user, message)
 	}
-	if (chat_id > chat.seen) {
-		let button = document.getElementById("chat_button")
-		start_blinker("NEW MESSAGE")
-		if (!chat.is_visible)
-			button.classList.add("new")
-		else
-			save_chat()
-	}
+}
+
+function fetch_chat() {
+	send_message("getchat", chat.log)
+}
+
+function update_chat_new() {
+	let button = document.getElementById("chat_button")
+	start_blinker("NEW MESSAGE")
+	if (chat && chat.is_visible)
+		fetch_chat()
+	else
+		button.classList.add("new")
+}
+
+function update_chat_old() {
+	let button = document.getElementById("chat_button")
+	document.getElementById("chat_button").classList.remove("new")
 }
 
 function show_chat() {
@@ -264,7 +263,7 @@ function show_chat() {
 		document.getElementById("chat_window").classList.add("show")
 		document.getElementById("chat_input").focus()
 		chat.is_visible = true
-		save_chat()
+		fetch_chat()
 	}
 }
 
@@ -496,6 +495,14 @@ function connect_play() {
 			}
 			break
 
+		case "newchat":
+			init_chat()
+			if (arg > 0)
+				update_chat_new()
+			else
+				update_chat_old()
+			break
+
 		case "chat":
 			update_chat(arg[0], arg[1], arg[2], arg[3])
 			break
@@ -509,7 +516,6 @@ function connect_play() {
 			init_player_names(arg[1])
 			document.body.classList.add(player.replace(/\W/g, "_"))
 			if (player !== "Observer") {
-				init_chat()
 				init_notepad()
 				add_resign_menu()
 			} else {
