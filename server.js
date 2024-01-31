@@ -1206,6 +1206,7 @@ const SQL_FINISH_GAME = SQL(`
 		game_id = ?
 `)
 
+const SQL_REOPEN_GAME = SQL("update games set status=1,active=? where game_id=?")
 const SQL_UPDATE_GAME_ACTIVE = SQL("update games set active=?,mtime=datetime(),moves=moves+1 where game_id=?")
 const SQL_UPDATE_GAME_SCENARIO = SQL("update games set scenario=? where game_id=?")
 
@@ -1234,8 +1235,14 @@ const SQL_UPDATE_PLAYERS_ADD_TIME = SQL(`
 const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?) returning replay_id").pluck()
 
 const SQL_INSERT_SNAP = SQL("insert into game_snap (game_id,snap_id,replay_id,state) values (?, (select coalesce(max(snap_id), 0) + 1 from game_snap where game_id=?), ?, ?) returning snap_id").pluck()
-const SQL_SELECT_SNAP = SQL("select state from game_snap where game_id = ? and snap_id = ?").pluck()
+const SQL_SELECT_SNAP = SQL("select * from game_snap where game_id = ? and snap_id = ?")
+const SQL_SELECT_SNAP_STATE = SQL("select state from game_snap where game_id = ? and snap_id = ?").pluck()
 const SQL_SELECT_SNAP_COUNT = SQL("select max(snap_id) from game_snap where game_id=?").pluck()
+
+const SQL_SELECT_LAST_SNAP = SQL("select * from game_snap where game_id = ? order by snap_id desc limit 1")
+
+const SQL_DELETE_GAME_SNAP = SQL("delete from game_snap where game_id=? and snap_id > ?")
+const SQL_DELETE_GAME_REPLAY = SQL("delete from game_replay where game_id=? and replay_id > ?")
 
 const SQL_SELECT_REPLAY = SQL(`
 	select json_object(
@@ -1827,12 +1834,15 @@ app.get("/join/:game_id", function (req, res) {
 	let whitelist = null
 	let blacklist = null
 	let friends = null
+	let rewind = 0
 
 	if (req.user) {
 		whitelist = SQL_SELECT_CONTACT_WHITELIST.all(req.user.user_id)
 		blacklist = SQL_SELECT_CONTACT_BLACKLIST.all(req.user.user_id)
 		if (game.owner_id === req.user.user_id)
 			friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
+		if (req.user.user_id === 1)
+			rewind = SQL_SELECT_SNAP_COUNT.get(game_id)
 	}
 
 	let ready = (game.status === STATUS_OPEN) && is_game_ready(game.player_count, players)
@@ -1848,6 +1858,7 @@ app.get("/join/:game_id", function (req, res) {
 		blacklist,
 		friends,
 		limit: req.user ? check_join_game_limit(req.user) : null,
+		rewind
 	})
 })
 
@@ -2066,6 +2077,41 @@ app.get("/api/replay/:game_id", function (req, res) {
 	if (game.status < STATUS_FINISHED && (!req.user || req.user.user_id !== 1))
 		return res.status(401).send("Not authorized to debug.")
 	return res.send(SQL_SELECT_REPLAY.get({ game_id }))
+})
+
+app.get("/admin/rewind/:game_id/:snap_id", must_be_administrator, function (req, res) {
+	let game_id = req.params.game_id | 0
+	let snap_id = req.params.snap_id | 0
+	let snap = SQL_SELECT_SNAP.get(game_id, snap_id)
+	let game_state = JSON.parse(SQL_SELECT_GAME_STATE.get(game_id))
+	let snap_state = JSON.parse(snap.state)
+	snap_state.undo = []
+	snap_state.log = game_state.log.slice(0, snap_state.log)
+
+	SQL_BEGIN.run()
+	try {
+		SQL_DELETE_GAME_SNAP.run(game_id, snap_id)
+		SQL_DELETE_GAME_REPLAY.run(game_id, snap.replay_id)
+		SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(snap_state))
+
+		SQL_REOPEN_GAME.run(snap_state.active, game_id)
+
+		if (snap_state.active !== game_state.active)
+			SQL_UPDATE_GAME_ACTIVE.run(snap_state.active, game_id)
+
+		update_join_clients_game(game_id)
+		if (game_clients[game_id])
+			for (let other of game_clients[game_id])
+				send_state(other, snap_state)
+
+		SQL_COMMIT.run()
+	} catch (err) {
+		return res.send(err.toString())
+	} finally {
+		if (db.inTransaction)
+			SQL_ROLLBACK.run()
+	}
+	res.redirect("/join/" + game_id)
 })
 
 /*
@@ -2537,7 +2583,7 @@ function snap_from_state(state) {
 function put_replay(game_id, role, action, args) {
 	if (args !== undefined && args !== null && typeof args !== "number")
 		args = JSON.stringify(args)
-	return SQL_INSERT_REPLAY.run(game_id, game_id, role, action, args)
+	return SQL_INSERT_REPLAY.get(game_id, game_id, role, action, args)
 }
 
 function put_snap(game_id, replay_id, state) {
@@ -2712,7 +2758,7 @@ function on_query_snap(socket, snap_id, q, params) {
 	SLOG(socket, "QUERYSNAP", snap_id, JSON.stringify(params))
 	try {
 		if (socket.rules.query) {
-			let state = JSON.parse(SQL_SELECT_SNAP.get(socket.game_id, snap_id))
+			let state = JSON.parse(SQL_SELECT_SNAP_STATE.get(socket.game_id, snap_id))
 			let reply = socket.rules.query(state, socket.role, q, params)
 			send_message(socket, "reply", [ q, reply ])
 		}
@@ -2793,7 +2839,7 @@ function send_chat_message(game_id, from_id, from_name, message) {
 function on_snap(socket, snap_id) {
 	SLOG(socket, "SNAP", snap_id)
 	try {
-		let snap_state = SQL_SELECT_SNAP.get(socket.game_id, snap_id)
+		let snap_state = SQL_SELECT_SNAP_STATE.get(socket.game_id, snap_id)
 		if (snap_state) {
 			let state = JSON.parse(snap_state)
 			let view = socket.rules.view(state, socket.role)
