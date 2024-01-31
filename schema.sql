@@ -435,6 +435,7 @@ create table if not exists game_replay (
 create table if not exists game_snap (
 	game_id integer,
 	snap_id integer,
+	replay_id integer,
 	state text,
 	primary key (game_id, snap_id)
 );

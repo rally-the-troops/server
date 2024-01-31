@@ -11,7 +11,7 @@ let delete_replay = db.prepare("delete from game_replay where game_id=?")
 let insert_replay = db.prepare("insert into game_replay (game_id,replay_id,role,action,arguments) values (?,?,?,?,?)")
 
 let delete_snap = db.prepare("delete from game_snap where game_id=?")
-let insert_snap = db.prepare("insert into game_snap(game_id,snap_id,state) values (?,?,?)")
+let insert_snap = db.prepare("insert into game_snap(game_id,snap_id,replay_id,state) values (?,?,?,?)")
 
 let update_state = db.prepare("update game_state set state=? where game_id=?")
 let update_active = db.prepare("update games set active=? where game_id=?")
@@ -162,10 +162,9 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 
 		if (need_to_rewrite) {
 			delete_replay.run(game_id)
-			let replay_id = 0
 			for (item of replay)
 				if (!item.remove)
-					insert_replay.run(game_id, ++replay_id, item.role, item.action, item.arguments)
+					insert_replay.run(game_id, item.replay_id, item.role, item.action, item.arguments)
 		}
 
 		if (save_snaps) {
@@ -173,7 +172,7 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 			let snap_id = 0
 			for (item of replay)
 				if (item.save)
-					insert_snap.run(game_id, ++snap_id, item.state)
+					insert_snap.run(game_id, ++snap_id, item.replay_id, item.state)
 		}
 
 		update_active.run(state.active, game_id)

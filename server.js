@@ -1231,9 +1231,9 @@ const SQL_UPDATE_PLAYERS_ADD_TIME = SQL(`
 		players.game_id = ? and players.role = ?
 `)
 
-const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?)")
+const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?) returning replay_id").pluck()
 
-const SQL_INSERT_SNAP = SQL("insert into game_snap (game_id,snap_id,state) values (?, (select coalesce(max(snap_id), 0) + 1 from game_snap where game_id=?), ?) returning snap_id").pluck()
+const SQL_INSERT_SNAP = SQL("insert into game_snap (game_id,snap_id,replay_id,state) values (?, (select coalesce(max(snap_id), 0) + 1 from game_snap where game_id=?), ?, ?) returning snap_id").pluck()
 const SQL_SELECT_SNAP = SQL("select state from game_snap where game_id = ? and snap_id = ?").pluck()
 const SQL_SELECT_SNAP_COUNT = SQL("select max(snap_id) from game_snap where game_id=?").pluck()
 
@@ -2019,8 +2019,8 @@ function start_game(game) {
 		state = RULES[game.title_id].setup(seed, game.scenario, options)
 
 		SQL_START_GAME.run(state.active, game.game_id)
-		put_replay(game.game_id, null, ".setup", [ seed, game.scenario, options ])
-		put_snap(game.game_id, state)
+		let replay_id = put_replay(game.game_id, null, ".setup", [ seed, game.scenario, options ])
+		put_snap(game.game_id, replay_id, state)
 		SQL_INSERT_GAME_STATE.run(game.game_id, JSON.stringify(state))
 
 		SQL_COMMIT.run()
@@ -2537,11 +2537,11 @@ function snap_from_state(state) {
 function put_replay(game_id, role, action, args) {
 	if (args !== undefined && args !== null && typeof args !== "number")
 		args = JSON.stringify(args)
-	SQL_INSERT_REPLAY.run(game_id, game_id, role, action, args)
+	return SQL_INSERT_REPLAY.run(game_id, game_id, role, action, args)
 }
 
-function put_snap(game_id, state) {
-	let snap_id = SQL_INSERT_SNAP.get(game_id, game_id, snap_from_state(state))
+function put_snap(game_id, replay_id, state) {
+	let snap_id = SQL_INSERT_SNAP.get(game_id, game_id, replay_id, snap_from_state(state))
 	if (game_clients[game_id])
 		for (let other of game_clients[game_id])
 			send_message(other, "snapsize", snap_id)
@@ -2569,10 +2569,10 @@ function put_game_state(game_id, state, old_active, current_role) {
 function put_new_state(game_id, state, old_active, role, action, args) {
 	SQL_BEGIN.run()
 	try {
-		put_replay(game_id, role, action, args)
+		let replay_id = put_replay(game_id, role, action, args)
 
 		if (state.active !== old_active)
-			put_snap(game_id, state)
+			put_snap(game_id, replay_id, state)
 
 		put_game_state(game_id, state, old_active, role)
 
