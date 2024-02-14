@@ -1206,8 +1206,10 @@ const SQL_FINISH_GAME = SQL(`
 		game_id = ?
 `)
 
-const SQL_REOPEN_GAME = SQL("update games set status=1,active=? where game_id=?")
+const SQL_REWIND_GAME = SQL("update games set status=1,moves=?,active=?,mtime=datetime() where game_id=?")
+
 const SQL_UPDATE_GAME_ACTIVE = SQL("update games set active=?,mtime=datetime(),moves=moves+1 where game_id=?")
+const SQL_UPDATE_GAME_MOVES = SQL("update games set moves=? where game_id=?")
 const SQL_UPDATE_GAME_SCENARIO = SQL("update games set scenario=? where game_id=?")
 
 const SQL_SELECT_GAME_STATE = SQL("select state from game_state where game_id=?").pluck()
@@ -2094,10 +2096,7 @@ app.get("/admin/rewind/:game_id/:snap_id", must_be_administrator, function (req,
 		SQL_DELETE_GAME_REPLAY.run(game_id, snap.replay_id)
 		SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(snap_state))
 
-		SQL_REOPEN_GAME.run(snap_state.active, game_id)
-
-		if (snap_state.active !== game_state.active)
-			SQL_UPDATE_GAME_ACTIVE.run(snap_state.active, game_id)
+		SQL_REWIND_GAME.run(snap_id - 1, snap_state.active, game_id)
 
 		update_join_clients_game(game_id)
 		if (game_clients[game_id])

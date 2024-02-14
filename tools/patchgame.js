@@ -79,10 +79,10 @@ function is_valid_action(rules, state, role, action, arg) {
 	if (va) {
 		if (Array.isArray(arg))
 			arg = arg[0]
-		if (arg === undefined || arg === null)
-			return (va === 1 || va === true || typeof va === "string")
 		if (Array.isArray(va) && va.includes(arg))
 			return true
+		if (arg === undefined || arg === null || arg === 1)
+			return (va === 1 || va === true || typeof va === "string")
 	}
 	return false
 }

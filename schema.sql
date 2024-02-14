@@ -556,6 +556,56 @@ create view invite_reminder as
 		is_invite = 1
 	;
 
+-- Export game state as JSON
+
+drop view if exists game_export_view;
+create view game_export_view as
+	select
+		game_id,
+		json_object(
+			'setup', json_object(
+					'game_id', game_id,
+					'title_id', title_id,
+					'scenario', scenario,
+					'options', json(options),
+					'player_count', player_count,
+					'notice', notice
+				),
+			'players',
+				(select json_group_array(
+						json_object('role', role, 'name', name)
+					)
+					from players
+					join users using(user_id)
+					where game_id = outer.game_id
+				),
+			'state',
+				(select json(state)
+					from game_state
+					where game_id = outer.game_id
+				),
+			'replay',
+				(select json_group_array(
+						case when arguments is null then
+							json_array(role, action)
+						else
+							json_array(role, action, json(arguments))
+						end
+					)
+					from game_replay
+					where game_id = outer.game_id
+				),
+			'snaps',
+				(select json_group_array(
+						json_array(replay_id, json(state))
+					)
+					from game_snap
+					where game_id = outer.game_id
+				)
+		) as export
+	from games as outer
+	;
+
 -- Trigger to update player counts when players join and part games
 
 drop trigger if exists trigger_join_game;
