@@ -3,12 +3,35 @@
 const fs = require("fs")
 const sqlite3 = require("better-sqlite3")
 
-if (process.argv.length !== 3) {
-	console.error("usage: node tools/import-game.js game.json")
+var options = {}
+var input = null
+
+for (let i = 2; i < process.argv.length; ++i) {
+	let opt = process.argv[i]
+	if (opt.includes("=")) {
+		let [key, val] = opt.split("=", 2)
+		options[key] = val
+	} else {
+		input = opt
+	}
+}
+
+if (!input) {
+	console.error("usage: node tools/import-game.js [title_id=value] [notice=value] game.json")
 	process.exit(1)
 }
 
-var game = JSON.parse(fs.readFileSync(process.argv[2], "utf8"))
+var game = JSON.parse(fs.readFileSync(input, "utf8"))
+
+if (options.title_id)
+	game.setup.title_id = options.title_id
+if (options.notice)
+	game.setup.notice = options.notice
+
+if (game.setup.notice === undefined)
+	game.setup.notice = ""
+if (game.setup.options === undefined)
+	game.setup.options = "{}"
 
 game.setup.active = game.state.active
 game.setup.moves = game.snaps && game.snaps.length > 0 ? game.snaps.length - 1 : 0
