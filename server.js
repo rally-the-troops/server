@@ -1247,22 +1247,20 @@ const SQL_DELETE_GAME_SNAP = SQL("delete from game_snap where game_id=? and snap
 const SQL_DELETE_GAME_REPLAY = SQL("delete from game_replay where game_id=? and replay_id > ?")
 
 const SQL_SELECT_REPLAY = SQL(`
-	select json_object(
-			'title', title_id,
-			'scenario', scenario,
-			'options', json(options),
+	select
+		json_object(
 			'players',
 				(select json_group_array(
 						json_object('role', role, 'name', name)
 					)
 					from players
 					join users using(user_id)
-					where game_id = :game_id
+					where game_id = outer.game_id
 				),
 			'state',
 				(select json(state)
 					from game_state
-					where game_id = :game_id
+					where game_id = outer.game_id
 				),
 			'replay',
 				(select json_group_array(
@@ -1273,12 +1271,14 @@ const SQL_SELECT_REPLAY = SQL(`
 						end
 					)
 					from game_replay
-					where game_id = :game_id
+					where game_id = outer.game_id
 				)
-	)
-	from games
-	where game_id = :game_id
+		) as export
+	from games as outer
+	where game_id = ?
 `).pluck()
+
+const SQL_SELECT_EXPORT = SQL("select export from game_export_view where game_id=?").pluck()
 
 const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?")
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?")
@@ -2078,7 +2078,17 @@ app.get("/api/replay/:game_id", function (req, res) {
 		return res.status(404).send("Invalid game ID.")
 	if (game.status < STATUS_FINISHED && (!req.user || req.user.user_id !== 1))
 		return res.status(401).send("Not authorized to debug.")
-	return res.send(SQL_SELECT_REPLAY.get({ game_id }))
+	return res.type("application/json").send(SQL_SELECT_REPLAY.get(game_id))
+})
+
+app.get("/api/export/:game_id", function (req, res) {
+	let game_id = req.params.game_id | 0
+	let game = SQL_SELECT_GAME.get(game_id)
+	if (!game)
+		return res.status(404).send("Invalid game ID.")
+	if (game.status < STATUS_FINISHED && (!req.user || req.user.user_id !== 1))
+		return res.status(401).send("Not authorized to debug.")
+	return res.type("application/json").send(SQL_SELECT_EXPORT.get(game_id))
 })
 
 app.get("/admin/rewind/:game_id/:snap_id", must_be_administrator, function (req, res) {
