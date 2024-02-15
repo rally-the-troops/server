@@ -38,7 +38,7 @@ game.setup.moves = game.snaps && game.snaps.length > 0 ? game.snaps.length - 1 :
 
 let db = new sqlite3("db")
 
-let insert_game = db.prepare("insert into games(status,title_id,scenario,options,player_count,active,moves,notice) values (1,:title_id,:scenario,:options,:player_count,:active,:moves,:notice) returning game_id").pluck()
+let insert_game = db.prepare("insert into games(status,owner_id,title_id,scenario,options,player_count,active,moves,notice) values (1,1,:title_id,:scenario,:options,:player_count,:active,:moves,:notice) returning game_id").pluck()
 let insert_player = db.prepare("insert into players(game_id,role,user_id) values (?,?,1)")
 let insert_state = db.prepare("insert into game_state(game_id,state) values (?,?)")
 
