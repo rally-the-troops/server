@@ -116,8 +116,13 @@ main {
 	grid-column: 1;
 	grid-row: 2/4;
 	overflow: auto;
-	scrollbar-width: none;
-	scrollbar-color: #888 #444;
+	scrollbar-color: #0006 silver;
+}
+
+@media (pointer: coarse) {
+	main {
+		scrollbar-width: none;
+	}
 }
 
 aside {
@@ -155,6 +160,7 @@ aside {
 	grid-column: 1;
 	grid-row: 3;
 	overflow-y: scroll;
+	scrollbar-color: gray gainsboro;
 }
 
 #log {
