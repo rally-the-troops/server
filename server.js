@@ -1254,7 +1254,7 @@ const SQL_SELECT_REPLAY = SQL(`
 						json_object('role', role, 'name', name)
 					)
 					from players
-					join users using(user_id)
+					left join users using(user_id)
 					where game_id = outer.game_id
 				),
 			'state',
