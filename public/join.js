@@ -152,9 +152,9 @@ function update() {
 
 function update_common() {
 	if (game.scenario !== "Standard")
-		document.querySelector("h1").textContent = game.title_name + " - " + game.scenario
+		document.querySelector("h1").textContent = "#" + game.game_id + " - " + game.title_name + " - " + game.scenario
 	else
-		document.querySelector("h1").textContent = game.title_name
+		document.querySelector("h1").textContent = "#" + game.game_id + " - " + game.title_name
 
 	let message = window.message
 	if (game.status === 0) {

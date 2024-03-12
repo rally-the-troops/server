@@ -70,10 +70,10 @@ mixin gamelist(list,hide_title=0)
 					div.game_head
 						if item.scenario.length <= 2
 							div
-								| #{pace_icon} <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name} (#{item.scenario})</a> #{chat_icon}
+								| #{pace_icon} <a href="/join/#{item.game_id}">##{item.game_id} &#x2013; #{item.title_name} (#{item.scenario})</a> #{chat_icon}
 						else
 							div
-								| #{pace_icon} <a href="/join/#{item.game_id}">#{item.game_id} &#x2013; #{item.title_name}</a> #{chat_icon}
+								| #{pace_icon} <a href="/join/#{item.game_id}">##{item.game_id} &#x2013; #{item.title_name}</a> #{chat_icon}
 
 						case item.status
 							when 0

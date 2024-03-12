@@ -6,7 +6,7 @@ html
 		+social(game.title_name,
 			"Play " + game.title_name + " with " + players.map(x=>x.name).join(" and ") + ".",
 			game.title_id)
-		title= game.title_name
+		title ##{game.game_id} - #{game.title_name}
 		style.
 			th,td { border: var(--table-border); }
 			a.red { text-decoration: none; color: var(--color-red); font-size: 15px; float: right; }
@@ -33,9 +33,9 @@ html
 		include header
 		article
 			if game.scenario === "Standard"
-				h1 #{game.title_name}
+				h1 ##{game.game_id} - #{game.title_name}
 			else
-				h1 #{game.title_name} - #{game.scenario}
+				h1 ##{game.game_id} - #{game.title_name} - #{game.scenario}
 
 			div.logo
 				+gamecover(game.title_id)
