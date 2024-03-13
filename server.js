@@ -1146,7 +1146,9 @@ function option_to_english(k) {
 		return "yes"
 	if (k === false)
 		return "no"
-	return k.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+	if (typeof k === "string")
+		return k.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+	return k
 }
 
 function format_options(options_json, options) {
