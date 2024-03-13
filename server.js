@@ -9,6 +9,7 @@ const https = require("https") // for webhook requests
 const { WebSocketServer } = require("ws")
 const express = require("express")
 const url = require("url")
+const chokidar = require("chokidar")
 const sqlite3 = require("better-sqlite3")
 
 require("dotenv").config()
@@ -270,6 +271,10 @@ function is_valid_email(email) {
 	return REGEX_MAIL.test(email)
 }
 
+function is_forbidden_mail(mail) {
+	return SQL_BLACKLIST_MAIL.get(mail)
+}
+
 function clean_user_name(name) {
 	name = name.replace(/^ */, "").replace(/ *$/, "").replace(/  */g, " ")
 	if (name.length > 50)
@@ -337,10 +342,6 @@ const SQL_DELETE_WEBHOOK = SQL("DELETE FROM webhooks WHERE user_id=?")
 const SQL_FIND_TOKEN = SQL("SELECT token FROM tokens WHERE user_id=? AND julianday('now') < julianday(time, '+5 minutes')").pluck()
 const SQL_CREATE_TOKEN = SQL("INSERT OR REPLACE INTO tokens (user_id,token,time) VALUES (?, lower(hex(randomblob(16))), datetime()) RETURNING token").pluck()
 const SQL_VERIFY_TOKEN = SQL("SELECT EXISTS ( SELECT 1 FROM tokens WHERE user_id=? AND julianday('now') < julianday(time, '+20 minutes') AND token=? )").pluck()
-
-function is_forbidden_mail(mail) {
-	return SQL_BLACKLIST_MAIL.get(mail)
-}
 
 app.use(function (req, res, next) {
 	let ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
@@ -1076,12 +1077,12 @@ app.get("/forum/search", must_be_logged_in, function (req, res) {
  * GAME LOBBY
  */
 
+const SQL_SELECT_SETUPS = SQL("select * from setups where title_id=? order by setup_id")
+
 let RULES = {}
 let TITLE_TABLE = app.locals.TITLE_TABLE = {}
 let TITLE_LIST = app.locals.TITLE_LIST = []
 let TITLE_NAME = app.locals.TITLE_NAME = {}
-let SETUP_LIST = app.locals.SETUP_LIST = []
-let SETUP_TABLE = app.locals.SETUP_TABLE = {}
 
 const STATUS_OPEN = 0
 const STATUS_ACTIVE = 1
@@ -1094,40 +1095,6 @@ const PACE_FAST = 2
 const PACE_SLOW = 3
 
 const PACE_NAME = [ "Any", "Live", "Fast", "Slow" ]
-
-function load_rules() {
-	const SQL_SELECT_TITLES = SQL("select * from titles")
-	const SQL_SELECT_SETUPS = SQL("select * from setups where title_id=? order by setup_id")
-	for (let title of SQL_SELECT_TITLES.all()) {
-		let title_id = title.title_id
-		if (fs.existsSync(__dirname + "/public/" + title_id + "/rules.js")) {
-			console.log("Loading rules for " + title_id)
-			try {
-				RULES[title_id] = require("./public/" + title_id + "/rules.js")
-				TITLE_LIST.push(title)
-				TITLE_TABLE[title_id] = title
-				TITLE_NAME[title_id] = title.title_name
-				title.setups = SQL_SELECT_SETUPS.all(title_id)
-				for (let setup of title.setups) {
-					if (!setup.setup_name) {
-						if (title.setups.length > 1 && setup.scenario !== "Standard")
-							setup.setup_name = title.title_name + " - " + setup.scenario
-						else
-							setup.setup_name = title.title_name
-					}
-					SETUP_LIST.push(setup)
-					SETUP_TABLE[setup.setup_id] = setup
-				}
-				title.about_html = fs.readFileSync("./public/" + title_id + "/about.html")
-				title.create_html = fs.readFileSync("./public/" + title_id + "/create.html")
-			} catch (err) {
-				console.log(err)
-			}
-		} else {
-			console.log("Cannot find rules for " + title_id)
-		}
-	}
-}
 
 const PARSE_OPTIONS_CACHE = {}
 
@@ -1182,7 +1149,85 @@ function is_game_ready(player_count, players) {
 	return true
 }
 
-load_rules()
+function unload_module(filename) {
+	// Remove a module and its dependencies from require.cache so they can be reloaded.
+	let mod = require.cache[filename]
+	if (mod) {
+		delete require.cache[filename]
+		for (let child of mod.children)
+			unload_module(child.filename)
+	}
+}
+
+function load_rules(rules_dir, rules_file, title) {
+	RULES[title.title_id] = require(rules_file)
+
+	title.setups = SQL_SELECT_SETUPS.all(title.title_id)
+	for (let setup of title.setups) {
+		if (!setup.setup_name) {
+			if (title.setups.length > 1 && setup.scenario !== "Standard")
+				setup.setup_name = title.title_name + " - " + setup.scenario
+			else
+				setup.setup_name = title.title_name
+		}
+		setup.roles = get_game_roles(setup.title_id, setup.scenario, parse_game_options(setup.options))
+	}
+
+	title.about_html = fs.readFileSync(rules_dir + "/about.html")
+	title.create_html = fs.readFileSync(rules_dir + "/create.html")
+}
+
+function watch_rules(rules_dir, rules_file, title) {
+	let watch_list = [ rules_file ]
+
+	let mod = require.cache[rules_file]
+	if (mod) {
+		for (let child of mod.children)
+			watch_list.push(child.filename)
+	}
+
+	function reload_rules() {
+		try {
+			console.log("*** RELOAD", title.title_id, "***")
+			unload_module(rules_file)
+			load_rules(rules_dir, rules_file, title)
+			sync_client_state_for_title(title.title_id)
+		} catch (err) {
+			console.log(err)
+		}
+	}
+
+	// ALSO: for (let file of watch_list) fs.watchFile(file, reload_rules)
+	chokidar.watch(watch_list, { ignoreInitial: true, awaitWriteFinish: true }).on("all", reload_rules)
+}
+
+function load_titles() {
+	const SQL_SELECT_TITLES = SQL("select * from titles")
+	for (let title of SQL_SELECT_TITLES.all()) {
+		let title_id = title.title_id
+		let rules_dir = __dirname + "/public/" + title_id
+		let rules_file = rules_dir + "/rules.js"
+
+		TITLE_LIST.push(title)
+		TITLE_TABLE[title_id] = title
+		TITLE_NAME[title_id] = title.title_name
+
+		try {
+			if (fs.existsSync(rules_file)) {
+				console.log("Loading rules for " + title_id)
+				load_rules(rules_dir, rules_file, title)
+			} else {
+				console.log("Cannot find rules for " + title_id)
+			}
+		} catch (err) {
+			console.log(err)
+		}
+
+		watch_rules(rules_dir, rules_file, title)
+	}
+}
+
+load_titles()
 
 const SQL_INSERT_GAME = SQL("INSERT INTO games (owner_id,title_id,scenario,options,player_count,pace,is_private,is_random,notice,is_match) VALUES (?,?,?,?,?,?,?,?,?,?) returning game_id").pluck()
 const SQL_DELETE_GAME_BY_OWNER = SQL("delete from games where game_id=? and owner_id=?")
@@ -2552,7 +2597,7 @@ function send_message(socket, cmd, arg) {
 
 function send_state(socket, state) {
 	try {
-		let view = socket.rules.view(state, socket.role)
+		let view = RULES[socket.title_id].view(state, socket.role)
 		if (socket.seen < view.log.length)
 			view.log_start = socket.seen
 		else
@@ -2577,6 +2622,18 @@ function get_game_state(game_id) {
 	if (!game_state)
 		throw new Error("No game with that ID")
 	return JSON.parse(game_state)
+}
+
+function sync_client_state(game_id) {
+	for (let socket of game_clients[game_id])
+		send_state(socket, get_game_state(socket.game_id))
+}
+
+function sync_client_state_for_title(title_id) {
+	for (let game_id in game_clients)
+		for (let socket of game_clients[game_id])
+			if (socket.title_id === title_id)
+				send_state(socket, get_game_state(socket.game_id))
 }
 
 function snap_from_state(state) {
@@ -2671,7 +2728,7 @@ function on_action(socket, action, args, cookie) {
 		if (old_active !== "Both")
 			game_cookies[socket.game_id] ++
 
-		state = socket.rules.action(state, socket.role, action, args)
+		state = RULES[socket.title_id].action(state, socket.role, action, args)
 		put_new_state(socket.game_id, state, old_active, socket.role, action, args)
 	} catch (err) {
 		console.log(err)
@@ -2754,9 +2811,9 @@ function on_save(socket) {
 function on_query(socket, q, params) {
 	SLOG(socket, "QUERY", q, JSON.stringify(params))
 	try {
-		if (socket.rules.query) {
+		if (RULES[socket.title_id].query) {
 			let state = get_game_state(socket.game_id)
-			let reply = socket.rules.query(state, socket.role, q, params)
+			let reply = RULES[socket.title_id].query(state, socket.role, q, params)
 			send_message(socket, "reply", [ q, reply ])
 		}
 	} catch (err) {
@@ -2768,9 +2825,9 @@ function on_query(socket, q, params) {
 function on_query_snap(socket, snap_id, q, params) {
 	SLOG(socket, "QUERYSNAP", snap_id, JSON.stringify(params))
 	try {
-		if (socket.rules.query) {
+		if (RULES[socket.title_id].query) {
 			let state = JSON.parse(SQL_SELECT_SNAP_STATE.get(socket.game_id, snap_id))
-			let reply = socket.rules.query(state, socket.role, q, params)
+			let reply = RULES[socket.title_id].query(state, socket.role, q, params)
 			send_message(socket, "reply", [ q, reply ])
 		}
 	} catch (err) {
@@ -2853,7 +2910,7 @@ function on_snap(socket, snap_id) {
 		let snap_state = SQL_SELECT_SNAP_STATE.get(socket.game_id, snap_id)
 		if (snap_state) {
 			let state = JSON.parse(snap_state)
-			let view = socket.rules.view(state, socket.role)
+			let view = RULES[socket.title_id].view(state, socket.role)
 			view.prompt = undefined
 			view.actions = undefined
 			view.log = state.log
@@ -2954,7 +3011,6 @@ wss.on("connection", (socket, req) => {
 	socket.game_id = req.query.game | 0
 	socket.role = req.query.role
 	socket.seen = req.query.seen | 0
-	socket.rules = RULES[socket.title_id]
 
 	SLOG(socket, "OPEN " + socket.seen)
 

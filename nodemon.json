@@ -1,0 +1,10 @@
+{
+	"delay": 2000,
+	"ext": "js,pug",
+	"ignore": [
+		".git",
+		"node_modules",
+		"public",
+		"tools"
+	]
+}
