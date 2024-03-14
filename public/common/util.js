@@ -304,3 +304,26 @@ function object_diff(a, b) {
 	}
 	return true
 }
+
+// same as Object.groupBy
+function object_group_by(items, callback) {
+	let groups = {}
+	if (typeof callback === "function") {
+		for (let item of items) {
+			let key = callback(item)
+			if (key in groups)
+				groups[key].push(item)
+			else
+				groups[key] = [ item ]
+		}
+	} else {
+		for (let item of items) {
+			let key = item[callback]
+			if (key in groups)
+				groups[key].push(item)
+			else
+				groups[key] = [ item ]
+		}
+	}
+	return groups
+}
