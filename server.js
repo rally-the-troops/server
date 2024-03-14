@@ -5,7 +5,6 @@
 const fs = require("fs")
 const crypto = require("crypto")
 const http = require("http")
-const https = require("https") // for webhook requests
 const { WebSocketServer } = require("ws")
 const express = require("express")
 const url = require("url")
@@ -2278,19 +2277,11 @@ function mail_verification_token(user, token) {
  */
 
 const webhook_json_options = {
-	method: "POST",
-	timeout: 6000,
-	headers: {
-		"Content-Type": "application/json"
-	}
+	"Content-Type": "application/json"
 }
 
 const webhook_text_options = {
-	method: "POST",
-	timeout: 6000,
-	headers: {
-		"Content-Type": "text/plain"
-	}
+	"Content-Type": "text/plain"
 }
 
 function on_webhook_success(user_id) {
@@ -2302,38 +2293,22 @@ function on_webhook_error(user_id, error) {
 	SQL_UPDATE_WEBHOOK_ERROR.run(error, user_id)
 }
 
-function send_webhook(user_id, webhook, message, retry=2) {
+async function send_webhook(user_id, webhook, message, retry=2) {
 	if (!WEBHOOKS)
 		return
 	try {
 		const text = webhook.prefix + " " + message
 		const data = webhook.format ? JSON.stringify({ [webhook.format]: text }) : text
-		const options = webhook.format ? webhook_json_options : webhook_text_options
-		const req = https.request(webhook.url, options, res => {
-			if (res.statusCode === 200 || res.statusCode === 204)
-				on_webhook_success(user_id)
-			else {
-				if (retry > 0)
-					retry_webhook(user_id, webhook, message, retry - 1)
-				else
-					on_webhook_error(user_id, res.statusCode + " " + http.STATUS_CODES[res.statusCode])
-			}
-		})
-		req.on("timeout", () => {
+		const headers = webhook.format ? webhook_json_options : webhook_text_options
+		const res = await fetch(webhook.url, { method: "POST", headers: headers, body: data })
+		if (res.ok)
+			on_webhook_success(user_id)
+		else {
 			if (retry > 0)
 				retry_webhook(user_id, webhook, message, retry - 1)
 			else
-				on_webhook_error(user_id, "Timeout")
-			req.abort()
-		})
-		req.on("error", (err) => {
-			if (retry > 0)
-				retry_webhook(user_id, webhook, message, retry - 1)
-			else
-				on_webhook_error(user_id, err.toString())
-		})
-		req.write(data)
-		req.end()
+				on_webhook_error(user_id, res.status + ": " + res.statusText)
+		}
 	} catch (err) {
 		if (retry > 0)
 			retry_webhook(user_id, webhook, message, retry - 1)
