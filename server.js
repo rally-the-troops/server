@@ -1331,7 +1331,6 @@ const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?")
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?")
 const SQL_SELECT_GAME_TITLE = SQL("SELECT title_id FROM games WHERE game_id=?").pluck()
 
-const SQL_SELECT_PLAYERS_ID = SQL("SELECT DISTINCT user_id FROM players WHERE game_id=?").pluck()
 const SQL_SELECT_PLAYERS = SQL("select * from players join user_view using(user_id) where game_id=?")
 const SQL_SELECT_PLAYERS_WITH_NAME = SQL("select role, user_id, name from players join users using(user_id) where game_id=?")
 const SQL_UPDATE_PLAYER_ACCEPT = SQL("UPDATE players SET is_invite=0 WHERE game_id=? AND role=? AND user_id=?")
@@ -2403,6 +2402,10 @@ function send_play_notification(user, game_id, message) {
 const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
 const QUERY_LIST_INVITES = SQL("SELECT * FROM invite_reminder")
 
+function send_chat_activity_notification(game_id, p) {
+	send_play_notification(p, game_id, "Chat activity")
+}
+
 function send_your_turn_notification_to_offline_users(game_id, old_active, active) {
 	// Only send notifications when the active player changes.
 	if (old_active === active)
@@ -2879,9 +2882,15 @@ function on_chat(socket, message) {
 function send_chat_message(game_id, from_id, from_name, message) {
 	SQL_INSERT_GAME_CHAT.run(game_id, game_id, from_id, message)
 
-	let users = SQL_SELECT_PLAYERS_ID.all(game_id)
-	for (let user_id of users)
-		SQL_INSERT_UNREAD_CHAT.run(user_id, game_id)
+	let players = SQL_SELECT_PLAYERS.all(game_id)
+	for (let p of players) {
+		let unread = SQL_SELECT_UNREAD_CHAT.get(p.user_id, game_id)
+		if (!unread) {
+			SQL_INSERT_UNREAD_CHAT.run(p.user_id, game_id)
+			if (!is_player_online(game_id, p.user_id))
+				send_chat_activity_notification(game_id, p)
+		}
+	}
 
 	if (game_clients[game_id]) {
 		for (let other of game_clients[game_id])
