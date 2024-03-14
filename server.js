@@ -9,7 +9,6 @@ const https = require("https") // for webhook requests
 const { WebSocketServer } = require("ws")
 const express = require("express")
 const url = require("url")
-const chokidar = require("chokidar")
 const sqlite3 = require("better-sqlite3")
 
 require("dotenv").config()
@@ -1197,8 +1196,10 @@ function watch_rules(rules_dir, rules_file, title) {
 		}
 	}
 
-	// ALSO: for (let file of watch_list) fs.watchFile(file, reload_rules)
-	chokidar.watch(watch_list, { ignoreInitial: true, awaitWriteFinish: true }).on("all", reload_rules)
+	// TODO: figure out why chokidar is unreliable on production server
+	// chokidar.watch(watch_list, { ignoreInitial: true, awaitWriteFinish: true }).on("all", reload_rules)
+	for (let file of watch_list)
+		fs.watchFile(file, reload_rules)
 }
 
 function load_titles() {
