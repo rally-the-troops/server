@@ -454,6 +454,7 @@ create table if not exists players (
 	is_invite integer,
 	time_used real,
 	time_added real,
+	score integer,
 	primary key (game_id, role)
 ) without rowid;
 
@@ -646,6 +647,26 @@ begin
 		mtime = datetime()
 	where
 		games.game_id = old.game_id;
+end;
+
+-- Trigger to update player score when game ends.
+
+drop trigger if exists trigger_update_score;
+create trigger trigger_update_score after update of result on games
+begin
+	update players
+		set score = (
+			case
+				when new.result is null then null
+				when new.result = role then 2
+				when new.result = 'Draw' then 1
+				when instr(new.result, role) then 1
+				else 0
+			end
+		)
+	where
+		players.game_id = new.game_id
+	;
 end;
 
 -- Trigger to track time spent!

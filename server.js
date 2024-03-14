@@ -3143,7 +3143,7 @@ const SQL_USER_STATS = SQL(`
 		titles.title_name,
 		scenario,
 		role,
-		sum(role=result) as won,
+		sum(score) / 2 as won,
 		count(*) as total
 	from
 		players
@@ -3163,7 +3163,7 @@ const SQL_USER_STATS = SQL(`
 		titles.title_name,
 		scenario,
 		null as role,
-		sum(role=result) as won,
+		sum(score) / 2 as won,
 		count(*) as total
 	from
 		players
