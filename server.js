@@ -1995,11 +1995,16 @@ app.post("/invite/:game_id/:role/:user", must_be_logged_in, function (req, res) 
 app.post("/accept/:game_id/:role", must_be_logged_in, function (req, res) {
 	// TODO: check join game limit if inviting self...
 	let game_id = req.params.game_id | 0
+	let game = SQL_SELECT_GAME.get(game_id)
 	let role = req.params.role
 	let info = SQL_UPDATE_PLAYER_ACCEPT.run(game_id, role, req.user.user_id)
 	if (info.changes === 1) {
 		update_join_clients_players(game_id)
 		res.send("SUCCESS")
+
+		// send chat message about player joining a game in progress
+		if (game.status > 0)
+			send_chat_message(game_id, null, null, `${req.user.name} joined as ${role}.`)
 	} else {
 		res.send("Could not accept invite.")
 	}
