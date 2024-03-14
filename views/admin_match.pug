@@ -1,0 +1,53 @@
+//- vim:ts=4:sw=4:
+
+mixin show_ticket(ticket)
+	- var setup = SETUP_TABLE[ticket.setup_id]
+	tr
+		td= ticket.name
+		td= ticket.rating
+		td= setup.setup_name
+		td #{ticket.time} UTC
+
+mixin show_ticket_list(list)
+	table
+		thead
+			tr
+				th User
+				th Rating
+				th Title
+				th Age
+		tbody
+			each ticket in list
+				+show_ticket(ticket)
+
+doctype html
+html
+	head
+		include head
+		title Matches
+		style.
+			div.buttons { margin-top: 8px }
+	body
+		include header
+		article
+			h1 Waiting Room - Admin
+
+			p Time is #{new Date().toISOString()}
+
+			h2 Live Tickets
+			if live_tickets.length > 0
+				+show_ticket_list(live_tickets)
+			else
+				p No live tickets.
+
+			h2 Fast Tickets
+			if fast_tickets.length > 0
+				+show_ticket_list(fast_tickets)
+			else
+				p No fast tickets.
+
+			h2 Slow Tickets
+			if slow_tickets.length > 0
+				+show_ticket_list(slow_tickets)
+			else
+				p No slow tickets.

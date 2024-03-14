@@ -95,6 +95,20 @@ function set_has(set, item) {
 	return false
 }
 
+function array_remove(array, index) {
+	let n = array.length
+	for (let i = index + 1; i < n; ++i)
+		array[i - 1] = array[i]
+	array.length = n - 1
+}
+
+function array_remove_item(array, item) {
+	let n = array.length
+	for (let i = 0; i < n; ++i)
+		if (array[i] === item)
+			return array_remove(array, i)
+}
+
 /*
  * Notification mail setup.
  */
@@ -1079,6 +1093,7 @@ const SQL_SELECT_SETUPS = SQL("select * from setups where title_id=? order by se
 
 let RULES = {}
 let TITLE_TABLE = app.locals.TITLE_TABLE = {}
+let SETUP_TABLE = app.locals.SETUP_TABLE = {}
 let TITLE_LIST = app.locals.TITLE_LIST = []
 let TITLE_NAME = app.locals.TITLE_NAME = {}
 
@@ -1162,6 +1177,7 @@ function load_rules(rules_dir, rules_file, title) {
 
 	title.setups = SQL_SELECT_SETUPS.all(title.title_id)
 	for (let setup of title.setups) {
+		SETUP_TABLE[setup.setup_id] = setup
 		if (!setup.setup_name) {
 			if (title.setups.length > 1 && setup.scenario !== "Standard")
 				setup.setup_name = title.title_name + " - " + setup.scenario
@@ -2238,6 +2254,275 @@ function update_elo_ratings(game_id) {
 	for (let p of players)
 		SQL_INSERT_RATING.run(game.title_id, p.user_id, p.rating + p.change, p.count + 1, game.mtime)
 }
+
+/*
+ * MATCHMAKING
+ */
+
+const MATCH_LIMIT = 300
+
+var _seed = random_seed()
+
+function random(range) {
+	// An MLCG using integer arithmetic with doubles.
+	// https://www.ams.org/journals/mcom/1999-68-225/S0025-5718-99-00996-5/S0025-5718-99-00996-5.pdf
+	// m = 2**35 − 31
+	return (_seed = _seed * 200105 % 34359738337) % range
+}
+
+function shuffle(list) {
+	// Fisher-Yates shuffle
+	for (let i = list.length - 1; i > 0; --i) {
+		let j = random(i + 1)
+		let tmp = list[j]
+		list[j] = list[i]
+		list[i] = tmp
+	}
+}
+
+const SQL_SELECT_TICKETS_FOR_PACE = SQL("select users.name, rating, setup_id, datetime(time) as time from ticket_rating_view natural join users where pace=? order by setup_id,time")
+
+const SQL_SELECT_MATCHMAKING = SQL("select setup_id, n, age from matchmaking_view where pace=?")
+const SQL_INSERT_MATCHMAKING_LOG = SQL("insert into matchmaking_log (setup_id,pace,age,score,tickets,matches) values (?,?,?,?,?,?)")
+
+const SQL_SELECT_TICKETS_FOR_USER = SQL("select * from tickets where user_id=?")
+const SQL_SELECT_TICKETS_FOR_SETUP = SQL("select * from ticket_rating_view where setup_id=? and pace=? order by rating")
+const SQL_INSERT_TICKET = SQL("insert or replace into tickets (user_id, setup_id, pace, time) values (?,?,?,julianday())")
+const SQL_DELETE_TICKET = SQL("delete from tickets where user_id=? and ticket_id=?")
+const SQL_DELETE_TICKET_PACE = SQL("delete from tickets where user_id=? and pace=?")
+const SQL_DELETE_TICKET_USER = SQL("delete from tickets where user_id=?")
+
+const SQL_DELETE_TICKET_EXPIRE = SQL("delete from tickets where pace=? and time < julianday('now',?)")
+const SQL_INSERT_TICKET_EXPIRE_LOG = SQL(`
+	insert into expired_tickets_log
+		(user_id, setup_id, pace, ctime, xtime)
+	select
+		user_id, setup_id, pace, datetime(time), datetime()
+	from
+		tickets where pace=? and time < julianday('now',?)
+`)
+
+app.get('/games/match', must_be_logged_in, function (req, res) {
+	res.render('match.pug', {
+		user: req.user,
+		limit: check_join_game_limit(req.user),
+		tickets: SQL_SELECT_TICKETS_FOR_USER.all(req.user.user_id),
+	})
+})
+
+app.get('/admin/match', must_be_logged_in, function (req, res) {
+	res.render('admin_match.pug', {
+		user: req.user,
+		live_tickets: SQL_SELECT_TICKETS_FOR_PACE.all(1),
+		fast_tickets: SQL_SELECT_TICKETS_FOR_PACE.all(2),
+		slow_tickets: SQL_SELECT_TICKETS_FOR_PACE.all(3),
+	})
+})
+
+app.post('/games/match/queue', must_be_logged_in, function (req, res) {
+	let pace = req.body.pace | 0
+	if (req.body.setups) {
+		if (typeof req.body.setups === "string")
+			SQL_INSERT_TICKET.run(req.user.user_id, req.body.setups|0, pace)
+		else
+			for (let setup of req.body.setups)
+				SQL_INSERT_TICKET.run(req.user.user_id, setup|0, pace)
+	}
+	res.redirect("/games/match")
+})
+
+app.post('/games/match/unqueue', must_be_logged_in, function (req, res) {
+	if (req.body.pace) {
+		SQL_DELETE_TICKET_PACE.run(req.user.user_id, req.body.pace|0)
+	}
+	if (req.body.tickets) {
+		if (typeof req.body.tickets === "string")
+			SQL_DELETE_TICKET.run(req.user.user_id, req.body.tickets|0)
+		else
+			for (let ticket of req.body.tickets)
+				SQL_DELETE_TICKET.run(req.user.user_id, ticket|0)
+	}
+	res.redirect("/games/match")
+})
+
+function tick_matches(pace, min_matches, max_age) {
+	for (let info of SQL_SELECT_MATCHMAKING.all(pace)) {
+		let setup = SETUP_TABLE[info.setup_id]
+		console.log("MATCH MAKING TICK", setup.setup_name, "--", info.n, "matches", info.age.toFixed(2), "days")
+		if (info.n >= min_matches * setup.player_count || info.age >= max_age)
+			create_matches(setup, pace, info.age)
+	}
+}
+
+function is_blacklist_match(m) {
+	for (let a of m)
+		for (let b of m)
+			if (a !== b && set_has(a.blacklist, b.user_id))
+				return true
+	return false
+}
+
+function score_ticket_pair(a, b) {
+	return Math.min(MATCH_LIMIT, Math.abs(a.rating - b.rating))
+}
+
+function score_ticket_pair_fast(a, b) {
+	let rd = Math.abs(a.rating - b.rating)
+	let td = Math.abs(a.time % 1 - b.time % 1)
+	if (td > 0.5)
+		td = 1 - td
+	// Ignore first 3 hour diff, then linearly approach limit at 9 hours
+	td = Math.max(0, td - 3/24) * (24/6) * MATCH_LIMIT
+	return Math.min(MATCH_LIMIT, (rd + td) | 0)
+}
+
+function score_match(F, m) {
+	if (is_blacklist_match(m))
+		return MATCH_LIMIT
+	if (m.length === 2)
+		return F(m[0], m[1])
+	let score = 0
+	let n = m.length
+	for (let a = 0; a < n; ++a)
+		for (let b = a+1; b < n; ++b)
+			score += F(m[a], m[b]) ** 2
+	return Math.sqrt(score / (n / 2 * (n-1))) | 0
+}
+
+function add_best_ticket(F, this_match, tickets) {
+	let best_score = MATCH_LIMIT
+	let best_ticket = tickets[0]
+	for (let t of tickets) {
+		this_match.push(t)
+		let this_score = score_match(F, this_match)
+		this_match.pop(t)
+		if (this_score < best_score) {
+			best_score = this_score
+			best_ticket = t
+		}
+	}
+	this_match.push(best_ticket)
+	array_remove_item(tickets, best_ticket)
+}
+
+function score_partition(F, partition) {
+	let score = 0
+	for (let m of partition)
+		score += score_match(F, m) ** 2
+	return Math.sqrt(score / partition.length)
+}
+
+function partition_matches(F, N, original_tickets, attempts) {
+	let M = (original_tickets.length / N) | 0
+
+	// TODO: use path growing algorithm (or full blossom matchings) instead?
+	// https://sci-hub.hkvisa.net/10.1016/s0020-0190(02)00393-9
+
+	let best_partition = null
+	let best_score = (M * MATCH_LIMIT) ** 2
+
+	for (let i = 0; i < attempts; ++i) {
+		var this_partition = []
+
+		let tickets = original_tickets.slice()
+		if (i > 0)
+			shuffle(tickets)
+
+		while (tickets.length >= N) {
+			let this_match = [ tickets.pop() ]
+			while (this_match.length < N)
+				add_best_ticket(F, this_match, tickets)
+			this_partition.push(this_match)
+		}
+
+		let this_score = score_partition(F, this_partition)
+		if (this_score < best_score) {
+			best_score = this_score
+			best_partition = this_partition
+		}
+	}
+
+	best_partition = best_partition.filter(m => score_match(F, m) < MATCH_LIMIT)
+
+	return { score: best_score, matches: best_partition }
+}
+
+function create_matches(setup, pace, age) {
+	let N = setup.player_count
+	let F = score_ticket_pair
+	let A = 47
+
+	let tickets = SQL_SELECT_TICKETS_FOR_SETUP.all(setup.setup_id, pace)
+	for (let t of tickets)
+		t.blacklist = SQL_SELECT_CONTACT_BLACKLIST.all(t.user_id)
+
+	if (pace === PACE_FAST)
+		F = score_ticket_pair_fast
+
+	console.log("RUN MATCH MAKING")
+
+	let info = partition_matches(F, N, tickets, A)
+
+	SQL_INSERT_MATCHMAKING_LOG.run(setup.setup_id, pace, age, info.score, JSON.stringify(tickets), JSON.stringify(info.matches))
+
+	for (let match of info.matches)
+		start_match(setup, pace, match)
+}
+
+function start_match(setup, pace, tickets) {
+	let game_id = 0
+	console.log("MATCH", PACE_NAME[pace], setup.setup_name, tickets.map(t=>t.rating).join(","))
+	SQL_BEGIN.run()
+	try {
+		game_id = SQL_INSERT_GAME.get(
+			0, setup.title_id, setup.scenario, setup.options, setup.player_count,
+			pace, 0, 1, null, 1
+		)
+		for (let i = 0; i < tickets.length; ++i) {
+			SQL_INSERT_PLAYER_ROLE.run(game_id, "Random " + (i+1), tickets[i].user_id, 0)
+
+			if (SQL_COUNT_ACTIVE_GAMES.get(tickets[i].user_id) + 1 >= LIMIT_ACTIVE_GAMES)
+				SQL_DELETE_TICKET_USER.run(tickets[i].user_id)
+			else if (pace === PACE_LIVE)
+				SQL_DELETE_TICKET_PACE.run(tickets[i].user_id, PACE_LIVE)
+			else
+				SQL_DELETE_TICKET.run(tickets[i].user_id, tickets[i].ticket_id)
+		}
+		SQL_COMMIT.run()
+	} finally {
+		if (db.inTransaction)
+			SQL_ROLLBACK.run()
+	}
+	start_game(SQL_SELECT_GAME.get(game_id))
+}
+
+function tick_slow_matches() {
+	tick_matches(PACE_SLOW, 4, 2)
+	SQL_INSERT_TICKET_EXPIRE_LOG.run(PACE_SLOW, "-14 days")
+	SQL_DELETE_TICKET_EXPIRE.run(PACE_SLOW, "-14 days")
+}
+
+function tick_fast_matches() {
+	// Wait at most one day.
+	tick_matches(PACE_FAST, 2, 1)
+	SQL_INSERT_TICKET_EXPIRE_LOG.run(PACE_FAST, "-7 days")
+	SQL_DELETE_TICKET_EXPIRE.run(PACE_FAST, "-7 days")
+}
+
+function tick_live_matches() {
+	// Wait at most 15 minutes
+	tick_matches(PACE_LIVE, 2, 0.25 / 24)
+	SQL_INSERT_TICKET_EXPIRE_LOG.run(PACE_LIVE, "-3 hours")
+	SQL_DELETE_TICKET_EXPIRE.run(PACE_LIVE, "-3 hours")
+}
+
+setInterval(tick_live_matches, 1000 * 60)
+setInterval(tick_fast_matches, 1000 * 60 * 5)
+setInterval(tick_slow_matches, 1000 * 60 * 15)
+
+setTimeout(tick_live_matches, 1000 * 10)
+setTimeout(tick_fast_matches, 1000 * 20)
+setTimeout(tick_slow_matches, 1000 * 30)
 
 /*
  * MAIL NOTIFICATIONS

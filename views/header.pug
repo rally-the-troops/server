@@ -9,6 +9,7 @@ header
 		if user
 			if ENABLE_FORUM
 				a(href="/forum") Forum
+			a(href="/games/match") Match
 			a(href="/games/public") Public
 			if user.waiting > 0
 				a(href="/games/active") Games (#{user.waiting})
