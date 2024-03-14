@@ -2300,7 +2300,12 @@ async function send_webhook(user_id, webhook, message, retry=2) {
 		const text = webhook.prefix + " " + message
 		const data = webhook.format ? JSON.stringify({ [webhook.format]: text }) : text
 		const headers = webhook.format ? webhook_json_options : webhook_text_options
-		const res = await fetch(webhook.url, { method: "POST", headers: headers, body: data })
+		const res = await fetch(webhook.url, {
+			method: "POST",
+			signal: AbortSignal.timeout(6000),
+			headers: headers,
+			body: data
+		})
 		if (res.ok)
 			on_webhook_success(user_id)
 		else {
