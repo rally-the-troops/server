@@ -66,6 +66,12 @@ var game_cookies = {}
 let db = new sqlite3(process.env.DATABASE || "./db")
 db.pragma("synchronous = NORMAL")
 
+let ENABLE_ARCHIVE = process.env.ARCHIVE | 0
+if (ENABLE_ARCHIVE) {
+	console.log("Attached to archive database.")
+	db.exec("attach database 'archive.db' as archive")
+}
+
 const SQL_BEGIN = db.prepare("begin immediate")
 const SQL_COMMIT = db.prepare("commit")
 const SQL_ROLLBACK = db.prepare("rollback")
@@ -200,6 +206,7 @@ app.locals.ENABLE_MAIL = !!mailer
 app.locals.ENABLE_WEBHOOKS = !!WEBHOOKS
 app.locals.ENABLE_FORUM = process.env.FORUM | 0
 app.locals.ENABLE_TOURNAMENTS = process.env.TOURNAMENTS | 0
+app.locals.ENABLE_ARCHIVE = ENABLE_ARCHIVE
 
 app.locals.EMOJI_PRIVATE = "\u{1F512}" // or 512
 app.locals.EMOJI_MATCH = "\u{1f3c6}"
@@ -1387,6 +1394,8 @@ const SQL_SELECT_REWIND = SQL("select snap_id, state->>'$.active' as active, sta
 const SQL_UPDATE_GAME_ACTIVE = SQL("update games set active=?,mtime=datetime(),moves=moves+1 where game_id=?")
 const SQL_UPDATE_GAME_SCENARIO = SQL("update games set scenario=? where game_id=?")
 
+const ARCHIVE_SELECT_GAME_STATE = ENABLE_ARCHIVE ? SQL("select state from archive.game_state where game_id=?").pluck() : null
+
 const SQL_SELECT_GAME_STATE = SQL("select state from game_state where game_id=?").pluck()
 const SQL_INSERT_GAME_STATE = SQL("insert or replace into game_state (game_id,state) values (?,?)")
 
@@ -1443,6 +1452,78 @@ const SQL_SELECT_REPLAY = SQL(`
 	from games as outer
 	where game_id = ?
 `).pluck()
+
+const ARCHIVE_SELECT_REPLAY = ENABLE_ARCHIVE ? SQL(`
+	select
+		json_object(
+			'players',
+				(select json_group_array(
+						json_object('role', role, 'name', name)
+					)
+					from players
+					left join users using(user_id)
+					where game_id = outer.game_id
+				),
+			'state',
+				(select json(state)
+					from archive.game_state
+					where game_id = outer.game_id
+				),
+			'replay',
+				(select json_group_array(
+						case when arguments is null then
+							json_array(role, action)
+						else
+							json_array(role, action, json(arguments))
+						end
+					)
+					from archive.game_replay
+					where game_id = outer.game_id
+				)
+		) as export
+	from games as outer
+	where game_id = ?
+`).pluck() : null
+
+const ARCHIVE_SELECT_EXPORT = ENABLE_ARCHIVE ? SQL(`
+	select
+		game_id,
+		json_object(
+			'setup', json_object(
+					'game_id', game_id,
+					'title_id', title_id,
+					'scenario', scenario,
+					'options', json(options),
+					'player_count', player_count,
+					'notice', notice
+				),
+			'players',
+				(select json_group_array(
+						json_object('role', role, 'name', name)
+					)
+					from players
+					left join users using(user_id)
+					where game_id = outer.game_id
+				),
+			'state',
+				(select json(state)
+					from archive.game_state
+					where game_id = outer.game_id
+				),
+			'replay',
+				(select json_group_array(
+						case when arguments is null then
+							json_array(role, action)
+						else
+							json_array(role, action, json(arguments))
+						end
+					)
+					from archive.game_replay
+					where game_id = outer.game_id
+				)
+		) as export
+	from games as outer
+`).pluck() : null
 
 const SQL_SELECT_EXPORT = SQL("select export from game_export_view where game_id=?").pluck()
 
@@ -1996,6 +2077,11 @@ app.get("/join/:game_id", function (req, res) {
 	if (!game)
 		return res.status(404).send("Invalid game ID.")
 
+	if (ENABLE_ARCHIVE) {
+		if (game.status === STATUS_ARCHIVED && game.moves >= game.player_count * 3)
+			game.status = STATUS_FINISHED
+	}
+
 	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	let players = SQL_SELECT_PLAYER_VIEW.all(game_id)
 
@@ -2223,6 +2309,10 @@ app.get("/api/replay/:game_id", function (req, res) {
 		return res.status(404).send("Invalid game ID.")
 	if (game.status < STATUS_FINISHED && (!req.user || req.user.user_id !== 1))
 		return res.status(401).send("Not authorized to debug.")
+	if (ENABLE_ARCHIVE) {
+		if (game.status === STATUS_ARCHIVED)
+			return res.type("application/json").send(ARCHIVE_SELECT_REPLAY.get(game_id))
+	}
 	return res.type("application/json").send(SQL_SELECT_REPLAY.get(game_id))
 })
 
@@ -2233,6 +2323,10 @@ app.get("/api/export/:game_id", function (req, res) {
 		return res.status(404).send("Invalid game ID.")
 	if (game.status < STATUS_FINISHED && (!req.user || req.user.user_id !== 1))
 		return res.status(401).send("Not authorized to debug.")
+	if (ENABLE_ARCHIVE) {
+		if (game.status === STATUS_ARCHIVED)
+			return res.type("application/json").send(ARCHIVE_SELECT_EXPORT.get(game_id))
+	}
 	return res.type("application/json").send(SQL_SELECT_EXPORT.get(game_id))
 })
 
@@ -3543,6 +3637,10 @@ function send_state(socket, state) {
 
 function get_game_state(game_id) {
 	let game_state = SQL_SELECT_GAME_STATE.get(game_id)
+	if (ENABLE_ARCHIVE) {
+		if (!game_state)
+			game_state = ARCHIVE_SELECT_GAME_STATE.get(game_id)
+	}
 	if (!game_state)
 		throw new Error("No game with that ID")
 	return JSON.parse(game_state)

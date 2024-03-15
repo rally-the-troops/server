@@ -109,7 +109,16 @@ mixin gamelist(list,hide_title=0)
 								else
 									a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}`) Review
 							when 3
-								| Archived
+								if ENABLE_ARCHIVE
+									if item.is_yours
+										if item.your_role
+											a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=${encodeURIComponent(item.your_role)}`) Archived
+										else
+											a(class="command" href="/join/"+item.game_id) Archived
+									else
+										a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=Observer`) Archived
+								else
+									| Archived
 
 					div.game_main
 						div.game_info
