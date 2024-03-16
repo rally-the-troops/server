@@ -182,7 +182,7 @@ create table if not exists ratings (
 	user_id integer,
 	rating integer,
 	count integer,
-	last timestamp,
+	last datetime,
 	primary key (title_id, user_id)
 ) without rowid;
 
