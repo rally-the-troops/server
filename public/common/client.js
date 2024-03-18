@@ -1009,20 +1009,15 @@ var update_zoom = function () {}
 	}
 
 	const map = document.getElementById("map") || e_inner.querySelector("div")
-	var map_w = 1920
-	var map_h = 1080
+	var map_w = mapwrap ? mapwrap.clientWidth : map.clientWidth
+	var map_h = mapwrap ? mapwrap.clientHeight : map.clientHeight
 
-	function update_map_size() {
-		map_w = mapwrap ? mapwrap.clientWidth : map.clientWidth
-		map_h = mapwrap ? mapwrap.clientHeight : map.clientHeight
-		if (e_scroll.dataset.mapHeight)
-			map_h = Number(e_scroll.dataset.mapHeight)
-		if (e_scroll.dataset.mapWidth)
-			map_w = Number(e_scroll.dataset.mapWidth)
-		console.log("UPDATE MAP SIZE", map_w, map_h)
-	}
+	if (e_scroll.dataset.mapHeight)
+		map_h = Number(e_scroll.dataset.mapHeight)
+	if (e_scroll.dataset.mapWidth)
+		map_w = Number(e_scroll.dataset.mapWidth)
 
-	update_map_size()
+	console.log("INIT MAP SIZE", map_w, map_h)
 
 	var transform0 = { x: 0, y: 0, scale: 1 }
 	var transform1 = { x: 0, y: 0, scale: 1 }
@@ -1084,8 +1079,6 @@ var update_zoom = function () {}
 
 	// export function
 	toggle_zoom = function () {
-		update_map_size()
-
 		if (transform1.scale === 1) {
 			if (mapwrap && window.innerWidth > 800) {
 				cycle_map_fit()
@@ -1105,7 +1098,6 @@ var update_zoom = function () {}
 
 	// export function
 	update_zoom = function () {
-		update_map_size()
 		update_map_fit()
 		update_transform_on_resize()
 		scroll_log_to_end()
