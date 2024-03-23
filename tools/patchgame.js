@@ -16,6 +16,8 @@ let insert_snap = db.prepare("insert into game_snap(game_id,snap_id,replay_id,st
 let update_state = db.prepare("update game_state set state=? where game_id=?")
 let update_active = db.prepare("update games set active=? where game_id=?")
 
+let update_result = db.prepare("update games set status=?, result=? where game_id=?")
+
 const CRC32C_TABLE = new Int32Array([
 	0x00000000, 0xf26b8303, 0xe13b70f7, 0x1350f3f4, 0xc79a971f, 0x35f1141c, 0x26a1e7e8, 0xd4ca64eb,
 	0x8ad958cf, 0x78b2dbcc, 0x6be22838, 0x9989ab3b, 0x4d43cfd0, 0xbf284cd3, 0xac78bf27, 0x5e133c24,
@@ -177,6 +179,11 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 
 		update_active.run(state.active, game_id)
 		update_state.run(JSON.stringify(state), game_id)
+
+		if (state.state === "game_over")
+			update_result.run(2, state.result, game_id)
+		else
+			update_result.run(1, null, game_id)
 
 		db.exec("commit")
 
