@@ -651,6 +651,25 @@ try {
 
 /* ACTIONS */
 
+function action_button_with_argument(verb, noun, label) {
+	if (params.mode === "replay")
+		return
+	let id = verb + "_" + noun + "_button"
+	let button = document.getElementById(id)
+	if (!button) {
+		button = document.createElement("button")
+		button.id = id
+		button.textContent = label
+		button.addEventListener("click", evt => send_action(verb, noun))
+		document.getElementById("actions").prepend(button)
+	}
+	if (view.actions && view.actions[verb] && view.actions[verb].includes(noun)) {
+		button.classList.remove("hide")
+	} else {
+		button.classList.add("hide")
+	}
+}
+
 function action_button_imp(action, label, callback) {
 	if (params.mode === "replay")
 		return
