@@ -66,7 +66,7 @@ var game_cookies = {}
 let db = new sqlite3(process.env.DATABASE || "./db")
 db.pragma("synchronous = NORMAL")
 
-const SQL_BEGIN = db.prepare("begin")
+const SQL_BEGIN = db.prepare("begin immediate")
 const SQL_COMMIT = db.prepare("commit")
 const SQL_ROLLBACK = db.prepare("rollback")
 

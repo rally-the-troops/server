@@ -26,7 +26,7 @@ create temporary view prune_all_list as
 		)
 	;
 
-begin;
+begin immediate;
 
 select 'PURGE SNAPS FROM ' || count(1) from prune_snap_list;
 delete from live.game_snap where game_id in (select game_id from prune_snap_list);
