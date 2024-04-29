@@ -106,7 +106,8 @@ html
 				p <a href="/login">Login</a> or <a href="/signup">sign up</a> to play.
 
 			if user && user.user_id === 1
-				p
-					- for (let snap_id = rewind; snap_id > 0 && snap_id > rewind-5; --snap_id)
-						a(href="/admin/rewind/" + game.game_id + "/" + snap_id) REWIND #{snap_id}
+				hr
+				div: p
+					each snap in rewind
+						<a href="/admin/rewind/#{game.game_id}/#{snap.snap_id}">REWIND #{snap.snap_id}</a> - #{snap.state} - #{snap.active}
 						br

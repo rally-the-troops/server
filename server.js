@@ -1254,6 +1254,7 @@ const SQL_FINISH_GAME = SQL(`
 `)
 
 const SQL_REWIND_GAME = SQL("update games set status=1,moves=?,active=?,mtime=datetime() where game_id=?")
+const SQL_SELECT_REWIND = SQL("select snap_id, state->>'$.active' as active, state->>'$.state' as state from game_snap where game_id=? order by snap_id desc")
 
 const SQL_UPDATE_GAME_ACTIVE = SQL("update games set active=?,mtime=datetime(),moves=moves+1 where game_id=?")
 const SQL_UPDATE_GAME_MOVES = SQL("update games set moves=? where game_id=?")
@@ -1890,7 +1891,7 @@ app.get("/join/:game_id", function (req, res) {
 		if (game.owner_id === req.user.user_id)
 			friends = SQL_SELECT_CONTACT_FRIEND_NAMES.all(req.user.user_id)
 		if (req.user.user_id === 1)
-			rewind = SQL_SELECT_SNAP_COUNT.get(game_id)
+			rewind = SQL_SELECT_REWIND.all(game_id)
 	}
 
 	let ready = (game.status === STATUS_OPEN) && is_game_ready(game.player_count, players)
