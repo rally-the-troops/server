@@ -262,15 +262,15 @@ function map_set(map, key, value) {
 	array_insert_pair(map, a<<1, key, value)
 }
 
-function map_delete(map, item) {
+function map_delete(map, key) {
 	let a = 0
 	let b = (map.length >> 1) - 1
 	while (a <= b) {
 		let m = (a + b) >> 1
 		let x = map[m<<1]
-		if (item < x)
+		if (key < x)
 			b = m - 1
-		else if (item > x)
+		else if (key > x)
 			a = m + 1
 		else {
 			array_remove_pair(map, m<<1)
