@@ -9,7 +9,7 @@ The server runs on Node with the Express.js framework.
 Check out the game submodules:
 
 ```
-git clone https://github.com/rally-the-troops/julius-caesar.git public/julius-caesar
+git clone https://git.rally-the-troops.com/modules/julius-caesar public/julius-caesar
 ```
 
 Initialize the database:
