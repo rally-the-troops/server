@@ -111,3 +111,6 @@ html
 					each snap in rewind
 						<a href="/admin/rewind/#{game.game_id}/#{snap.snap_id}">REWIND #{snap.snap_id}</a> - #{snap.state} - #{snap.active}
 						br
+					if DEBUG
+						<a href="/admin/clone/#{game.game_id}">CLONE</a>
+						br

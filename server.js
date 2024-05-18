@@ -164,6 +164,8 @@ function set_static_headers(res, path) {
 
 let app = express()
 
+app.locals.DEBUG = DEBUG
+
 app.locals.SITE_NAME = SITE_NAME
 app.locals.SITE_NAME_P = SITE_NAME.endsWith("!") ? SITE_NAME : SITE_NAME + "."
 app.locals.SITE_URL = SITE_URL
@@ -2173,6 +2175,41 @@ app.get("/admin/rewind/:game_id/:snap_id", must_be_administrator, function (req,
 			SQL_ROLLBACK.run()
 	}
 	res.redirect("/join/" + game_id)
+})
+
+const SQL_CLONE_1 = SQL(`
+	insert into games(status,owner_id,title_id,scenario,options,player_count,active,moves,notice)
+	select 1,$owner_id,title_id,scenario,options,player_count,active,moves,'CLONE ' || cast($old_game_id as integer)
+	from games where game_id=$old_game_id
+	returning game_id
+`).pluck()
+
+const SQL_CLONE_2 = [
+	SQL(`insert into players(game_id,role,user_id) select $new_game_id,role,user_id from players where game_id=$old_game_id`),
+	SQL(`insert into game_state(game_id,state) select $new_game_id,state from game_state where game_id=$old_game_id`),
+	SQL(`insert into game_replay(game_id,replay_id,role,action,arguments) select $new_game_id,replay_id,role,action,arguments from game_replay where game_id=$old_game_id`),
+	SQL(`insert into game_snap(game_id,snap_id,replay_id,state) select $new_game_id,snap_id,replay_id,state from game_snap where game_id=$old_game_id`),
+]
+
+app.get("/admin/clone/:game_id", must_be_administrator, function (req, res) {
+	let old_game_id = req.params.game_id | 0
+	let new_game_id = 0
+
+	SQL_BEGIN.run()
+	try {
+		new_game_id = SQL_CLONE_1.get({ owner_id: req.user.user_id, old_game_id })
+		if (new_game_id) {
+			for (let stmt of SQL_CLONE_2)
+				stmt.run({ old_game_id, new_game_id })
+		}
+		SQL_COMMIT.run()
+	} catch (err) {
+		return res.send(err.toString())
+	} finally {
+		if (db.inTransaction)
+			SQL_ROLLBACK.run()
+	}
+	res.redirect("/join/" + new_game_id)
 })
 
 /*
