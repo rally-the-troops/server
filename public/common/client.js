@@ -581,7 +581,10 @@ let is_your_turn = false
 let old_active = null
 
 function on_update_header() {
-	document.getElementById("prompt").textContent = view.prompt
+	if (typeof on_prompt === "function")
+		document.getElementById("prompt").innerHTML = on_prompt(view.prompt)
+	else
+		document.getElementById("prompt").textContent = view.prompt
 	if (params.mode === "replay")
 		return
 	if (snap_view)
