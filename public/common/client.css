@@ -12,7 +12,7 @@ html {
 	-webkit-tap-highlight-color: transparent; /* disable blue flashes when tapping on chrome mobile */
 }
 
-summary::-webkit-details-marker {
+header summary::-webkit-details-marker {
 	display: none;
 }
 
@@ -24,7 +24,7 @@ html {
 	user-select: text;
 }
 
-summary img, button img, menu img {
+header summary img, button img, menu img {
 	pointer-events: none;
 }
 
@@ -270,12 +270,12 @@ header.replay {
 
 /* MENUS AND ICONS */
 
-details menu {
+header details menu {
 	display: block;
 	min-width: 140px;
 }
 
-summary img, #toolbar button img {
+header summary img, #toolbar button img {
 	display: block;
 	height: 36px;
 	padding: 4px;
@@ -292,13 +292,13 @@ summary img, #toolbar button img {
 	margin: 0;
 }
 
-details[open] > summary { background-color: #0004; }
+header details[open] > summary { background-color: #0004; }
 @media (hover: hover) {
-	summary:hover, #toolbar button:hover { background-color: #0004; }
+	header summary:hover, #toolbar button:hover { background-color: #0004; }
 }
-summary:active, #toolbar button:active { background-color: #0008; }
+header summary:active, #toolbar button:active { background-color: #0008; }
 
-summary {
+header summary {
 	cursor: pointer;
 	list-style: none;
 }
@@ -322,6 +322,9 @@ menu li {
 	padding: 4px 8px;
 	cursor: pointer;
 }
+
+menu li.checked::before { content: "\2714  " }
+menu li.unchecked::before { content: "\2714  "; color:transparent; }
 
 menu li a {
 	display: block;
