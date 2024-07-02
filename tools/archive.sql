@@ -1,5 +1,7 @@
 -- Make a copy of finished games in a separate archive database.
 
+pragma busy_timeout=10000;
+
 attach database 'db' as live;
 attach database 'archive.db' as archive;
 
