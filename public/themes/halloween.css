@@ -1,0 +1,39 @@
+/* base color: hsl(29, 95%, 61%) */
+
+/* light pumpkin */
+:root {
+	--color-head: hsl(29, 75%, 85%);
+	--color-body: hsl(29, 75%, 95%);
+	--color-text: hsl(29, 75%, 100%);
+
+	--color-post-head: hsl(29, 75%, 85%);
+	--color-post-body: hsl(29, 75%, 98%);
+
+	--color-table-head: hsl(29, 75%, 85%);
+	--color-table-foot: hsl(29, 75%, 90%);
+	--color-table-body: hsl(29, 75%, 98%);
+	--color-table-stripe: hsl(29, 75%, 96%);
+
+	--color-focus: hsl(210, 40%, 60%);
+	--color-focus: orange;
+
+	--color-accent: hsl(29, 100%, 35%);
+}
+
+/* dark yellow */
+@media (prefers-color-scheme: dark) {
+:root {
+	--color-head: hsl(29, 55%, 75%);
+	--color-body: hsl(29, 55%, 85%);
+	--color-text: hsl(29, 55%, 95%);
+
+	--color-post-head: hsl(29, 55%, 75%);
+	--color-post-body: hsl(29, 55%, 90%);
+
+	--color-table-head: hsl(29, 55%, 75%);
+	--color-table-foot: hsl(29, 55%, 80%);
+	--color-table-body: hsl(29, 55%, 90%);
+	--color-table-stripe: hsl(29, 55%, 88%);
+
+	--color-accent: hsl(0, 60%, 35%);
+}}
