@@ -704,7 +704,7 @@ function action_button(action, label) {
 }
 
 function confirm_action_button(action, label, message) {
-	action_button_imp(action, label, evt => confirm_action(message, action))
+	action_button_imp(action, label, evt => confirm_send_action(message, action))
 }
 
 function send_action(verb, noun) {
@@ -728,7 +728,7 @@ function send_action(verb, noun) {
 	return false
 }
 
-function confirm_action(message, verb, noun) {
+function confirm_send_action(verb, noun, message) {
 	if (window.confirm(message))
 		send_action(verb, noun)
 }
