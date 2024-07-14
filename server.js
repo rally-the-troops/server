@@ -320,6 +320,7 @@ const SQL_SELECT_LOGIN_BY_NAME = SQL("SELECT * FROM user_login_view WHERE name=?
 const SQL_SELECT_USER_PROFILE = SQL("SELECT * FROM user_profile_view WHERE name=?")
 const SQL_SELECT_USER_DYNAMIC = SQL("select * from user_dynamic_view where user_id=?")
 const SQL_SELECT_USER_ID = SQL("SELECT user_id FROM users WHERE name=?").pluck()
+const SQL_SELECT_USER_BY_SEARCH = SQL("select name, atime from users left join user_last_seen using(user_id) where name like ? order by name")
 
 const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify FROM users WHERE user_id=?").pluck()
 const SQL_SELECT_USER_VERIFIED = SQL("SELECT is_verified FROM users WHERE user_id=?").pluck()
@@ -724,7 +725,10 @@ app.get("/contacts/remove/:who_name", must_be_logged_in, function (req, res) {
 	if (!who)
 		return res.status(404).send("User not found.")
 	SQL_DELETE_CONTACT.run(req.user.user_id, who.user_id)
-	return res.redirect("/user/" + who.name)
+	if (req.headers.referer)
+		return res.redirect(req.headers.referer)
+	else
+		return res.redirect("/user/" + who.name)
 })
 
 app.get("/contacts/add-friend/:who_name", must_be_logged_in, function (req, res) {
@@ -732,7 +736,32 @@ app.get("/contacts/add-friend/:who_name", must_be_logged_in, function (req, res)
 	if (!who)
 		return res.status(404).send("User not found.")
 	SQL_INSERT_CONTACT.run(req.user.user_id, who.user_id, 1)
-	return res.redirect("/user/" + who.name)
+	if (req.headers.referer)
+		return res.redirect(req.headers.referer)
+	else
+		return res.redirect("/user/" + who.name)
+})
+
+app.get("/contacts/search", must_be_logged_in, function (req, res) {
+	let q = req.query.q
+	if (q && q.length > 0) {
+		if (!q.includes("%"))
+			q = "%" + q + "%"
+		let results = SQL_SELECT_USER_BY_SEARCH.all(q)
+		for (let item of results)
+			item.atime = human_date(item.atime)
+		res.render("search_user.pug", {
+			user: req.user,
+			search: req.query.q,
+			results
+		})
+	} else {
+		res.render("search_user.pug", {
+			user: req.user,
+			search: null,
+			results: null,
+		})
+	}
 })
 
 app.get("/contacts/add-enemy/:who_name", must_be_logged_in, function (req, res) {
@@ -740,7 +769,10 @@ app.get("/contacts/add-enemy/:who_name", must_be_logged_in, function (req, res) 
 	if (!who)
 		return res.status(404).send("User not found.")
 	SQL_INSERT_CONTACT.run(req.user.user_id, who.user_id, -1)
-	return res.redirect("/user/" + who.name)
+	if (req.headers.referer)
+		return res.redirect(req.headers.referer)
+	else
+		return res.redirect("/user/" + who.name)
 })
 
 /*

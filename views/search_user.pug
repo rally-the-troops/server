@@ -1,0 +1,31 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title User Search Results
+	body
+		include header
+		article
+
+			h1 User Search Results
+
+			if results && search
+				if results.length > 0
+					table.half.striped
+						thead
+							tr
+								th Name
+								th Last seen
+						tbody
+							each who in results
+								tr
+									td
+										a.black(href="/user/"+who.name)= who.name
+									td.w= who.atime
+				else
+					p.error Nobody found matching "#{search}".
+
+			p
+				form(method="get" action="/contacts/search")
+					input(type="text" name="q" size=40 placeholder="Find user..." value=search required)
