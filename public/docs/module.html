@@ -1,0 +1,294 @@
+<!doctype html>
+<title>Module Overview</title>
+<link rel="stylesheet" href="style.css">
+<body>
+<article>
+
+<h1>
+Module Overview
+</h1>
+
+<p>
+A module consists of a directory containing certain mandatory files which are loaded by the server.
+All the other resources needed for a module are also put in this directory.
+Note that all of the files in the module will be available on the web.
+
+<p>
+The module must be put in the server "public" directory, matching the name of title_id.
+If our example game has the title "My Example Module" and a title_id of "example",
+the module directory should be "public/example/".
+
+<h2>
+Metadata
+</h2>
+
+<p>
+Each module needs to be registered in the database so that the system can find it.
+To do this we usually create a title.sql file that you will run to register the module.
+
+<pre>
+insert or replace into titles
+	( title_id, title_name, bgg )
+values
+	( 'example', 'Example', 123 )
+;
+</pre>
+
+<p>
+The bgg column should have the <a href="httsp://www.boardgamegeek.com/">boardgamegeek.com</a> game id.
+
+<p>
+After creating this file, source it into the database and restart the server program.
+
+<pre>
+$ sqlite3 db < public/example/title.sql
+</pre>
+
+<h2>
+Cover image
+</h2>
+
+<p>
+Each game needs a cover image! Create a file containing the high resolution cover image named cover.png or cover.jpg. After you have created or modified the cover image, run the following script to generate the small cover images and thumbnails that the site uses.
+
+<pre>
+$ bash tools/gencovers.sh
+</pre>
+
+<p>
+<i>This script requires ImageMagick (convert), netpbm (pngtopnm), and libjpeg (cjpeg) tools to be installed.</i>
+
+<h2>
+About text
+</h2>
+
+<p>
+The game landing page on the server has a bit of text introducing the game, and links to rules and other reference material.
+
+<p>Put the about text in the about.html file.
+
+<xmp><p>
+Dolorum fugiat dolor temporibus. Debitis ea non illo sed debitis cupiditate
+ipsum illo. Eos eos molestias illo quisquam dicta.
+
+<ul>
+<li> <a href="info/rules.html">Rules</a>
+</ul>
+</xmp>
+
+<h2>
+Create game options
+</h2>
+
+<p>
+When creating a game, the scenarios and common options are handled by the system.
+However, if your game uses custom options these need to be added as form fields.
+
+<p>
+Add a create.html file to inject form fields into the create game page.
+
+<xmp><p>
+Player count:
+<br>
+<select name="players">
+	<option value="2">2 Player</option>
+	<option value="3">3 Player</option>
+	<option value="4">4 Player</option>
+</select>
+
+<p>
+<label>
+	<input type="checkbox" value="true" name="house_rule">
+	House rule
+</label>
+</xmp>
+
+<p>
+This file may be empty if your game doesn't have any custom options.
+
+<h2>
+Client HTML
+</h2>
+
+<p>
+The game needs a play.html file using the following template:
+
+<xmp><!doctype html>
+<html lang="en">
+<head>
+	<meta name="viewport" content="width=device-width, height=device-height, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover">
+	<meta name="theme-color" content="#444">
+	<meta charset="UTF-8">
+	<title>
+		GAME TITLE
+	</title>
+	<link rel="icon" href="favicon.svg">
+	<link rel="stylesheet" href="/fonts/fonts.css">
+	<link rel="stylesheet" href="/common/client.css">
+	<script defer src="/common/client.js"></script>
+	<script defer src="play.js"></script>
+	<style>
+		GAME STYLES
+	</style>
+</head>
+<body>
+
+<header>
+	<div id="toolbar">
+		<details>
+			<summary><img src="/images/cog.svg"></summary>
+			<menu>
+				<li><a href="info/rules.html" target="_blank">Rules</a>
+				<li class="separator">
+			</menu>
+		</details>
+	</div>
+</header>
+
+<aside>
+	<div id="roles"></div>
+	<div id="log"></div>
+</aside>
+
+<main data-min-zoom="0.5" data-max-zoom="2.0">
+	GAME AREA
+</main>
+
+<footer id="status"></footer>
+
+</body>
+</xmp>
+
+<h2> View Program </h2>
+
+<p>
+As you saw above, the client page references a play.js script which should
+contain the code for updating the game. This script must provide a couple of
+functions that are called by the common client code whenever the game state
+changes.
+
+<h3>The view object</h3>
+
+<p>
+TODO
+
+<h3>Framework globals</h3>
+
+<p>
+These global variables are provided by the framework for use with your code.
+
+<dl>
+
+<dt>var player
+<dd>This variable holds the name of the current role the player has in this browser window.
+The value may change if the client is in replay mode.
+
+<dt>var view
+<dd>This object contains the view for the role as returned by the rules view method.
+
+</dl>
+
+<h3>Framework functions</h3>
+
+<p>
+These functions are provided to your client code to build the game interface and communicate with the server.
+
+<dl>
+
+<dt>function send_action(verb, noun)
+<dd>Call this when player performs an action (such as clicking on a piece).
+If the action is not in the legal list of actions in the view object,
+this function does nothing and returns false. Returns true if the action
+is legal.
+
+<dt>function action_button(verb, label)
+<dd>Show a push button in the top bar for a simple action (if the action is legal).
+
+<dt>function action_button_with_argument(verb, noun, label)
+<dd>Show a push button in the top bar for an action taking a specific argument (if the action with the argument is legal).
+
+
+<dt>function confirm_send_action(verb, noun, question)
+<dd>Same as send_action but pop up a confirmation dialog first.
+
+<dt>function confirm_action_button(verb, label, question)
+<dd>Same as action_button but pop up a confirmation dialog first.
+
+<dt>function send_query(what)
+<dd>Send a "query" message to the rules. The result will be passed to on_reply.
+
+</dl>
+
+<h3>function on_update()</h3>
+
+<p>
+This function is called whenever the "view" object has updated.
+It should update the visible game representation and highlight possible actions.
+
+<p>
+The client code has already updated the prompt message and log when this is called.
+
+<p>
+The view.actions object contains the list of legal actions to present.
+
+<h3>function on_log(text)</h3>
+
+<p>
+Optional function to implement custom HTML formatting of log messages.
+If present, this function must return an HTML element representing the given text.
+
+<h3>function on_reply(what, response)</h3>
+
+<p>
+This function is invoked with the result of send_query.
+The what parameter matches the argument to send_query and is used to identify different queries.
+
+<p>See rommel-in-the-desert and wilderness-war for examples of using the query mechanism.
+
+<h2> Rules Program </h2>
+
+<h3> The game object </h3>
+
+<p>
+TODO...
+
+<h3> exports.scenarios </h3>
+
+<p>
+A list of scenarios! If there are no scenarios, it should be a list with one element "Standard".
+
+<h3> exports.roles = function (scenario, options) </h3>
+
+<p>
+Either a list of roles, or a function returning a list of roles.
+
+<h3> exports.setup = function (seed, scenario, options) </h3>
+
+<p>
+Create the initial game object with a random number seed, scenario, and options object.
+
+<p>
+The options object is filled in with values from the create.html form fields.
+
+<h3> exports.view = function (game, player) </h3>
+
+<p>
+Given a game object, a player role, return the view object that is used by the client to display the game state.
+This should contain game state known to the player.
+
+<p>
+TODO: prompt
+
+<p>
+TODO: actions
+
+<h3> exports.action = function (game, player, verb, noun) </h3>
+
+<p>
+Perform an action taken by a player. Return a game object representing the new state. It's okay to mutate the input game object.
+
+<h3> exports.query = function (game, player, what) </h3>
+
+<p>
+A custom query for information that is normally not presented.
+For example showing a supply line overview, or a list of cards in a discard pile.

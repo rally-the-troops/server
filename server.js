@@ -171,6 +171,7 @@ app.locals.SITE_NAME_P = SITE_NAME.endsWith("!") ? SITE_NAME : SITE_NAME + "."
 app.locals.SITE_URL = SITE_URL
 app.locals.SITE_THEME = process.env.SITE_THEME
 app.locals.SITE_ICON = process.env.SITE_ICON
+app.locals.SITE_IMPRINT = process.env.SITE_IMPRINT
 app.locals.ENABLE_MAIL = !!mailer
 app.locals.ENABLE_WEBHOOKS = !!WEBHOOKS
 app.locals.ENABLE_FORUM = process.env.FORUM | 0

@@ -4,75 +4,39 @@ html
 	head
 		include head
 		title= SITE_NAME
-		style.
-			li img { height: 1.0em; vertical-align: middle; }
 	body
 		include header
 		article
 			h1= SITE_NAME
 
 			p.
-				Here you can play historic board games with other players.
+				Here you can play board games online with other players.
 				You can invite your friends or look in the waiting room to see whether someone wants to play.
 				Your opponents don't have to be online, but if they are you can play live.
+
+			p.
 				Registration and use is free, and there are no ads.
 
 			p.
-				Rally the Troops is a hobby project created and maintained by Tor Andersson.
+				Please read the <a href="/docs/tips.html">Tips &amp; Tricks</a> before playing!
 
 			p.
-				The source code is available on #[a(href="https://git.rally-the-troops.com/") Git].
-
-			h2 Tips &amp; Tricks
-
-			ul
-				li Open a separate browser tab or window for each side when playing solo.
-				li Use the middle mouse button to drag and scroll around the map.
-				li Hold down the Shift key when mousing over a block or counter in order to magnify it.
-				li The #[i Enter] and #[i Escape] keys open and close the chat box.
-				li To invite your friends to a private game, send them the address of the join page.
-				li Chat messages can only be seen by players who are part of a game. They are hidden from observers.
-				li The #[img(src="/images/cog.svg")] menu has links to rules, player aids and other reference material. In some games you can also choose between alternative graphics and layout options.
-				li The #[img(src="/images/earth-africa-europe.svg")] button hides all counters and markers, if you need to check something on the map that is obscured.
-				li The #[img(src="/images/magnifying-glass.svg")] button shrinks the map to fit the screen width.
-				li The #[img(src="/images/scroll-quill.svg")] button hides the game log and player status displays, so you can see more of the map.
-				li The #[img(src="/images/chat-bubble.svg")] button lights up if you have unread chat messages.
-				li The #[img(src="/images/cycle.svg")] button appears when the game is over, and can be used to quickly start a rematch.
-
-			h2 Pace &amp; Etiquette
+				Read the developer <a href="/docs/">documentation</a> if you want to create modules.
 
 			p.
-				For everyone's enjoyment, please respect the pace requests!
-				If someone wants a fast game, don't join if you can only play one move per day.
+				The source code is available on #[a(href="https://git.rally-the-troops.com/") git.rally-the-troops.com].
 
-			dl
-				dt #{EMOJI_LIVE} Live
-				dd.
-					Let your opponents know if you're going away!
-					If you need to resume the game another day, arrange a time when you can all continue,
-					or agree to continue playing at a different pace.
+			h2 Imprint
 
-				dt #{EMOJI_FAST} Fast
-				dd.
-					Turn on notifications so you can take your turns promptly.
-					If you see that your opponent is online (the dot next to their name is filled in)
-					then stay in the game for a while and perhaps you can play live for a bit.
+			p !{SITE_IMPRINT}
 
-				dt #{EMOJI_SLOW} Slow
-				dd.
-					If you create a game and know you can not play more than one move per day,
-					please pick this option to set the appropriate expectations.
-
-				dt Any
-				dd.
-					Anything goes. Read the game notice and adapt!
-
-			h2 Privacy statement
+			h2 Privacy policy
 
 			p When you create an account we collect the following personal information:
 
 			ul
-				li Your email address in order to send password reset emails and notifications.
+				li E-mail addresses in order to send password reset emails and notifications.
+				li IP addresses to prevent malicious behavior.
 				li Your messages and forum posts.
 				li Your game activity.
 

@@ -1,0 +1,82 @@
+<!doctype html>
+<title>RTT: Getting Started</title>
+<link rel="stylesheet" href="style.css">
+<body>
+<article>
+
+<h1>
+Getting Started
+</h1>
+
+<p>
+The <i>Rally the Troops</i> software is very simple and has minimal dependencies.
+All the data is stored in a single SQLite3 database.
+The server runs in a single Node process using the Express.js framework.
+
+<p>
+To run an RTT server instance, you will need
+the <a href="https://www.sqlite.org/index.html">sqlite3</a> command line tool
+and
+<a href="https://nodejs.org/en">Node</a>.
+
+<h2>
+Install the server
+</h2>
+
+<p>
+Check out the server repository.
+
+<pre>
+git clone https://git.rally-the-troops.com/common/server
+</pre>
+
+<p>
+In the cloned server directory, install the NPM dependencies:
+
+<pre>
+npm install
+</pre>
+
+<p>
+Initialize the database:
+
+<pre>
+sqlite3 db &lt; schema.sql
+</pre>
+
+<h2>
+Install the modules
+</h2>
+
+<p>
+Game modules are found in the "public" directory.
+They also need to be registered in the database.
+
+<p>
+Check out a game module:
+
+<pre>
+git clone https://git.rally-the-troops.com/modules/field-cloth-gold public/field-cloth-gold
+</pre>
+
+<p>
+Register it in the database:
+
+<pre>
+sqlite3 db &lt; public/field-cloth-gold/title.sql
+</pre>
+
+<h2>
+Start the server
+</h2>
+
+<pre>
+node server.js
+</pre>
+
+<p>
+Open the browser to <a href="http://localhost:8080/">http://localhost:8080/</a> and create an account.
+
+<p>
+The first account created will have administrator privileges.
+

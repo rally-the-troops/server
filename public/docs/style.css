@@ -1,0 +1,30 @@
+html { background-color: white; color: black; }
+xmp, pre { background-color: #fafafa; }
+xmp, pre { border: 1px solid gray; }
+h1, h2, h3 { color: brown; }
+
+xmp, pre { white-space: pre-wrap; }
+
+html { margin: 0; padding: 0; line-height: 1.5; }
+body { padding: 1rem 2rem; margin: 0 auto; max-width: 45rem; }
+xmp, pre { min-width: fit-content; }
+h1, h2, h3 { margin: 2rem 0 1rem 0; padding: 0; font-weight: normal; font-family: sans-serif; }
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.2rem; }
+p, ul, ol, dl, figure, blockquote, xmp, pre, table { margin: 1rem 0; font-size: 1rem; }
+xmp, pre { font-size: 0.8rem; padding: 1rem 1rem; }
+tt, code, kbd { font-size: 0.8rem; }
+kbd { background-color: whitesmoke; padding: 0px 4px; border: 1px solid #444; }
+dd { margin-bottom: 0.5rem; }
+
+hr { margin: 2rem 0; border: none; border-top: 2px dotted brown; }
+
+article::after {
+	display: block;
+	margin: 2rem 0;
+	color: brown;
+	font-size: 1.8rem;
+	text-align: center;
+	content: "\2766";
+}
