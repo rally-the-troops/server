@@ -227,30 +227,6 @@ function send_invite() {
 	}
 }
 
-let blink_title = document.title
-let blink_timer = 0
-
-function start_blinker(message) {
-	let tick = false
-	if (blink_timer)
-		stop_blinker()
-	if (!document.hasFocus()) {
-		document.title = message
-		blink_timer = setInterval(function () {
-			document.title = tick ? message : blink_title
-			tick = !tick
-		}, 1000)
-	}
-}
-
-function stop_blinker() {
-	document.title = blink_title
-	clearInterval(blink_timer)
-	blink_timer = 0
-}
-
-window.addEventListener("focus", stop_blinker)
-
 function start_event_source() {
 	if (!game)
 		return
@@ -438,7 +414,6 @@ function update() {
 
 	if (!game) {
 		window.game_enter.textContent = "Game deleted!"
-		stop_blinker()
 		return
 	}
 
@@ -470,11 +445,6 @@ function update() {
 			create_button("Delete", confirm_delete)
 		if (may_start())
 			create_button("Start", start)
-
-		if (start_status === 0 && game.status === 1)
-			start_blinker("STARTED")
-		else
-			stop_blinker()
 	}
 }
 
