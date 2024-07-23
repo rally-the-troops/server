@@ -61,10 +61,11 @@ mixin gamelist(list,hide_title=0)
 					else if (item.status === 2) className += " finished"
 					else if (item.status === 3) className += " archived"
 					if (item.is_unread) chat_icon = "\u{1f4dd}"
-					if (item.is_match) pace_icon = EMOJI_MATCH
-					else if (item.pace === 1) pace_icon = EMOJI_LIVE, pace_text = "Live!"
-					else if (item.pace === 2) pace_icon = EMOJI_FAST, pace_text = "Fast - many moves per day"
-					else if (item.pace === 3) pace_icon = EMOJI_SLOW, pace_text = "Slow - one move per day"
+					if (item.is_private) pace_icon += EMOJI_PRIVATE
+					if (item.is_match) pace_icon += EMOJI_MATCH
+					else if (item.pace === 1) pace_icon += EMOJI_LIVE, pace_text = "Live!"
+					else if (item.pace === 2) pace_icon += EMOJI_FAST, pace_text = "Fast - many moves per day"
+					else if (item.pace === 3) pace_icon += EMOJI_SLOW, pace_text = "Slow - one move per day"
 
 				div(class=className)
 					div.game_head
@@ -77,25 +78,25 @@ mixin gamelist(list,hide_title=0)
 
 						case item.status
 							when 0
-								a(class="command" href=`/join/${item.game_id}`) Enter
+								a(class="command" href=`/join/${item.game_id}`) Join
 							when 1
 								if !item.is_ready
-									a(class="command" href="/join/"+item.game_id) Enter
+									a(class="command" href="/join/"+item.game_id) Join
 								else if item.is_yours
 									if item.your_role
 										a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=${encodeURIComponent(item.your_role)}`) Play
 									else
-										a(class="command" href="/join/"+item.game_id) Enter
+										a(class="command" href="/join/"+item.game_id) Play
 								else
-									a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=Observer`) View
+									a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}`) Watch
 							when 2
 								if item.is_yours
 									if item.your_role
-										a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=${encodeURIComponent(item.your_role)}`) Play
+										a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=${encodeURIComponent(item.your_role)}`) Review
 									else
-										a(class="command" href="/join/"+item.game_id) Enter
+										a(class="command" href="/join/"+item.game_id) Review
 								else
-									a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}&role=Observer`) View
+									a(class="command" href=`/${item.title_id}/play.html?game=${item.game_id}`) Review
 							when 3
 								| Archived
 

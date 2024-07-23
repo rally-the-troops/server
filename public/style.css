@@ -21,7 +21,6 @@ html {
 
 	--color-table-active: hsla(55, 100%, 50%, 0.15);
 	--color-table-invite: hsla(120, 100%, 50%, 0.15);
-	--color-table-danger: hsla(350, 100%, 50%, 0.15);
 }
 
 /* light gray */
@@ -140,6 +139,8 @@ html, body { margin: 0 }
 h1 { margin: 16px 0 16px -1px; font-size: 24px; }
 h2 { margin: 16px 0 16px -1px; font-size: 20px; }
 h3 { margin: 16px 0 8px -1px; font-size: 16px; }
+
+h1 .icon { font-weight: normal; }
 
 html {
 	overflow-y: scroll;

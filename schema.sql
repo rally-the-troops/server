@@ -474,6 +474,18 @@ create view game_view as
 			on owner.user_id = games.owner_id
 	;
 
+drop view if exists game_view_public;
+create view game_view_public as
+	select
+		*
+	from
+		game_view
+	where
+		not is_private
+		and join_count > 0
+		and join_count = user_count
+	;
+
 drop view if exists player_view;
 create view player_view as
 	select
@@ -502,11 +514,13 @@ create view player_view as
 					10.0 - (time_used - time_added)
 				end
 			end
-		) as time_left
+		) as time_left,
+		atime
 	from
 		games
 		join players using(game_id)
 		join users using(user_id)
+		left join user_last_seen using(user_id)
 	;
 
 drop view if exists time_control_view;

@@ -176,10 +176,18 @@ app.locals.ENABLE_MAIL = !!mailer
 app.locals.ENABLE_WEBHOOKS = !!WEBHOOKS
 app.locals.ENABLE_FORUM = process.env.FORUM | 0
 
+app.locals.EMOJI_PRIVATE = "\u{1F512}" // or 512
 app.locals.EMOJI_MATCH = "\u{1f3c6}"
 app.locals.EMOJI_LIVE = "\u{1f465}"
 app.locals.EMOJI_FAST = "\u{1f3c1}"
 app.locals.EMOJI_SLOW = "\u{1f40c}"
+
+const PACE_ICON = [
+	"",
+	app.locals.EMOJI_LIVE,
+	app.locals.EMOJI_FAST,
+	app.locals.EMOJI_SLOW
+]
 
 app.set("x-powered-by", false)
 app.set("etag", false)
@@ -1146,9 +1154,10 @@ function option_to_english(k) {
 	return k
 }
 
-function format_options(options_json, options) {
+function format_options(options_json) {
 	if (options_json in HUMAN_OPTIONS_CACHE)
 		return HUMAN_OPTIONS_CACHE[options_json]
+	let options = parse_game_options(options_json)
 	let text = Object.entries(options)
 		.map(([ k, v ]) => {
 			if (k === "players")
@@ -1163,6 +1172,8 @@ function format_options(options_json, options) {
 
 function get_game_roles(title_id, scenario, options) {
 	let roles = RULES[title_id].roles
+	if (typeof options === "string")
+		options = parse_game_options(options)
 	if (typeof roles === "function")
 		return roles(scenario, options)
 	return roles
@@ -1198,7 +1209,7 @@ function load_rules(rules_dir, rules_file, title) {
 			else
 				setup.setup_name = title.title_name
 		}
-		setup.roles = get_game_roles(setup.title_id, setup.scenario, parse_game_options(setup.options))
+		setup.roles = get_game_roles(setup.title_id, setup.scenario, setup.options)
 	}
 
 	title.about_html = fs.readFileSync(rules_dir + "/about.html")
@@ -1399,54 +1410,49 @@ const SQL_INSERT_REMATCH = SQL(`
 `).pluck()
 
 const QUERY_LIST_PUBLIC_GAMES_OPEN = SQL(`
-	select * from game_view where status=0 and not is_private and join_count > 0 and join_count < player_count
+	select * from game_view_public where status = 0 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
 
 const QUERY_LIST_PUBLIC_GAMES_REPLACEMENT = SQL(`
-	select * from game_view where status=1 and not is_private and join_count > 0 and join_count < player_count
+	select * from game_view_public where status = 1 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
 
 const QUERY_LIST_PUBLIC_GAMES_ACTIVE = SQL(`
-	select * from game_view where status=1 and not is_private and join_count = player_count
+	select * from game_view_public where status = 1 and join_count = player_count
 	order by mtime desc, ctime desc
 	limit 12
 	`)
 
 const QUERY_LIST_PUBLIC_GAMES_FINISHED = SQL(`
-	select * from game_view where status=2 and not is_private
+	select * from game_view_public where status = 2
 	order by mtime desc, ctime desc
 	limit 12
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE_OPEN = SQL(`
-	select * from game_view where title_id=? and not is_private and status=0 and join_count > 0 and join_count < player_count
+	select * from game_view_public where title_id=? and status = 0 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
 
-const QUERY_LIST_GAMES_OF_TITLE_READY = SQL(`
-	select * from game_view where title_id=? and not is_private and status=0 and join_count = player_count
-	order by mtime desc, ctime desc
-	`)
-
 const QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT = SQL(`
-	select * from game_view where title_id=? and not is_private and status=1 and join_count > 0 and join_count < player_count
+	select * from game_view_public where title_id=? and status = 1 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
 	order by mtime desc, ctime desc
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE_ACTIVE = SQL(`
-	select * from game_view where title_id=? and not is_private and status=1 and join_count = player_count
+	select * from game_view_public where title_id=? and status = 1 and join_count = player_count
 	order by mtime desc, ctime desc
 	limit 12
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE_FINISHED = SQL(`
-	select * from game_view where title_id=? and not is_private and status=2
+	select * from game_view_public where title_id=? and status = 2
 	order by mtime desc, ctime desc
 	limit 12
 	`)
@@ -1511,8 +1517,7 @@ function check_join_game_limit(user) {
 }
 
 function annotate_game_info(game, user_id, unread) {
-	let options = parse_game_options(game.options)
-	game.human_options = format_options(game.options, options)
+	game.human_options = format_options(game.options)
 
 	game.is_unread = set_has(unread, game.game_id)
 
@@ -1520,7 +1525,7 @@ function annotate_game_info(game, user_id, unread) {
 	let your_role = null
 	let time_left = Infinity
 
-	let roles = get_game_roles(game.title_id, game.scenario, options)
+	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 
 	game.players = SQL_SELECT_PLAYER_VIEW.all(game.game_id)
 	for (let p of game.players)
@@ -1676,13 +1681,11 @@ function get_title_page(req, res, title_id) {
 	let user_id = req.user ? req.user.user_id : 0
 
 	let open_games = QUERY_LIST_GAMES_OF_TITLE_OPEN.all(title_id, user_id)
-	let ready_games = QUERY_LIST_GAMES_OF_TITLE_READY.all(title_id)
 	let replacement_games = QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT.all(title_id, user_id)
 	let active_games = QUERY_LIST_GAMES_OF_TITLE_ACTIVE.all(title_id)
 	let finished_games = QUERY_LIST_GAMES_OF_TITLE_FINISHED.all(title_id)
 
 	annotate_games(open_games, user_id, unread)
-	annotate_games(ready_games, user_id, unread)
 	annotate_games(replacement_games, user_id, unread)
 	annotate_games(active_games, user_id, unread)
 	annotate_games(finished_games, user_id, unread)
@@ -1691,7 +1694,6 @@ function get_title_page(req, res, title_id) {
 		user: req.user,
 		title: title,
 		open_games,
-		ready_games,
 		replacement_games,
 		active_games,
 		finished_games,
@@ -1761,13 +1763,13 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 	if (is_random_scenario(title_id, scenario))
 		rand = 1
 
-	let player_count = get_game_roles(title_id, scenario, parse_game_options(options)).length
+	let player_count = get_game_roles(title_id, scenario, options).length
 
 	let game_id = SQL_INSERT_GAME.get(user_id, title_id, scenario, options, player_count, pace, priv, rand, notice, 0)
 	res.redirect("/join/" + game_id)
 })
 
-app.get("/delete/:game_id", must_be_logged_in, function (req, res) {
+app.post("/api/delete/:game_id", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id
 	let title_id = SQL_SELECT_GAME_TITLE.get(game_id)
 	let info = SQL_DELETE_GAME_BY_OWNER.run(game_id, req.user.user_id)
@@ -1775,13 +1777,13 @@ app.get("/delete/:game_id", must_be_logged_in, function (req, res) {
 		return res.send("Not authorized to delete that game ID.")
 	if (info.changes === 1)
 		update_join_clients_deleted(game_id)
-	res.redirect("/" + title_id)
+	res.send("SUCCESS")
 })
 
 function insert_rematch_players(old_game_id, new_game_id, req_user_id, order) {
 	let game = SQL_SELECT_GAME.get(old_game_id)
 	let players = SQL_SELECT_PLAYERS.all(old_game_id)
-	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
+	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	let n = roles.length
 
 	if (players.length !== n)
@@ -1861,39 +1863,27 @@ app.post("/rematch/:old_game_id", must_be_logged_in, function (req, res) {
 
 function update_join_clients_deleted(game_id) {
 	let list = join_clients[game_id]
-	if (list && list.length > 0) {
-		for (let { res } of list) {
-			res.write("retry: 15000\n")
-			res.write("event: deleted\n")
-			res.write("data: The game doesn't exist.\n\n")
-		}
-	}
+	if (list && list.length > 0)
+		for (let res of list)
+			res.write("event: deleted\ndata: null\n\n")
 	delete join_clients[game_id]
 }
 
-function update_join_clients_game(game_id) {
+function update_join_clients(game_id) {
 	let list = join_clients[game_id]
 	if (list && list.length > 0) {
 		let game = SQL_SELECT_GAME_VIEW.get(game_id)
-		for (let { res } of list) {
-			res.write("retry: 15000\n")
-			res.write("event: game\n")
-			res.write("data: " + JSON.stringify(game) + "\n\n")
-		}
-	}
-}
-
-function update_join_clients_players(game_id) {
-	let list = join_clients[game_id]
-	if (list && list.length > 0) {
-		let players = SQL_SELECT_PLAYER_VIEW.all(game_id)
-		let ready = is_game_ready(list.player_count, players)
-		for (let { res } of list) {
-			res.write("retry: 15000\n")
-			res.write("event: players\n")
-			res.write("data: " + JSON.stringify(players) + "\n\n")
-			res.write("event: ready\n")
-			res.write("data: " + ready + "\n\n")
+		if (game) {
+			let players = SQL_SELECT_PLAYER_VIEW.all(game_id)
+			let roles = null
+			if (game)
+				roles = get_game_roles(game.title_id, game.scenario, game.options)
+			let data = "event: updated\ndata: " + JSON.stringify({game,roles,players}) + "\n\n"
+			for (let res of list)
+				res.write(data)
+		} else {
+			for (let res of list)
+				res.write("event: deleted\ndata: null\n\n")
 		}
 	}
 }
@@ -1904,10 +1894,7 @@ app.get("/join/:game_id", function (req, res) {
 	if (!game)
 		return res.status(404).send("Invalid game ID.")
 
-	let options = parse_game_options(game.options)
-	game.human_options = format_options(game.options, options)
-
-	let roles = get_game_roles(game.title_id, game.scenario, options)
+	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	let players = SQL_SELECT_PLAYER_VIEW.all(game_id)
 
 	let whitelist = null
@@ -1924,15 +1911,20 @@ app.get("/join/:game_id", function (req, res) {
 			rewind = SQL_SELECT_REWIND.all(game_id)
 	}
 
-	let ready = (game.status === STATUS_OPEN) && is_game_ready(game.player_count, players)
-	game.ctime = human_date(game.ctime)
-	game.mtime = human_date(game.mtime)
+	let icon = ""
+	if (game.is_private)
+		icon += app.locals.EMOJI_PRIVATE
+	if (game.is_match)
+		icon += app.locals.EMOJI_MATCH
+	if (game.pace)
+		icon += PACE_ICON[game.pace]
+
 	res.render("join.pug", {
 		user: req.user,
+		icon,
 		game,
 		roles,
 		players,
-		ready,
 		whitelist,
 		blacklist,
 		friends,
@@ -1950,34 +1942,30 @@ app.get("/join-events/:game_id", must_be_logged_in, function (req, res) {
 	res.setHeader("Connection", "keep-alive")
 	res.setHeader("X-Accel-Buffering", "no")
 
-	if (!game) {
-		return res.send("event: deleted\ndata: The game doesn't exist.\n\n")
-	}
+	if (!game)
+		return res.send("data: null\n\n")
+
 	if (!(game_id in join_clients)) {
 		join_clients[game_id] = []
 		join_clients[game_id].player_count = game.player_count
 	}
-	join_clients[game_id].push({ res: res, user_id: req.user.user_id })
+	join_clients[game_id].push(res)
 
 	res.on("close", () => {
 		let list = join_clients[game_id]
 		if (list) {
-			let i = list.findIndex(item => item.res === res)
+			let i = list.indexOf(res)
 			if (i >= 0)
 				list.splice(i, 1)
 		}
 	})
 
-	res.write("retry: 15000\n\n")
-	res.write("event: game\n")
-	res.write("data: " + JSON.stringify(game) + "\n\n")
-	res.write("event: players\n")
-	res.write("data: " + JSON.stringify(players) + "\n\n")
+	res.write("retry: 15000\nevent: hello\ndata: null\n\n")
 })
 
 function do_join(res, game_id, role, user_id, user_name, is_invite) {
 	let game = SQL_SELECT_GAME.get(game_id)
-	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
+	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	if (game.is_random && game.status === STATUS_OPEN) {
 		let m = role.match(/^Random (\d+)$/)
 		if (!m || Number(m[1]) < 1 || Number(m[1]) > roles.length)
@@ -1988,7 +1976,7 @@ function do_join(res, game_id, role, user_id, user_name, is_invite) {
 	}
 	let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, user_id, is_invite)
 	if (info.changes === 1) {
-		update_join_clients_players(game_id)
+		update_join_clients(game_id)
 		res.send("SUCCESS")
 
 		// send chat message about player joining a game in progress
@@ -2003,7 +1991,7 @@ function do_join(res, game_id, role, user_id, user_name, is_invite) {
 	}
 }
 
-app.post("/join/:game_id/:role", must_be_logged_in, function (req, res) {
+app.post("/api/join/:game_id/:role", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let role = req.params.role
 	let limit = check_join_game_limit(req.user)
@@ -2012,24 +2000,26 @@ app.post("/join/:game_id/:role", must_be_logged_in, function (req, res) {
 	do_join(res, game_id, role, req.user.user_id, req.user.name, 0)
 })
 
-app.post("/invite/:game_id/:role/:user", must_be_logged_in, function (req, res) {
+app.post("/api/invite/:game_id/:role/:user", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let role = req.params.role
 	let user_id = SQL_SELECT_USER_ID.get(req.params.user)
-	if (user_id)
-		do_join(res, game_id, role, user_id, null, 1)
-	else
+	if (!user_id)
 		res.send("User not found.")
+	else if (user_id === req.user.user_id)
+		res.send("You cannot invite yourself!")
+	else 
+		do_join(res, game_id, role, user_id, null, 1)
 })
 
-app.post("/accept/:game_id/:role", must_be_logged_in, function (req, res) {
+app.post("/api/accept/:game_id/:role", must_be_logged_in, function (req, res) {
 	// TODO: check join game limit if inviting self...
 	let game_id = req.params.game_id | 0
 	let game = SQL_SELECT_GAME.get(game_id)
 	let role = req.params.role
 	let info = SQL_UPDATE_PLAYER_ACCEPT.run(game_id, role, req.user.user_id)
 	if (info.changes === 1) {
-		update_join_clients_players(game_id)
+		update_join_clients(game_id)
 		res.send("SUCCESS")
 
 		// send chat message about player joining a game in progress
@@ -2040,13 +2030,13 @@ app.post("/accept/:game_id/:role", must_be_logged_in, function (req, res) {
 	}
 })
 
-app.post("/part/:game_id/:role", must_be_logged_in, function (req, res) {
+app.post("/api/part/:game_id/:role", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let role = req.params.role
 	let user_name = SQL_SELECT_PLAYER_NAME.get(game_id, role)
 	let game = SQL_SELECT_GAME.get(game_id)
 	SQL_DELETE_PLAYER_ROLE.run(game_id, role)
-	update_join_clients_players(game_id)
+	update_join_clients(game_id)
 	res.send("SUCCESS")
 
 	// send chat message about player leaving a game in progress
@@ -2074,7 +2064,7 @@ function assign_random_roles(game, options, players) {
 	}
 }
 
-app.post("/start/:game_id", must_be_logged_in, function (req, res) {
+app.post("/api/start/:game_id", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let game = SQL_SELECT_GAME.get(game_id)
 	if (game.owner_id !== req.user.user_id)
@@ -2124,34 +2114,11 @@ function start_game(game) {
 			SQL_ROLLBACK.run()
 	}
 
-	update_join_clients_players(game.game_id)
-	update_join_clients_game(game.game_id)
+	update_join_clients(game.game_id)
 
 	send_game_started_notification_to_offline_users(game.game_id)
 	send_your_turn_notification_to_offline_users(game.game_id, null, state.active)
 }
-
-app.get("/play/:game_id/:role", function (req, res) {
-	let game_id = req.params.game_id | 0
-	let role = req.params.role
-	let title = SQL_SELECT_GAME_TITLE.get(game_id)
-	if (!title)
-		return res.status(404).send("Invalid game ID.")
-	res.redirect(play_url(title, game_id, role))
-})
-
-app.get("/play/:game_id", function (req, res) {
-	let game_id = req.params.game_id | 0
-	let user_id = req.user ? req.user.user_id : 0
-	let title = SQL_SELECT_GAME_TITLE.get(game_id)
-	if (!title)
-		return res.status(404).send("Invalid game ID.")
-	let role = SQL_SELECT_PLAYER_ROLE.get(game_id, user_id)
-	if (role)
-		res.redirect(play_url(title, game_id, role))
-	else
-		res.redirect(play_url(title, game_id, "Observer"))
-})
 
 app.get("/api/replay/:game_id", function (req, res) {
 	let game_id = req.params.game_id | 0
@@ -2173,9 +2140,7 @@ app.get("/api/export/:game_id", function (req, res) {
 	return res.type("application/json").send(SQL_SELECT_EXPORT.get(game_id))
 })
 
-app.get("/admin/rewind/:game_id/:snap_id", must_be_administrator, function (req, res) {
-	let game_id = req.params.game_id | 0
-	let snap_id = req.params.snap_id | 0
+function rewind_game_to_snap(game_id, snap_id, res) {
 	let snap = SQL_SELECT_SNAP.get(game_id, snap_id)
 	let game_state = JSON.parse(SQL_SELECT_GAME_STATE.get(game_id))
 	let snap_state = JSON.parse(snap.state)
@@ -2190,19 +2155,45 @@ app.get("/admin/rewind/:game_id/:snap_id", must_be_administrator, function (req,
 
 		SQL_REWIND_GAME.run(snap_id - 1, snap_state.active, game_id)
 
-		update_join_clients_game(game_id)
+		update_join_clients(game_id)
 		if (game_clients[game_id])
 			for (let other of game_clients[game_id])
 				send_state(other, snap_state)
 
 		SQL_COMMIT.run()
-	} catch (err) {
-		return res.send(err.toString())
 	} finally {
 		if (db.inTransaction)
 			SQL_ROLLBACK.run()
 	}
-	res.redirect("/join/" + game_id)
+}
+
+const SQL_SELECT_REWIND_AUTH = SQL("select 1 from games where game_id=? and owner_id=? and is_private").pluck()
+const SQL_SELECT_REWIND_ONCE_1 = SQL("select max(replay_id) from game_replay where game_id=?").pluck()
+const SQL_SELECT_REWIND_ONCE_2 = SQL("select max(snap_id) from game_snap where game_id=? and replay_id<?").pluck()
+
+app.post("/api/rewind/:game_id", must_be_logged_in, function (req, res) {
+	let game_id = req.params.game_id | 0
+	if (!SQL_SELECT_REWIND_AUTH.get(game_id, req.user.user_id))
+		return res.send("Not authorized to rewind that game ID.")
+	let replay_id = SQL_SELECT_REWIND_ONCE_1.get(game_id)
+	if (replay_id) {
+		let snap_id = SQL_SELECT_REWIND_ONCE_2.get(game_id, replay_id)
+		if (snap_id) {
+			try {
+				rewind_game_to_snap(game_id, snap_id, res)
+				send_chat_message(game_id, null, null, `${req.user.name} rewound the game to move ${snap_id}.`)
+				return res.send("SUCCESS")
+			} catch (err) {
+				return res.send(err.toString())
+			}
+		}
+	}
+	res.send("Nothing to rewind!")
+})
+
+app.get("/api/rewind/:game_id/:snap_id", must_be_administrator, function (req, res) {
+	rewind_game_to_snap(req.params.game_id | 0, req.params.snap_id | 0, res)
+	res.redirect("/join/" + req.params.game_id)
 })
 
 const SQL_CLONE_1 = SQL(`
@@ -2219,7 +2210,7 @@ const SQL_CLONE_2 = [
 	SQL(`insert into game_snap(game_id,snap_id,replay_id,state) select $new_game_id,snap_id,replay_id,state from game_snap where game_id=$old_game_id`),
 ]
 
-app.get("/admin/clone/:game_id", must_be_administrator, function (req, res) {
+app.get("/api/clone/:game_id", must_be_administrator, function (req, res) {
 	let old_game_id = req.params.game_id | 0
 	let new_game_id = 0
 
@@ -2639,10 +2630,6 @@ function is_player_online(game_id, user_id) {
 		for (let other of game_clients[game_id])
 			if (other.user && other.user.user_id === user_id)
 				return true
-	if (join_clients[game_id])
-		for (let other of join_clients[game_id])
-			if (other.user_id === user_id)
-				return true
 	return false
 }
 
@@ -2745,7 +2732,8 @@ function put_new_state(game_id, state, old_active, role, action, args) {
 
 		put_game_state(game_id, state, old_active, role)
 
-		update_join_clients_game(game_id)
+		if (state.active !== old_active)
+			update_join_clients(game_id)
 		if (game_clients[game_id])
 			for (let other of game_clients[game_id])
 				send_state(other, state)
@@ -2808,7 +2796,7 @@ function do_resign(game_id, role, how) {
 
 	let result = "None"
 
-	let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
+	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	if (game.player_count === 2) {
 		for (let r of roles)
 			if (r !== role)
@@ -3086,21 +3074,15 @@ wss.on("connection", (socket, req) => {
 			if (!socket.user)
 				return socket.close(1000, "You are not logged in!")
 
-			if (socket.role && socket.role !== "undefined" && socket.role !== "null") {
-				let me = players.find(p => p.user_id === socket.user.user_id && p.role === socket.role)
-				if (!me)
-					return socket.close(1000, "You aren't assigned that role!")
-			} else {
-				let me = players.find(p => p.user_id === socket.user.user_id)
-				socket.role = me ? me.role : "Observer"
-			}
+			if (!players.find(p => p.user_id === socket.user.user_id && p.role === socket.role))
+				return socket.close(1000, "You aren't assigned that role!")
 
 			let new_chat = SQL_SELECT_UNREAD_CHAT.get(socket.user.user_id, socket.game_id)
 			send_message(socket, "newchat", new_chat)
 		}
 
 		if (socket.seen === 0) {
-			let roles = get_game_roles(game.title_id, game.scenario, parse_game_options(game.options))
+			let roles = get_game_roles(game.title_id, game.scenario, game.options)
 			send_message(socket, "players", [
 				socket.role,
 				roles.map(r => ({ role: r, name: players.find(p => p.role === r)?.name }))

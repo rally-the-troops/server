@@ -30,10 +30,6 @@ html
 			p
 				a(href="/create/"+title.title_id) Create a new game
 
-			if ready_games.length > 0
-				h2 Open (waiting to start)
-				+gamelist(ready_games, true)
-
 			if active_games.length > 0
 				h2 Recently active
 				+gamelist(active_games, true)

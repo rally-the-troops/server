@@ -8,71 +8,51 @@ html
 			game.title_id)
 		title ##{game.game_id} - #{game.title_name}
 		style.
-			th,td { border: var(--table-border); }
-			a.red { text-decoration: none; color: var(--color-red); font-size: 15px; float: right; }
-			a.green { text-decoration: none; color: var(--color-green); font-size: 15px; float: right; }
-			td, th { border: var(--thin-border); }
-			td { width: 180px; }
-			.hide { display: none; }
-			td.is_invite { background-color: var(--color-table-invite); }
-			td.is_active { background-color: var(--color-table-active); }
-			td.enemy { background-color: var(--color-table-danger); }
-			td.enemy::before { content: "\1f6ab    "; font-size: 15px; }
+			table { width: clamp(240px, 100%, 400px); }
+			table.invite tr.p { background-color: var(--color-table-invite) }
+			table.active tr.p { background-color: var(--color-table-active) }
+			#game_info td { padding: 2px 10px }
+			#game_info td:first-child { width: 80px }
+			#game_info tr:first-child td { padding-top: 5px }
+			#game_info tr:last-child td { padding-bottom: 5px }
+			td.r a { margin-left: 18px; }
+			tr.p i { color: #0008; }
+			td.blacklist::before { color: brown; content: "\1f6ab    "; font-size: 15px; }
 		script.
 			let game = !{ JSON.stringify(game) }
-			let roles = !{ JSON.stringify(roles) }
 			let players = !{ JSON.stringify(players) }
+			let roles = !{ JSON.stringify(roles) }
 			let user_id = !{ user ? user.user_id : 0 }
-			let whitelist = !{ JSON.stringify(whitelist) }
 			let blacklist = !{ JSON.stringify(blacklist) }
 			let friends = !{ JSON.stringify(friends) }
-			let limit = !{ !!limit }
-			let ready = !{ ready }
 		script(src="/join.js")
 	body
 		include header
 		article
-			if game.scenario === "Standard"
-				h1 ##{game.game_id} - #{game.title_name}
+			if icon
+				h1 <span class="icon">#{icon}</span> ##{game.game_id} - #{game.title_name}
 			else
-				h1 ##{game.game_id} - #{game.title_name} - #{game.scenario}
+				h1 ##{game.game_id} - #{game.title_name}
 
 			div.logo
 				+gamecover(game.title_id)
+
+			p.error#error
 
 			if limit && game.status < 1
 				p.error= limit
 			if !user
 				p.error You are not logged in!
-			p.error#error
 
-			if game.owner_id
-				if game.is_private
-					p Created #{game.ctime} by <a class="black" href="/user/#{game.owner_name}">#{game.owner_name}</a> (private).
-				else
-					p Created #{game.ctime} by <a class="black" href="/user/#{game.owner_name}">#{game.owner_name}</a>.
-			else
-				p Created #{game.ctime}.
+			div#game_info
 
-			if game.status > 1
-				p Finished #{game.mtime}.
-			else if game.status > 0
-				p Last move #{game.mtime}.
+			p#game_enter
 
-			unless game.human_options === "None"
-				p Options: #{game.human_options}.
+			div#game_players
 
-			case game.pace
-				when 1
-					p #{EMOJI_LIVE} Live!
-				when 2
-					p #{EMOJI_FAST} Fast &ndash; many moves per day.
-				when 3
-					p #{EMOJI_SLOW} Slow &ndash; one move per day.
+			p#game_actions
 
-			if game.notice
-				p
-					i= game.notice
+			p.error#disconnected
 
 			if user
 				dialog(id="invite")
@@ -87,30 +67,12 @@ html
 					button(onclick="send_invite()") Invite
 					button(onclick="hide_invite()") Cancel
 
-			p
-			table
-				tbody
-					each role in roles
-						tr
-							th.w(id="role_"+role.replace(/ /g, "_")+"_name")= role
-							td(id="role_"+role.replace(/ /g, "_")) -
-				tfoot
-					tr
-						td#message(colspan=2) -
-
-			p
-				button.hide#delete_button(onclick="confirm_delete()") Delete
-				button.hide#start_button(onclick="start()" disabled) Start
-
-			if !user && !ready
-				p <a href="/login">Login</a> or <a href="/signup">sign up</a> to play.
-
 			if user && user.user_id === 1
 				hr
 				div: p
 					each snap in rewind
-						<a href="/admin/rewind/#{game.game_id}/#{snap.snap_id}">REWIND #{snap.snap_id}</a> - #{snap.state} - #{snap.active}
+						<a href="/api/rewind/#{game.game_id}/#{snap.snap_id}">REWIND #{snap.snap_id}</a> - #{snap.state} - #{snap.active}
 						br
 					if DEBUG
-						<a href="/admin/clone/#{game.game_id}">CLONE</a>
+						<a href="/api/clone/#{game.game_id}">CLONE</a>
 						br

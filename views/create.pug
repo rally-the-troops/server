@@ -13,6 +13,8 @@ html
 			div.logo
 				+gamecover(title.title_id)
 
+			if limit
+				p.error= limit
 			if !user
 				p.error You are not logged in!
 
@@ -77,9 +79,7 @@ html
 							input(type="checkbox" name="is_private" value="true")
 							| Private
 
-					if limit
-						p.error= limit
-					else
+					if !limit
 						p
 							button(type="submit") Create
 
