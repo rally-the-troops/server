@@ -704,7 +704,7 @@ function action_button(action, label) {
 }
 
 function confirm_action_button(action, label, message) {
-	action_button_imp(action, label, evt => confirm_send_action(message, action))
+	action_button_imp(action, label, evt => confirm_send_action(action, undefined, message))
 }
 
 function send_action(verb, noun) {
