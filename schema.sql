@@ -452,8 +452,7 @@ create table if not exists players (
 	role text,
 	user_id integer,
 	is_invite integer,
-	time_used real,
-	time_added real,
+	clock real,
 	score integer,
 	primary key (game_id, role)
 ) without rowid;
@@ -505,14 +504,10 @@ create view player_view as
 			end
 		) as is_active,
 		(
-			case when pace = 0 then
-				21.0 - (julianday() - julianday(mtime))
+			case when active in ( 'Both', role ) then
+				clock - (julianday() - julianday(mtime))
 			else
-				case when active in ( 'Both', role ) then
-					10.0 - ((julianday() - julianday(mtime)) + time_used - time_added)
-				else
-					10.0 - (time_used - time_added)
-				end
+				clock
 			end
 		) as time_left,
 		atime
@@ -527,15 +522,7 @@ drop view if exists time_control_view;
 create view time_control_view as
 	select
 		game_id,
-		user_id,
 		role,
-		(
-			case when pace = 0 then
-				21.0 - (julianday() - julianday(mtime))
-			else
-				10.0 - ((julianday() - julianday(mtime)) + time_used - time_added)
-			end
-		) as time_left,
 		is_opposed
 	from
 		games
@@ -543,6 +530,7 @@ create view time_control_view as
 	where
 		status = 1
 		and active in ( 'Both', role )
+		and clock - (julianday() - julianday(mtime)) < 0
 	;
 
 drop view if exists your_turn_reminder;
@@ -689,7 +677,7 @@ drop trigger if exists trigger_time_used_update;
 create trigger trigger_time_used_update before update of active on games
 begin
 	update players
-		set time_used = time_used + (julianday() - julianday(old.mtime))
+		set clock = clock - (julianday() - julianday(old.mtime))
 	where
 		players.game_id = old.game_id and players.role in ( 'Both', old.active );
 end;

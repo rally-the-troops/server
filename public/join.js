@@ -2,11 +2,11 @@
 
 /* global game, roles, players, blacklist, user_id */
 
-const pace_text = [
-	"",
-	"Live!",
-	"Fast \u2013 many moves per day",
-	"Slow \u2013 one move per day",
+const PACE_TEXT = [
+	"No time control",
+	 "7+ moves per day",
+	 "3+ moves per day",
+	 "1+ moves per day",
 ]
 
 let start_status = 0
@@ -321,7 +321,8 @@ function create_game_list() {
 	if (game.scenario !== "Standard")
 		create_game_list_item(list, "Scenario", game.scenario)
 	create_game_list_item(list, "Options", format_options(game.options))
-	create_game_list_item(list, "Pace", pace_text[game.pace])
+	if (game.pace > 0)
+		create_game_list_item(list, "Pace", PACE_TEXT[game.pace])
 	create_game_list_item(list, "Notice", game.notice)
 
 	if (game.owner_id)

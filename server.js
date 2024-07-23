@@ -178,15 +178,19 @@ app.locals.ENABLE_FORUM = process.env.FORUM | 0
 
 app.locals.EMOJI_PRIVATE = "\u{1F512}" // or 512
 app.locals.EMOJI_MATCH = "\u{1f3c6}"
-app.locals.EMOJI_LIVE = "\u{1f465}"
-app.locals.EMOJI_FAST = "\u{1f3c1}"
-app.locals.EMOJI_SLOW = "\u{1f40c}"
 
-const PACE_ICON = [
-	"",
-	app.locals.EMOJI_LIVE,
-	app.locals.EMOJI_FAST,
-	app.locals.EMOJI_SLOW
+app.locals.PACE_ICON = [
+	"",		// none
+	 "\u{26a1}",	// blitz
+	 "\u{1f3c1}",	// fast
+	 "\u{1f40c}",	// slow
+]
+
+app.locals.PACE_TEXT = [
+	"No time control",
+	 "7+ moves per day",
+	 "3+ moves per day",
+	 "1+ moves per day",
 ]
 
 app.set("x-powered-by", false)
@@ -1130,13 +1134,6 @@ const STATUS_ACTIVE = 1
 const STATUS_FINISHED = 2
 const STATUS_ARCHIVED = 3
 
-const PACE_ANY = 0
-const PACE_LIVE = 1
-const PACE_FAST = 2
-const PACE_SLOW = 3
-
-const PACE_NAME = [ "Any", "Live", "Fast", "Slow" ]
-
 const PARSE_OPTIONS_CACHE = {}
 
 const HUMAN_OPTIONS_CACHE = {
@@ -1321,13 +1318,6 @@ const SQL_SELECT_GAME_NOTE = SQL("SELECT note FROM game_notes WHERE game_id=? AN
 const SQL_UPDATE_GAME_NOTE = SQL("INSERT OR REPLACE INTO game_notes (game_id,role,note) VALUES (?,?,?)")
 const SQL_DELETE_GAME_NOTE = SQL("DELETE FROM game_notes WHERE game_id=? AND role=?")
 
-const SQL_UPDATE_PLAYERS_ADD_TIME = SQL(`
-	update players
-		set time_added = min(time_used, time_added + 1.5)
-	where
-		players.game_id = ? and players.role = ?
-`)
-
 const SQL_INSERT_REPLAY = SQL("insert into game_replay (game_id,replay_id,role,action,arguments) values (?, (select coalesce(max(replay_id), 0) + 1 from game_replay where game_id=?) ,?,?,?) returning replay_id").pluck()
 
 const SQL_INSERT_SNAP = SQL("insert into game_snap (game_id,snap_id,replay_id,state) values (?, (select coalesce(max(snap_id), 0) + 1 from game_snap where game_id=?), ?, ?) returning snap_id").pluck()
@@ -1384,7 +1374,7 @@ const SQL_UPDATE_PLAYER_ACCEPT = SQL("UPDATE players SET is_invite=0 WHERE game_
 const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?")
 const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
 const SQL_SELECT_PLAYER_NAME = SQL("SELECT name FROM players JOIN users using(user_id) WHERE game_id=? AND role=?").pluck()
-const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite,time_used,time_added) VALUES (?,?,?,?,0,0)")
+const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
 
 const SQL_SELECT_PLAYER_VIEW = SQL("select * from player_view where game_id = ?")
@@ -1930,7 +1920,7 @@ app.get("/join/:game_id", function (req, res) {
 	if (game.is_match)
 		icon += app.locals.EMOJI_MATCH
 	if (game.pace)
-		icon += PACE_ICON[game.pace]
+		icon += app.locals.PACE_ICON[game.pace]
 
 	res.render("join.pug", {
 		user: req.user,
@@ -2120,6 +2110,8 @@ function start_game(game) {
 		let replay_id = put_replay(game.game_id, null, ".setup", [ seed, game.scenario, options ])
 		put_snap(game.game_id, replay_id, state)
 		SQL_INSERT_GAME_STATE.run(game.game_id, JSON.stringify(state))
+
+		SQL_UPDATE_PLAYERS_INIT_TIME.run(game.game_id)
 
 		SQL_COMMIT.run()
 	} finally {
@@ -2617,14 +2609,45 @@ setTimeout(purge_game_ticker, 89 * 1000)
  * TIME CONTROL
  */
 
-const QUERY_LIST_TIME_CONTROL = SQL("select * from time_control_view join users using(user_id) where time_left < 0")
+const SQL_UPDATE_PLAYERS_INIT_TIME = SQL(`
+	update players
+		set clock = (
+			case (select pace from games where games.game_id = players.game_id)
+				when 1 then 1
+				when 2 then 2
+				when 3 then 3
+				else 14
+			end
+		)
+	where
+		players.game_id = ?
+`)
+
+const SQL_UPDATE_PLAYERS_ADD_TIME = SQL(`
+	update players
+		set clock = (
+			case (select pace from games where games.game_id = players.game_id)
+				when 1 then min(clock + ${4 / 24}, 3)
+				when 2 then min(clock + ${12 / 24}, 5)
+				when 3 then min(clock + ${36 / 24}, 10)
+				else 14
+			end
+		)
+	where
+		players.game_id = ? and players.role = ?
+`)
+
+// SQL_UPDATE_PLAYERS_USE_TIME is handled by trigger
+
+const SQL_SELECT_TIME_CONTROL = SQL("select * from time_control_view")
 
 function time_control_ticker() {
-	for (let item of QUERY_LIST_TIME_CONTROL.all()) {
+	for (let item of SQL_SELECT_TIME_CONTROL.all()) {
 		if (item.is_opposed) {
-			console.log("TIMED OUT GAME:", item.game_id, item.name, item.time_left)
+			console.log("TIMED OUT GAME:", item.game_id, item.role)
 			do_resign(item.game_id, item.role, "timed out")
 		} else {
+			console.log("TIMED OUT GAME:", item.game_id, item.role, "(solo)")
 			SQL_DELETE_GAME.run(item.game_id)
 		}
 	}

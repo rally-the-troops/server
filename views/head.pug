@@ -62,10 +62,10 @@ mixin gamelist(list,hide_title=0)
 					else if (item.status === 3) className += " archived"
 					if (item.is_unread) chat_icon = "\u{1f4dd}"
 					if (item.is_private) pace_icon += EMOJI_PRIVATE
-					if (item.is_match) pace_icon += EMOJI_MATCH
-					else if (item.pace === 1) pace_icon += EMOJI_LIVE, pace_text = "Live!"
-					else if (item.pace === 2) pace_icon += EMOJI_FAST, pace_text = "Fast - many moves per day"
-					else if (item.pace === 3) pace_icon += EMOJI_SLOW, pace_text = "Slow - one move per day"
+					if (item.is_match)
+						pace_icon += EMOJI_MATCH
+					else if (item.pace > 0)
+						pace_icon += PACE_ICON[item.pace], pace_text = PACE_TEXT[item.pace]
 
 				div(class=className)
 					div.game_head

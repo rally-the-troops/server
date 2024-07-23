@@ -49,25 +49,11 @@ html
 						input(type="text" autocomplete="off" name="notice" size=45 placeholder="What are you looking for?")
 
 					p Pace:
-						br
-						label
-							input(type="radio" name="pace" value="0" checked)
-							| Any
-
-						br
-						label
-							input(type="radio" name="pace" value="1")
-							| #{EMOJI_LIVE} Live
-
-						br
-						label
-							input(type="radio" name="pace" value="2")
-							| #{EMOJI_FAST} Fast <i>&ndash; many moves per day</i>
-
-						br
-						label
-							input(type="radio" name="pace" value="3")
-							| #{EMOJI_SLOW} Slow <i>&ndash; one move per day</i>
+						each text, pace in PACE_TEXT
+							br
+							label
+								input(type="radio" name="pace" value=pace checked=pace===0)
+								| #{PACE_ICON[pace]} #{text}
 
 					p
 						label
