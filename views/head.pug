@@ -36,7 +36,7 @@ mixin forumpost(row,show_buttons)
 	if show_buttons && user
 		.edit
 			if user.user_id === 1
-				| #[a(href="/admin/delete-post/"+row.post_id) DELETE]
+				| #[a(href="/forum/delete-post/"+row.post_id) DELETE]
 				|
 			if row.author_id === user.user_id
 				| #[a(href="/forum/edit/"+row.post_id) Edit]

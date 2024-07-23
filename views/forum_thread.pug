@@ -16,4 +16,4 @@ html
 				if posts.length > 0
 					p: a(href="/forum/reply/"+posts[0].post_id) Reply
 				if user.user_id === 1
-					p: a(href="/admin/delete-thread/"+thread.thread_id) DELETE THREAD
+					p: a(href="/forum/delete-thread/"+thread.thread_id) DELETE THREAD

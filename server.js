@@ -384,11 +384,6 @@ app.get("/", function (req, res) {
 	res.render("index.pug", { user: req.user })
 })
 
-app.get("/clear-cache", function (req, res) {
-	res.setHeader("Clear-Site-Data", `"cache"`)
-	res.send("Did it work?")
-})
-
 app.get("/create", function (req, res) {
 	res.render("create-index.pug", { user: req.user })
 })
@@ -729,7 +724,7 @@ app.get("/contacts/remove/:who_name", must_be_logged_in, function (req, res) {
 	if (!who)
 		return res.status(404).send("User not found.")
 	SQL_DELETE_CONTACT.run(req.user.user_id, who.user_id)
-	return res.redirect("/contacts")
+	return res.redirect("/user/" + who.name)
 })
 
 app.get("/contacts/add-friend/:who_name", must_be_logged_in, function (req, res) {
@@ -986,7 +981,7 @@ app.get("/forum/thread/:thread_id", function (req, res) {
 	})
 })
 
-app.get("/admin/delete-thread/:thread_id", must_be_administrator, function (req, res) {
+app.get("/forum/delete-thread/:thread_id", must_be_administrator, function (req, res) {
 	let thread_id = req.params.thread_id
 	res.send(JSON.stringify({
 		posts: FORUM_DELETE_THREAD_POSTS.run(thread_id),
@@ -994,7 +989,7 @@ app.get("/admin/delete-thread/:thread_id", must_be_administrator, function (req,
 	}))
 })
 
-app.get("/admin/delete-post/:post_id", must_be_administrator, function (req, res) {
+app.get("/forum/delete-post/:post_id", must_be_administrator, function (req, res) {
 	let post_id = req.params.post_id
 	res.send(JSON.stringify(
 		FORUM_DELETE_POST.run(post_id)
