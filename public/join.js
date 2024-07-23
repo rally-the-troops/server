@@ -390,7 +390,7 @@ function create_player_box(role, player) {
 		if (player.is_invite)
 			box.classList = "invite"
 
-		if (game.status > 0 && (game.pace > 0 || player.time_left < 3))
+		if (game.status === 1 && (game.pace > 0 || player.time_left < 3))
 			td_role_time.textContent = format_time_left(player.time_left)
 
 		td_player_name.innerHTML = player_link(player)
