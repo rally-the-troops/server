@@ -1411,14 +1411,22 @@ const SQL_INSERT_REMATCH = SQL(`
 
 const QUERY_LIST_PUBLIC_GAMES_OPEN = SQL(`
 	select * from game_view_public where status = 0 and join_count < player_count
-	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
-	order by mtime desc, ctime desc
+	and not exists (
+		select 1 from players
+		join contacts on contacts.me=players.user_id
+		where players.game_id=game_view_public.game_id and you=? and relation < 0
+	)
+	order by game_id desc
 	`)
 
 const QUERY_LIST_PUBLIC_GAMES_REPLACEMENT = SQL(`
 	select * from game_view_public where status = 1 and join_count < player_count
-	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
-	order by mtime desc, ctime desc
+	and not exists (
+		select 1 from players
+		join contacts on contacts.me=players.user_id
+		where players.game_id=game_view_public.game_id and you=? and relation < 0
+	)
+	order by game_id desc
 	`)
 
 const QUERY_LIST_PUBLIC_GAMES_ACTIVE = SQL(`
