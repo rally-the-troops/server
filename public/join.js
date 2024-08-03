@@ -77,9 +77,9 @@ function may_start() {
 }
 
 function may_delete() {
-	if (game.owner_id !== user_id || game.is_match || game.status >= 2)
+	if (game.owner_id !== user_id || game.is_match)
 		return false
-	if (game.status > 0 && game.user_count > 0)
+	if (game.status > 0 && game.user_count > 1)
 		return false
 	return true
 }
