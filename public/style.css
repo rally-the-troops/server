@@ -344,7 +344,8 @@ div.body img {
 
 .game_main img {
 	display: block;
-	height: 72px;
+	max-width: 60px;
+	max-height: 72px;
 	margin: 4px 0 4px 4px;
 	border: var(--thin-border);
 }
