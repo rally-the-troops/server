@@ -9,9 +9,9 @@ html {
 * { max-height: 100000px; /* disable chrome's "font boosting" algorithm */ }
 
 :root {
-	--font-normal:  "Source Serif", "Georgia", "Noto Emoji", "Dingbats", serif;
-	--font-small: "Source Serif SmText", "Georgia", "Noto Emoji", "Dingbats", serif;
-	--font-widget: "Source Sans", "Verdana", "Noto Emoji", "Dingbats", sans-serif;
+	--font-normal:  "Source Serif", "Georgia", "Noto Emoji", serif;
+	--font-small: "Source Serif SmText", "Georgia", "Noto Emoji", serif;
+	--font-widget: "Source Sans", "Verdana", "Noto Emoji", sans-serif;
 
 	--drop-shadow: 1px 1px 4px #0004;
 
