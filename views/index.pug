@@ -7,25 +7,29 @@ html
 		meta(name="keywords" content="wargames, war games, block games")
 		title= SITE_NAME
 		style.
-			div.list {
-				margin: 24px 0;
+			.list {
 				display: grid;
-				grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-				gap: 24px 12px;
+				grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+				grid-auto-rows: 190px;
+				gap: 8px;
 			}
-			div.i {
-				height: 200px;
+			.list a {
+				display: grid;
+				grid-template-rows: 146px 40px;
 				text-align: center;
-				margin-bottom: 6px;
+				font-family: var(--font-small);
+				font-size: 14px;
+				line-height: 20px;
+				text-wrap: balance;
+				gap: 4px;
 			}
-			div.t {
-				text-align: center;
-			}
-			div.i img {
-				min-width: 150px;
-				min-height: 150px;
-				max-width: 200px;
-				max-height: 200px;
+			.list img {
+				display: block;
+				margin: auto auto;
+				min-width: 108px;
+				min-height: 108px;
+				max-width: 144px;
+				max-height: 144px;
 				background-color: silver;
 				box-shadow: var(--drop-shadow);
 				border: var(--thin-border);
@@ -38,11 +42,9 @@ html
 			div.list
 				each title in TITLE_LIST
 					unless title.is_hidden
-						div.item
-							div.i
-								+gamecover(title.title_id)
-							div.t
-								a.black(href="/"+title.title_id)= title.title_name
+						a.black(href="/"+title.title_id)
+							img(src="/"+title.title_id+"/thumbnail.jpg")
+							div= title.title_name
 
 			p!= process.env.SITE_INVITE
 

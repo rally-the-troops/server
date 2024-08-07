@@ -350,6 +350,10 @@ div.body img {
 	border: var(--thin-border);
 }
 
+.game_main img.square { max-width: 60px; max-height: 60px; }
+.game_main img.wide { max-width: 72px; max-height: 60px; }
+.game_main img.tall { max-width: 60px; max-height: 72px; }
+
 .game_item .game_head { background-color: gainsboro }
 .game_item .game_main { background-color: whitesmoke }
 
