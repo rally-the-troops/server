@@ -662,7 +662,7 @@ function action_button_with_argument(verb, noun, label) {
 	if (!button) {
 		button = document.createElement("button")
 		button.id = id
-		button.textContent = label
+		button.innerHTML = label
 		button.addEventListener("click", evt => send_action(verb, noun))
 		document.getElementById("actions").prepend(button)
 	}
@@ -681,7 +681,7 @@ function action_button_imp(action, label, callback) {
 	if (!button) {
 		button = document.createElement("button")
 		button.id = id
-		button.textContent = label
+		button.innerHTML = label
 		button.addEventListener("click", callback)
 		document.getElementById("actions").prepend(button)
 	}
