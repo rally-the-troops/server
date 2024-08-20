@@ -13,8 +13,9 @@ h1 { font-size: 1.8rem; }
 h2 { font-size: 1.4rem; }
 h3 { font-size: 1.2rem; }
 p, ul, ol, dl, figure, blockquote, xmp, pre, table { margin: 1rem 0; font-size: 1rem; }
-xmp, pre { font-size: 0.8rem; padding: 1rem 1rem; }
-tt, code, kbd { font-size: 0.8rem; }
+xmp, pre, tt, code, kbd { font-size: 0.8rem; }
+pre { padding: 1rem; }
+xmp { padding: 0rem 1rem 1rem 1rem; }
 kbd { background-color: whitesmoke; padding: 0px 4px; border: 1px solid #444; }
 dd { margin-bottom: 0.5rem; }
 
