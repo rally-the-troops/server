@@ -1104,8 +1104,13 @@ app.post("/forum/reply/:thread_id", must_be_logged_in, function (req, res) {
 app.get("/forum/search", must_be_logged_in, function (req, res) {
 	let search = req.query.q
 	let results = []
-	if (search)
-		results = FORUM_SEARCH.all(search)
+	if (search) {
+		try {
+			results = FORUM_SEARCH.all(search)
+		} catch (err) {
+			results = FORUM_SEARCH.all('"' + search.replaceAll('"', '""') + '"')
+		}
+	}
 	res.render("forum_search.pug", { user: req.user, search, results })
 })
 
