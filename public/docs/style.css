@@ -3,10 +3,10 @@ xmp, pre { background-color: #fafafa; }
 xmp, pre { border: 1px solid gray; }
 h1, h2, h3 { color: brown; }
 
-xmp, pre { white-space: pre-wrap; }
+pre.wrap, xmp.wrap { white-space: pre-wrap }
 
 html { margin: 0; padding: 0; line-height: 1.5; }
-body { padding: 1rem 2rem; margin: 0 auto; max-width: 45rem; }
+body { padding: 0rem 1rem; margin: 0 auto; max-width: 45rem; }
 xmp, pre { min-width: fit-content; }
 h1, h2, h3 { margin: 2rem 0 1rem 0; padding: 0; font-weight: normal; font-family: sans-serif; }
 h1 { font-size: 1.8rem; }
