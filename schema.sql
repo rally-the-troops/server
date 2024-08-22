@@ -144,15 +144,7 @@ create view user_dynamic_view as
 			where
 				owner_id = users.user_id
 				and status = 0
-				and (
-					join_count = 0
-					or (
-						join_count = player_count
-						and not exists (
-							select 1 from players where players.game_id = games.game_id and players.is_invite
-						)
-					)
-				)
+				and join_count = 0
 		) as waiting,
 		is_banned
 	from
