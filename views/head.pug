@@ -119,12 +119,13 @@ mixin gamelist(list,hide_title=0)
 									div Created: #{item.ctime}
 								when 1
 									div Last move: #{item.mtime}
-									if item.time_left <= 0
-										div Time left: none.
-									else if item.time_left <= 2
-										div Time left: #{ item.time_left * 24 | 0 } hours
-									else if item.time_left <= 5
-										div Time left: #{ item.time_left | 0 } days
+									if item.your_turn
+										if item.time_left <= 0
+											div Time left: none.
+										else if item.time_left <= 2
+											div Time left: #{ item.time_left * 24 | 0 } hours
+										else if item.time_left <= 5
+											div Time left: #{ item.time_left | 0 } days
 								when 2
 									div Finished: #{item.mtime}
 									div Result: !{item.result}
