@@ -1296,6 +1296,7 @@ const SQL_FINISH_GAME = SQL(`
 		game_id = ?
 `)
 
+const SQL_REWIND_GAME_CLOCK = SQL("update players set clock=1 where game_id=? and clock < 1")
 const SQL_REWIND_GAME = SQL("update games set status=1,moves=?,active=?,mtime=datetime() where game_id=?")
 const SQL_SELECT_REWIND = SQL("select snap_id, state->>'$.active' as active, state->>'$.state' as state from game_snap where game_id=? order by snap_id desc")
 
@@ -2159,6 +2160,7 @@ function rewind_game_to_snap(game_id, snap_id, res) {
 		SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(snap_state))
 
 		SQL_REWIND_GAME.run(snap_id - 1, snap_state.active, game_id)
+		SQL_REWIND_GAME_CLOCK.run(game_id)
 
 		update_join_clients(game_id)
 		if (game_clients[game_id])
