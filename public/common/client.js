@@ -766,7 +766,7 @@ function confirm_resign() {
 }
 
 function add_resign_menu() {
-	if (Object.keys(roles).length <= 2) {
+	if (Object.keys(roles).length > 1) {
 		let popup = document.querySelector("#toolbar details menu")
 		popup.insertAdjacentHTML("beforeend", '<li class="resign separator">')
 		popup.insertAdjacentHTML("beforeend", '<li class="resign" onclick="confirm_resign()">Resign')
