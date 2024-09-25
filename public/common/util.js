@@ -279,6 +279,11 @@ function map_delete(map, key) {
 	}
 }
 
+function map_for_each(map, f) {
+	for (let i = 0; i < map.length; i += 2)
+		f(map[i], map[i+1])
+}
+
 function object_diff(a, b) {
 	if (a === b)
 		return false
@@ -323,6 +328,30 @@ function object_group_by(items, callback) {
 				groups[key].push(item)
 			else
 				groups[key] = [ item ]
+		}
+	}
+	return groups
+}
+
+function map_group_by(items, callback) {
+	let groups = []
+	if (typeof callback === "function") {
+		for (let item of items) {
+			let key = callback(item)
+			let arr = map_get(groups, key)
+			if (arr)
+				arr.push(item)
+			else
+				map_set(groups, key, [ item ])
+		}
+	} else {
+		for (let item of items) {
+			let key = item[callback]
+			let arr = map_get(groups, key)
+			if (arr)
+				arr.push(item)
+			else
+				map_set(groups, key, [ item ])
 		}
 	}
 	return groups
