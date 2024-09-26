@@ -1978,7 +1978,7 @@ function do_join(res, game_id, role, user_id, user_name, is_invite) {
 		if (!roles.includes(role))
 			return res.status(404).send("Invalid role.")
 	}
-	let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, user_id, is_invite)
+	let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, user_id, is_invite ? 2 : 0)
 	if (info.changes === 1) {
 		update_join_clients(game_id)
 		res.send("SUCCESS")
@@ -2399,24 +2399,6 @@ function retry_webhook(user_id, webhook, message, retry) {
  * NOTIFICATIONS
  */
 
-const SQL_SELECT_NOTIFIED = SQL("SELECT julianday() < julianday(time, ?) FROM last_notified WHERE game_id=? AND user_id=?").pluck()
-const SQL_INSERT_NOTIFIED = SQL("INSERT OR REPLACE INTO last_notified (game_id,user_id,time) VALUES (?,?,datetime())")
-const SQL_DELETE_NOTIFIED = SQL("DELETE FROM last_notified WHERE game_id=? AND user_id=?")
-
-function delete_last_notified(user, game_id) {
-	SQL_DELETE_NOTIFIED.run(game_id, user.user_id)
-}
-
-function insert_last_notified(user, game_id) {
-	SQL_INSERT_NOTIFIED.run(game_id, user.user_id)
-}
-
-function should_send_reminder(user, game_id) {
-	if (!SQL_SELECT_NOTIFIED.get("+23 hours", game_id, user.user_id))
-		return true
-	return false
-}
-
 function game_play_link(game_id, title_id, user) {
 	return SITE_URL + play_url(title_id, game_id, user.role)
 }
@@ -2463,9 +2445,6 @@ function send_play_notification(user, game_id, message) {
 	send_notification(user, game_play_link(game_id, title_id, user), `${title_name} #${game_id} (${user.role}) - ${message}`)
 }
 
-const QUERY_LIST_YOUR_TURN = SQL("SELECT * FROM your_turn_reminder")
-const QUERY_LIST_INVITES = SQL("SELECT * FROM invite_reminder")
-
 function send_chat_activity_notification(game_id, p) {
 	send_play_notification(p, game_id, "Chat activity")
 }
@@ -2480,14 +2459,8 @@ function send_your_turn_notification_to_offline_users(game_id, old_active, activ
 		let p_was_active = old_active === p.role || old_active === "Both"
 		let p_is_active = active === p.role || active === "Both"
 		if (!p_was_active && p_is_active) {
-			if (!is_player_online(game_id, p.user_id)) {
-				insert_last_notified(p, game_id)
+			if (!is_player_online(game_id, p.user_id))
 				send_play_notification(p, game_id, "Your turn")
-			} else {
-				delete_last_notified(p, game_id)
-			}
-		} else {
-			delete_last_notified(p, game_id)
 		}
 	}
 }
@@ -2497,7 +2470,6 @@ function send_game_started_notification_to_offline_users(game_id) {
 	for (let p of players) {
 		if (!is_player_online(game_id, p.user_id))
 			send_play_notification(p, game_id, "Started")
-		delete_last_notified(p, game_id)
 	}
 }
 
@@ -2506,33 +2478,36 @@ function send_game_finished_notification_to_offline_users(game_id, result) {
 	for (let p of players) {
 		if (!is_player_online(game_id, p.user_id))
 			send_play_notification(p, game_id, "Finished (" + result + ")")
-		delete_last_notified(p, game_id)
 	}
 }
 
-function notify_your_turn_reminder() {
-	for (let item of QUERY_LIST_YOUR_TURN.all()) {
-		if (should_send_reminder(item, item.game_id)) {
-			insert_last_notified(item, item.game_id)
-			send_play_notification(item, item.game_id, "Your turn")
-		}
-	}
-}
+const SQL_SELECT_INVITE_NOTIFY = SQL(`
+	select
+		game_id, role, user_id, name, mail, notify
+	from
+		games
+		join players using(game_id)
+		join users using(user_id)
+	where
+		status = 0
+		and is_invite = 2
+		and julianday(mtime) < julianday('now', '-30 seconds')
+`)
 
-function notify_invited_reminder() {
-	for (let item of QUERY_LIST_INVITES.all()) {
-		if (should_send_reminder(item, item.game_id)) {
-			insert_last_notified(item, item.game_id)
+const SQL_UPDATE_INVITE_NOTIFY = SQL("update players set is_invite=1 where game_id=? and role=?")
+
+function invite_notify_ticker() {
+	for (let item of SQL_SELECT_INVITE_NOTIFY.all()) {
+		try {
+			SQL_UPDATE_INVITE_NOTIFY.run(item.game_id, item.role)
 			send_join_notification(item, item.game_id, "You have an invitation")
+		} catch (err) {
+			console.log(err)
 		}
 	}
 }
 
-// Send "you've been invited" notifications every 5 minutes.
-setInterval(notify_invited_reminder, 5 * 60 * 1000)
-
-// Check and send daily your turn reminders every 17 minutes.
-setInterval(notify_your_turn_reminder, 17 * 60 * 1000)
+setInterval(invite_notify_ticker, 53 * 1000)
 
 const QUERY_READY_TO_START = SQL(`
 	select

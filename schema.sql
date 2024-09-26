@@ -62,13 +62,6 @@ create table if not exists tokens (
 	time datetime
 );
 
-create table if not exists last_notified (
-	game_id integer,
-	user_id integer,
-	time datetime,
-	primary key (game_id, user_id)
-) without rowid;
-
 create table if not exists webhooks (
 	user_id integer primary key,
 	url text,
@@ -525,32 +518,6 @@ create view time_control_view as
 		and clock - (julianday() - julianday(mtime)) < 0
 	;
 
-drop view if exists your_turn_reminder;
-create view your_turn_reminder as
-	select
-		game_id, role, user_id, name, mail, notify
-	from
-		games
-		join players using(game_id)
-		join users using(user_id)
-	where
-		status = 1
-		and active in (role, 'Both')
-		and user_count > 1
-		and julianday() > julianday(mtime, '+1 hour')
-	;
-
-drop view if exists invite_reminder;
-create view invite_reminder as
-	select
-		game_id, role, user_id, name, mail, notify
-	from
-		players
-		join users using(user_id)
-	where
-		is_invite = 1
-	;
-
 -- Export game state as JSON
 
 drop view if exists game_export_view;
@@ -633,6 +600,7 @@ end;
 
 drop trigger if exists trigger_accept_invite;
 create trigger trigger_accept_invite after update of is_invite on players
+	when old.is_invite and not new.is_invite
 begin
 	update
 		games
@@ -684,7 +652,6 @@ begin
 	delete from game_replay where game_id = old.game_id;
 	delete from game_snap where game_id = old.game_id;
 	delete from game_notes where game_id = old.game_id;
-	delete from last_notified where game_id = old.game_id;
 	delete from unread_chats where game_id = old.game_id;
 end;
 
@@ -698,7 +665,6 @@ begin
 	delete from game_replay where game_id = old.game_id;
 	delete from game_snap where game_id = old.game_id;
 	delete from game_notes where game_id = old.game_id;
-	delete from last_notified where game_id = old.game_id;
 	delete from unread_chats where game_id = old.game_id;
 	delete from players where game_id = old.game_id;
 end;
@@ -710,7 +676,6 @@ begin
 	delete from tokens where user_id = old.user_id;
 	delete from webhooks where user_id = old.user_id;
 	delete from user_last_seen where user_id = old.user_id;
-	delete from last_notified where user_id = old.user_id;
 	delete from read_threads where user_id = old.user_id;
 	delete from unread_chats where user_id = old.user_id;
 	delete from contacts where me = old.user_id or you = old.user_id;
