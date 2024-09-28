@@ -583,15 +583,32 @@ app.post("/change-password", must_be_logged_in, function (req, res) {
 	return res.redirect("/profile")
 })
 
+const SQL_SELECT_MAY_DELETE_ACCOUNT = SQL(`
+	select exists (
+		select 1 from games join players using(game_id) where status <= 1 and user_id=?
+	)
+`).pluck()
+
+function may_delete_account(user_id) {
+	if (SQL_SELECT_MAY_DELETE_ACCOUNT.get(user_id))
+		return false
+	return true
+}
+
 app.get("/delete-account", must_be_logged_in, function (req, res) {
-	res.render("delete_account.pug", { user: req.user })
+	if (!may_delete_account(req.user.user_id))
+		return res.status(401).send("You may not delete your account while you have unfinished games.")
+	res.render("delete_account.pug", { user: req.user, flash })
 })
 
 const SQL_SELECT_GAME_ROLE_FOR_DELETED_USER = SQL(`
 	select game_id, role from players where user_id = ? and game_id in (select game_id from games where status <= 1)
-	`)
+`)
 
 app.post("/delete-account", must_be_logged_in, function (req, res) {
+	if (!may_delete_account(req.user.user_id))
+		res.status(401).send("You may not delete your account while you have unfinished games.")
+
 	let password = req.body.password
 	// Get full user record including password and salt
 	let user = SQL_SELECT_LOGIN.get(req.user.user_id)
@@ -1280,6 +1297,7 @@ const SQL_START_GAME = SQL(`
 	update games set
 		status = 1,
 		is_private = (is_private or user_count = 1 or user_count < player_count),
+		ctime = datetime(),
 		mtime = datetime(),
 		active = ?
 	where
@@ -1551,7 +1569,9 @@ function annotate_game_info(game, user_id, unread) {
 			time_left = Math.min(time_left, p.time_left)
 
 		let link
-		if (p.is_invite)
+		if (!p.name)
+			link = "null"
+		else if (p.is_invite)
 			link = `<a class="is_invite" href="/user/${p.name}">${p.name}?</a>`
 		else if (p.is_active)
 			link = `<a class="is_active" href="/user/${p.name}">${p.name}</a>`
@@ -2803,7 +2823,7 @@ function on_resign(socket) {
 }
 
 function do_resign(game_id, role, how) {
-	let game = SQL_SELECT_GAME_VIEW.get(game_id)
+	let game = SQL_SELECT_GAME.get(game_id)
 	let state = get_game_state(game_id)
 	let old_active = state.active
 

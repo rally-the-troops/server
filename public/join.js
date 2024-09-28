@@ -275,6 +275,8 @@ function user_link(user_name) {
 }
 
 function player_link(player) {
+	if (!player.name)
+		return "null"
 	let link = user_link(player.name)
 	if (player.is_invite)
 		link = "<i>" + link + "</i> ?"
@@ -332,11 +334,18 @@ function create_game_list() {
 		create_game_list_item(list, "Pace", PACE_TEXT[game.pace])
 	create_game_list_item(list, "Notice", game.notice)
 
-	if (game.owner_id)
-		create_game_list_item(list, "Created", human_date(game.ctime) + " by " + user_link(game.owner_name))
-	else
-		create_game_list_item(list, "Created", human_date(game.ctime))
 
+	if (game.status === 0) {
+		if (game.owner_id)
+			create_game_list_item(list, "Created", human_date(game.ctime) + " by " + user_link(game.owner_name))
+		else
+			create_game_list_item(list, "Created", human_date(game.ctime))
+	} else {
+		if (game.owner_id)
+			create_game_list_item(list, "Started", human_date(game.ctime) + " by " + user_link(game.owner_name))
+		else
+			create_game_list_item(list, "Started", human_date(game.ctime))
+	}
 
 	create_game_list_item(list, "Moves", game.moves)
 
@@ -426,7 +435,9 @@ function update() {
 	}
 
 	if (game.status === 0) {
-		if (user_id)
+		if (game.is_ready)
+			window.game_enter.textContent = "Waiting to start."
+		else if (user_id)
 			window.game_enter.textContent = "Waiting for players to join."
 		else
 			window.game_enter.innerHTML = `<a href="/login">Login</a> or <a href="/signup">sign up</a> to join.`

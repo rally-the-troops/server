@@ -177,7 +177,7 @@ create view rating_view as
 		title_id, name, rating, count, last
 	from
 		ratings
-		join users using(user_id)
+		left join users using(user_id)
 	order by
 		title_id,
 		rating desc
@@ -499,7 +499,7 @@ create view player_view as
 	from
 		games
 		join players using(game_id)
-		join users using(user_id)
+		left join users using(user_id)
 		left join user_last_seen using(user_id)
 	;
 
@@ -538,7 +538,7 @@ create view game_export_view as
 						json_object('role', role, 'name', name)
 					)
 					from players
-					join users using(user_id)
+					left join users using(user_id)
 					where game_id = outer.game_id
 				),
 			'state',
@@ -683,9 +683,7 @@ begin
 	delete from posts where author_id = old.user_id;
 	delete from threads where author_id = old.user_id;
 	delete from game_chat where user_id = old.user_id;
-	delete from ratings where user_id = old.user_id;
-	delete from players where user_id = old.user_id and game_id in (select game_id from games where status <= 1);
-	update players set user_id = 0 where user_id = old.user_id;
+	delete from players where user_id = old.user_id and game_id in (select game_id from games where status = 0);
 	update games set owner_id = 0 where owner_id = old.user_id;
 end;
 
