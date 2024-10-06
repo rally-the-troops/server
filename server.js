@@ -1139,8 +1139,6 @@ app.get("/forum/search", must_be_logged_in, function (req, res) {
  * GAME LOBBY
  */
 
-const SQL_SELECT_SETUPS = SQL("select * from setups where title_id=? order by setup_id")
-
 let RULES = {}
 let TITLE_TABLE = app.locals.TITLE_TABLE = {}
 let TITLE_LIST = app.locals.TITLE_LIST = []
@@ -1219,18 +1217,6 @@ function unload_module(filename) {
 
 function load_rules(rules_dir, rules_file, title) {
 	RULES[title.title_id] = require(rules_file)
-
-	title.setups = SQL_SELECT_SETUPS.all(title.title_id)
-	for (let setup of title.setups) {
-		if (!setup.setup_name) {
-			if (title.setups.length > 1 && setup.scenario !== "Standard")
-				setup.setup_name = title.title_name + " - " + setup.scenario
-			else
-				setup.setup_name = title.title_name
-		}
-		setup.roles = get_game_roles(setup.title_id, setup.scenario, setup.options)
-	}
-
 	title.about_html = fs.readFileSync(rules_dir + "/about.html")
 	title.create_html = fs.readFileSync(rules_dir + "/create.html")
 }

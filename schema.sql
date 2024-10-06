@@ -196,16 +196,6 @@ create view player_rating_view as
 	left join ratings using(title_id, user_id)
 ;
 
-create table if not exists setups (
-	setup_id integer primary key,
-	setup_name text,
-	title_id text,
-	player_count integer,
-	scenario text,
-	options text,
-	unique (title_id, player_count, scenario)
-);
-
 -- Friend and Block Lists --
 
 create table if not exists contacts (
