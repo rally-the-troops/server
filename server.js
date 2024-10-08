@@ -828,7 +828,7 @@ const MESSAGE_DELETE_INBOX = SQL("UPDATE messages SET is_deleted_from_inbox=1 WH
 const MESSAGE_DELETE_OUTBOX = SQL("UPDATE messages SET is_deleted_from_outbox=1 WHERE message_id=? AND from_id=?")
 const MESSAGE_DELETE_ALL_OUTBOX = SQL("UPDATE messages SET is_deleted_from_outbox=1 WHERE from_id=?")
 
-app.get("/inbox", must_be_logged_in, function (req, res) {
+app.get("/message/inbox", must_be_logged_in, function (req, res) {
 	let messages = MESSAGE_LIST_INBOX.all(req.user.user_id)
 	for (let i = 0; i < messages.length; ++i)
 		messages[i].time = human_date(messages[i].time)
@@ -838,7 +838,7 @@ app.get("/inbox", must_be_logged_in, function (req, res) {
 	})
 })
 
-app.get("/outbox", must_be_logged_in, function (req, res) {
+app.get("/message/outbox", must_be_logged_in, function (req, res) {
 	let messages = MESSAGE_LIST_OUTBOX.all(req.user.user_id)
 	for (let i = 0; i < messages.length; ++i)
 		messages[i].time = human_date(messages[i].time)
@@ -907,7 +907,7 @@ app.post("/message/send", must_be_logged_in, function (req, res) {
 	}
 	let info = MESSAGE_SEND.run(req.user.user_id, to_user.user_id, subject, body)
 	send_notification(to_user, message_link(info.lastInsertRowid), "New message from " + req.user.name)
-	res.redirect("/inbox")
+	res.redirect("/message/inbox")
 })
 
 function quote_body(message) {
@@ -935,14 +935,14 @@ app.get("/message/reply/:message_id", must_be_logged_in, function (req, res) {
 
 app.get("/message/delete/outbox", must_be_logged_in, function (req, res) {
 	MESSAGE_DELETE_ALL_OUTBOX.run(req.user.user_id)
-	res.redirect("/outbox")
+	res.redirect("/message/outbox")
 })
 
 app.get("/message/delete/:message_id", must_be_logged_in, function (req, res) {
 	let message_id = req.params.message_id | 0
 	MESSAGE_DELETE_INBOX.run(message_id, req.user.user_id)
 	MESSAGE_DELETE_OUTBOX.run(message_id, req.user.user_id)
-	res.redirect("/inbox")
+	res.redirect("/message/inbox")
 })
 
 /*
