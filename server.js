@@ -181,16 +181,16 @@ app.locals.EMOJI_MATCH = "\u{1f3c6}"
 
 app.locals.PACE_ICON = [
 	"",		// none
-	 "\u{26a1}",	// blitz
-	 "\u{1f3c1}",	// fast
-	 "\u{1f40c}",	// slow
+	"\u{26a1}",	// blitz
+	"\u{1f3c1}",	// fast
+	"\u{1f40c}",	// slow
 ]
 
 app.locals.PACE_TEXT = [
 	"No time control",
-	 "7+ moves per day",
-	 "3+ moves per day",
-	 "1+ moves per day",
+	"7+ moves per day",
+	"3+ moves per day",
+	"1+ moves per day",
 ]
 
 app.set("x-powered-by", false)
@@ -598,7 +598,7 @@ function may_delete_account(user_id) {
 app.get("/delete-account", must_be_logged_in, function (req, res) {
 	if (!may_delete_account(req.user.user_id))
 		return res.status(401).send("You may not delete your account while you have unfinished games.")
-	res.render("delete_account.pug", { user: req.user, flash })
+	res.render("delete_account.pug", { user: req.user })
 })
 
 const SQL_SELECT_GAME_ROLE_FOR_DELETED_USER = SQL(`
@@ -618,7 +618,7 @@ app.post("/delete-account", must_be_logged_in, function (req, res) {
 
 	let list = SQL_SELECT_GAME_ROLE_FOR_DELETED_USER.all(req.user.user_id)
 	for (let item of list)
-		send_chat_message(item.game_id, null, null, `${user.name} (${item.role}) left the game.`)
+		send_chat_message(item.game_id, null, `${user.name} (${item.role}) left the game.`)
 
 	SQL_DELETE_USER.run(req.user.user_id)
 	return res.send("Goodbye!")
@@ -1196,15 +1196,6 @@ function get_game_roles(title_id, scenario, options) {
 	return roles
 }
 
-function is_game_ready(player_count, players) {
-	if (player_count !== players.length)
-		return false
-	for (let p of players)
-		if (p.is_invite)
-			return false
-	return true
-}
-
 function unload_module(filename) {
 	// Remove a module and its dependencies from require.cache so they can be reloaded.
 	let mod = require.cache[filename]
@@ -1305,7 +1296,6 @@ const SQL_REWIND_GAME = SQL("update games set status=1,moves=?,active=?,mtime=da
 const SQL_SELECT_REWIND = SQL("select snap_id, state->>'$.active' as active, state->>'$.state' as state from game_snap where game_id=? order by snap_id desc")
 
 const SQL_UPDATE_GAME_ACTIVE = SQL("update games set active=?,mtime=datetime(),moves=moves+1 where game_id=?")
-const SQL_UPDATE_GAME_MOVES = SQL("update games set moves=? where game_id=?")
 const SQL_UPDATE_GAME_SCENARIO = SQL("update games set scenario=? where game_id=?")
 
 const SQL_SELECT_GAME_STATE = SQL("select state from game_state where game_id=?").pluck()
@@ -1330,7 +1320,6 @@ const SQL_SELECT_SNAP = SQL("select * from game_snap where game_id = ? and snap_
 const SQL_SELECT_SNAP_STATE = SQL("select state from game_snap where game_id = ? and snap_id = ?").pluck()
 const SQL_SELECT_SNAP_COUNT = SQL("select max(snap_id) from game_snap where game_id=?").pluck()
 
-const SQL_SELECT_LAST_SNAP = SQL("select * from game_snap where game_id = ? order by snap_id desc limit 1")
 
 const SQL_DELETE_GAME_SNAP = SQL("delete from game_snap where game_id=? and snap_id > ?")
 const SQL_DELETE_GAME_REPLAY = SQL("delete from game_replay where game_id=? and replay_id > ?")
@@ -1377,7 +1366,6 @@ const SQL_SELECT_PLAYERS = SQL("select * from players join user_view using(user_
 const SQL_SELECT_PLAYERS_WITH_NAME = SQL("select role, user_id, name from players join users using(user_id) where game_id=?")
 const SQL_UPDATE_PLAYER_ACCEPT = SQL("UPDATE players SET is_invite=0 WHERE game_id=? AND role=? AND user_id=?")
 const SQL_UPDATE_PLAYER_ROLE = SQL("UPDATE players SET role=? WHERE game_id=? AND role=? AND user_id=?")
-const SQL_SELECT_PLAYER_ROLE = SQL("SELECT role FROM players WHERE game_id=? AND user_id=?").pluck()
 const SQL_SELECT_PLAYER_NAME = SQL("SELECT name FROM players JOIN users using(user_id) WHERE game_id=? AND role=?").pluck()
 const SQL_INSERT_PLAYER_ROLE = SQL("INSERT OR IGNORE INTO players (game_id,role,user_id,is_invite) VALUES (?,?,?,?)")
 const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role=?")
@@ -1608,7 +1596,7 @@ app.get("/profile", must_be_logged_in, function (req, res) {
 	res.render("profile.pug", { user: req.user })
 })
 
-app.get("/games", function (req, res) {
+app.get("/games", function (_req, res) {
 	res.redirect("/games/public")
 })
 
@@ -1781,7 +1769,6 @@ app.post("/create/:title_id", must_be_logged_in, function (req, res) {
 
 app.post("/api/delete/:game_id", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id
-	let title_id = SQL_SELECT_GAME_TITLE.get(game_id)
 	let info = SQL_DELETE_GAME_BY_OWNER.run(game_id, req.user.user_id)
 	if (info.changes === 0)
 		return res.send("Not authorized to delete that game ID.")
@@ -1945,20 +1932,13 @@ app.get("/join/:game_id", function (req, res) {
 
 app.get("/join-events/:game_id", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
-	let game = SQL_SELECT_GAME_VIEW.get(game_id)
-	let players = SQL_SELECT_PLAYER_VIEW.all(game_id)
 
 	res.setHeader("Content-Type", "text/event-stream")
 	res.setHeader("Connection", "keep-alive")
 	res.setHeader("X-Accel-Buffering", "no")
 
-	if (!game)
-		return res.send("data: null\n\n")
-
-	if (!(game_id in join_clients)) {
+	if (!(game_id in join_clients))
 		join_clients[game_id] = []
-		join_clients[game_id].player_count = game.player_count
-	}
 	join_clients[game_id].push(res)
 
 	res.on("close", () => {
@@ -1991,7 +1971,7 @@ function do_join(res, game_id, role, user_id, user_name, is_invite) {
 
 		// send chat message about player joining a game in progress
 		if (game.status > 0 && user_name && !is_invite) {
-			send_chat_message(game_id, null, null, `${user_name} joined as ${role}.`)
+			send_chat_message(game_id, null, `${user_name} joined as ${role}.`)
 		}
 	} else {
 		if (is_invite)
@@ -2034,7 +2014,7 @@ app.post("/api/accept/:game_id/:role", must_be_logged_in, function (req, res) {
 
 		// send chat message about player joining a game in progress
 		if (game.status > 0)
-			send_chat_message(game_id, null, null, `${req.user.name} joined as ${role}.`)
+			send_chat_message(game_id, null, `${req.user.name} joined as ${role}.`)
 	} else {
 		res.send("Could not accept invite.")
 	}
@@ -2052,9 +2032,9 @@ app.post("/api/part/:game_id/:role", must_be_logged_in, function (req, res) {
 	// send chat message about player leaving a game in progress
 	if (game.status > 0) {
 		if (user_name !== req.user.name)
-			send_chat_message(game_id, null, null, `${user_name} (${role}) left the game (kicked by ${req.user.name}).`)
+			send_chat_message(game_id, null, `${user_name} (${role}) left the game (kicked by ${req.user.name}).`)
 		else
-			send_chat_message(game_id, null, null, `${user_name} (${role}) left the game.`)
+			send_chat_message(game_id, null, `${user_name} (${role}) left the game.`)
 	}
 })
 
@@ -2152,7 +2132,7 @@ app.get("/api/export/:game_id", function (req, res) {
 	return res.type("application/json").send(SQL_SELECT_EXPORT.get(game_id))
 })
 
-function rewind_game_to_snap(game_id, snap_id, res) {
+function rewind_game_to_snap(game_id, snap_id) {
 	let snap = SQL_SELECT_SNAP.get(game_id, snap_id)
 	let game_state = JSON.parse(SQL_SELECT_GAME_STATE.get(game_id))
 	let snap_state = JSON.parse(snap.state)
@@ -2193,8 +2173,8 @@ app.post("/api/rewind/:game_id", must_be_logged_in, function (req, res) {
 		let snap_id = SQL_SELECT_REWIND_ONCE_2.get(game_id, replay_id)
 		if (snap_id) {
 			try {
-				rewind_game_to_snap(game_id, snap_id, res)
-				send_chat_message(game_id, null, null, `${req.user.name} rewound the game to move ${snap_id}.`)
+				rewind_game_to_snap(game_id, snap_id)
+				send_chat_message(game_id, null, `${req.user.name} rewound the game to move ${snap_id}.`)
 				return res.send("SUCCESS")
 			} catch (err) {
 				return res.send(err.toString())
@@ -2205,7 +2185,7 @@ app.post("/api/rewind/:game_id", must_be_logged_in, function (req, res) {
 })
 
 app.get("/api/rewind/:game_id/:snap_id", must_be_administrator, function (req, res) {
-	rewind_game_to_snap(req.params.game_id | 0, req.params.snap_id | 0, res)
+	rewind_game_to_snap(req.params.game_id | 0, req.params.snap_id | 0)
 	res.redirect("/join/" + req.params.game_id)
 })
 
@@ -2685,11 +2665,6 @@ function get_game_state(game_id) {
 	return JSON.parse(game_state)
 }
 
-function sync_client_state(game_id) {
-	for (let socket of game_clients[game_id])
-		send_state(socket, get_game_state(socket.game_id))
-}
-
 function sync_client_state_for_title(title_id) {
 	for (let game_id in game_clients)
 		for (let socket of game_clients[game_id])
@@ -2945,14 +2920,14 @@ function on_chat(socket, message) {
 	message = message.substring(0, 4000)
 	try {
 		SLOG(socket, "CHAT")
-		send_chat_message(socket.game_id, socket.user.user_id, socket.user.name, message)
+		send_chat_message(socket.game_id, socket.user.user_id, message)
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, "error", err.toString())
 	}
 }
 
-function send_chat_message(game_id, from_id, from_name, message) {
+function send_chat_message(game_id, from_id, message) {
 	SQL_INSERT_GAME_CHAT.run(game_id, game_id, from_id, message)
 
 	let players = SQL_SELECT_PLAYERS.all(game_id)
