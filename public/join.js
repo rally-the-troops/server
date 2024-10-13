@@ -327,13 +327,19 @@ function create_game_list() {
 	let table = create_element(window.game_info, "table")
 	let list = create_element(table, "tbody")
 
-	if (game.scenario !== "Standard")
-		create_game_list_item(list, "Scenario", game.scenario)
-	create_game_list_item(list, "Options", format_options(game.options))
+	if (game.pool_name) {
+		create_game_list_item(list, "Tournament", `<a href="/tm/pool/${game.pool_name}">${game.pool_name}</a>`)
+	} else {
+		if (game.scenario !== "Standard")
+			create_game_list_item(list, "Scenario", game.scenario)
+		create_game_list_item(list, "Options", format_options(game.options))
+	}
+
 	if (game.pace > 0)
 		create_game_list_item(list, "Pace", PACE_TEXT[game.pace])
-	create_game_list_item(list, "Notice", game.notice)
 
+	if (!game.pool_name)
+		create_game_list_item(list, "Notice", game.notice)
 
 	if (game.status === 0) {
 		if (game.owner_id)

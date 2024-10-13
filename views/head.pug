@@ -102,14 +102,18 @@ mixin gamelist(list,hide_title=0)
 
 					div.game_main
 						div.game_info
-							if item.notice
+							if item.is_match
+								i
+									a(href="/tm/pool/"+item.notice)= item.notice
+							else if item.notice
 								i= item.notice
 							else
 								i= pace_text
-							if item.scenario !== "Standard" && item.scenario !== "Historical" && item.scenario.length > 2
-								div Scenario: #{item.scenario}
-							unless item.human_options === "None"
-								div Options: #{item.human_options}
+							unless item.is_match
+								if item.scenario !== "Standard" && item.scenario !== "Historical" && item.scenario.length > 2
+									div Scenario: #{item.scenario}
+								unless item.human_options === "None"
+									div Options: #{item.human_options}
 							if item.player_names
 								div Players: !{item.player_names}
 							else
@@ -135,3 +139,58 @@ mixin gamelist(list,hide_title=0)
 						unless hide_title
 							a(href=`/${item.title_id}`)
 								img(src=`/${item.title_id}/thumbnail.jpg`)
+
+mixin seedlist(list, title)
+	if list && list.length > 0
+		table.half.seeds
+			if title
+				thead
+					tr
+						th= title
+						td
+						td= TM_ICON_QUEUE
+			tbody
+				each seed in list
+					tr
+						td
+							a(href="/tm/seed/" + seed.seed_name)= seed.seed_name
+						td.n #{seed.queue_size}
+						if user && seed.is_queued
+							td= TM_ICON_TICKET
+						else
+							td
+
+mixin poollist(list, title, icon)
+	if list && list.length > 0
+		table.half.pools
+			if title
+				thead
+					tr
+						th= title
+						td= icon
+			tbody
+				each pool in list
+					tr
+						td.w
+							a(href="/tm/pool/" + pool.pool_name)= pool.pool_name
+						if pool.is_finished
+							if pool.status
+								td!= pool.status.split(",").map(p => `<a class="black" href="/user/${p}">${p}</a>`).join(", ")
+							else
+								td Nobody
+						else
+							td= pool.status
+
+mixin tourlist(seeds, pools, fin)
+		if (seeds && seeds.length > 0) || (pools && pools.length > 0) || (fin && fin.length > 0)
+			h2 Tournaments
+			div.tour_list
+				if seeds && seeds.length > 0
+					div
+						+seedlist(seeds, "Registrations")
+				if pools && pools.length > 0
+					div
+						+poollist(pools, "Active", TM_ICON_ACTIVE)
+				if fin && fin.length > 0
+					div
+						+poollist(fin, "Finished", TM_ICON_FINISHED)

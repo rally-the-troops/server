@@ -28,6 +28,8 @@ html
 			p
 				a(href="/create/"+title.title_id) Create a new game
 
+			+tourlist(seeds, active_pools, finished_pools)
+
 			if active_games.length > 0
 				h2 Recently active
 				+gamelist(active_games, true)

@@ -25,6 +25,11 @@ html
 			p
 				a(href="/create") Create a new game
 
+			+tourlist(seeds, active_pools, finished_pools)
+
+			p
+				a(href="/tm/list") Join a tournament
+
 			if move_games.length > 0
 				h2 Move
 				+gamelist(move_games)
@@ -47,3 +52,5 @@ html
 
 			p
 				a(href="/games/finished") All your finished games
+				br
+				a(href="/tm/finished") All your finished tournaments

@@ -1,0 +1,100 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= seed.seed_name
+		style.
+			div.thumb {
+				float: right;
+			}
+			div.thumb img {
+				max-width: 60px;
+				max-height: 72px;
+				margin: 4px 0 4px 4px;
+				border: var(--thin-border);
+				box-shadow: var(--drop-shadow);
+			}
+			#seed_info td { padding: 2px 10px }
+			#seed_info td:first-child { width: 80px }
+			#seed_info tr:first-child td { padding-top: 5px }
+			#seed_info tr:last-child td { padding-bottom: 5px }
+			table { margin: 1em 0 0.5em 0 }
+	body
+		include header
+		article
+			div.thumb
+				a(href="/"+seed.title_id)
+					img(src="/"+seed.title_id+"/thumbnail.jpg")
+
+			h1= seed.seed_name
+
+			if error
+				p.error= error
+
+			table#seed_info.half
+				tr
+					td Format
+					td
+						a(href="/docs/tournaments.html") Mini Cup
+				if seed.scenario !== "Standard"
+					tr
+						td Scenario
+						td #{seed.scenario}
+				if seed.pace
+					tr
+						td Pace
+						td= PACE_ICON[seed.pace]
+				tr
+					td Players
+					td #{seed.pool_size}
+				tr
+					td Rounds
+					if (seed.is_concurrent)
+						td #{seed.round_count} concurrent
+					else
+						td #{seed.round_count} sequential
+
+			if seed.is_open
+				each queue,ix in queues
+					table.half
+						thead
+							tr
+								if seed.level_count > 1
+									th Level #{ix+1}
+								else
+									th Registered
+								td.r #{queue.length} / #{seed.pool_size}
+						tbody
+							tr
+								if queue.length > 0
+									td(colspan=2)!= queue.map(p => `<a class="black" href="/user/${p.name}">${p.name}</a>`).join(", ")
+								else
+									td Nobody
+
+					if user
+						if ix === 0
+							if may_register
+								if !queue.find(p => p.user_id === user.user_id)
+									form(method="post" action="/api/tm/register/" + seed.seed_id)
+										button(type="submit") Register
+										button(disabled) Withdraw
+							else
+								div
+									button(disabled) Register
+									button(disabled) Withdraw
+
+						if queue.find(p => p.user_id === user.user_id)
+							form(method="post" action="/api/tm/withdraw/" + seed.seed_id + "/" + (ix+1))
+								button(disabled) Register
+								button(type="submit") Withdraw
+
+						if user.user_id === 1
+							if queue.length >= seed.pool_size
+								form(method="post" action="/api/tm/start/" + seed.seed_id + "/" + (ix+1))
+									button(type="submit") Start
+					else
+						p <a href="/login">Login</a> or <a href="/signup">sign up</a> to register.
+
+			+poollist(active_pools, "Active", TM_ICON_ACTIVE)
+			+poollist(finished_pools, "Finished", TM_ICON_FINISHED)

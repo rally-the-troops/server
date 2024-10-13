@@ -1,0 +1,159 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= pool.pool_name
+		style.
+			@media (max-width: 500px) {
+				table {
+					font-family: var(--font-widget);
+					font-size: 12px;
+					line-height: 16px;
+				}
+			}
+			td, th { padding: 2px 6px; }
+			table.wide tbody tr:hover { background-color: #0001 }
+			tr.hr { padding: 0; border-bottom: 1px solid black }
+			td.c { text-align: center }
+			td.g { color: gray }
+			a.gray { text-decoration: none; color: gray }
+			div.thumb {
+				float: right;
+			}
+			div.thumb img {
+				max-width: 60px;
+				max-height: 72px;
+				margin: 4px 0 4px 4px;
+				border: var(--thin-border);
+				box-shadow: var(--drop-shadow);
+			}
+			#pool_info td { padding: 2px 10px }
+			#pool_info td:first-child { width: 80px }
+			#pool_info tr:first-child td { padding-top: 5px }
+			#pool_info tr:last-child td { padding-bottom: 5px }
+	body
+		include header
+		article
+			div.thumb
+				a(href="/"+seed.title_id)
+					img(src="/"+seed.title_id+"/thumbnail.jpg")
+
+			h2= pool.pool_name
+
+			table.half#pool_info
+				tr
+					td Tournament
+					td
+						a(href="/tm/seed/" + seed.seed_name)= seed.seed_name
+				tr
+					td Started
+					td= human_date(pool.start_date)
+				tr
+					td Finished
+					if pool.finish_date
+						td= human_date(pool.finish_date)
+
+			if seed.player_count === 2
+				table.wide
+					thead
+						tr
+							td.n
+							td
+							each row, ix in players
+								td.n.c= ix+1
+							td.n Pts
+							td.n Son
+					tbody
+						each row, rx in players
+							- var result = JSON.parse(row.result)
+							tr
+								td= rx+1
+								td
+									if row.name
+										<a class="black" href="/user/#{row.name}">#{row.name}</a>
+									else
+										| null
+								each col in players
+									if row.name === col.name
+										td
+									else
+										td.w.c
+											if result[col.name]
+												each gs, ix in result[col.name]
+													if ix > 0
+														| &nbsp;
+													if gs[1] === null
+														a.black(href="/join/" + gs[0]) &minus;
+													else
+														a.black(href="/join/" + gs[0])= gs[1]
+								td.r= row.points
+								td.r.g= row.son
+
+			else
+				- var n = JSON.parse(players[0].result).length
+				table.wide
+					thead
+						tr
+							td.n
+							td
+							- var i = 0
+							while i < n
+								td.n.c= i+1
+								- ++i
+							td.n.r Pts
+							td.n.r Son
+					tbody
+						each row, rx in players
+							- var result = JSON.parse(row.result)
+							tr
+								td= rx+1
+								td
+									if row.name
+										<a class="black" href="/user/#{row.name}">#{row.name}</a>
+									else
+										| null
+								each gs in result
+									td.c
+										if gs[1] === null
+											a.black(href="/join/" + gs[0]) &minus;
+										else
+											a.black(href="/join/" + gs[0])= gs[1]
+								td.r= row.points
+								td.r.g= row.son
+
+			table.wide
+				thead
+					tr
+						td Game
+						each role in roles
+							td= role
+						td.n.r Result
+						td.n.r Moves
+				tbody
+					each group,ix in games_by_round
+						if ix > 1
+							tr.hr
+						each game in group
+							- var role_names = JSON.parse(game.role_names)
+							- var role_scores = JSON.parse(game.role_scores)
+							tr
+								td.n
+									a.black(href="/join/" + game.game_id)= "#" + game.game_id
+								each role in roles
+									- var p = role_names[role]
+									td
+										a.black(href="/user/"+p)= p
+
+								if game.status > 1
+									td.w.r
+										each role, ix in roles
+											if ix > 0
+												| &nbsp;:&nbsp;
+											| #{role_scores[role]}
+								else
+									td.r
+								if game.status > 0
+									td.r= game.moves
+								else
+									td.r

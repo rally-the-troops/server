@@ -95,6 +95,29 @@ function set_has(set, item) {
 	return false
 }
 
+// see Object.groupBy
+function object_group_by(items, callback) {
+	let groups = {}
+	if (typeof callback === "function") {
+		for (let item of items) {
+			let key = callback(item)
+			if (key in groups)
+				groups[key].push(item)
+			else
+				groups[key] = [ item ]
+		}
+	} else {
+		for (let item of items) {
+			let key = item[callback]
+			if (key in groups)
+				groups[key].push(item)
+			else
+				groups[key] = [ item ]
+		}
+	}
+	return groups
+}
+
 /*
  * Notification mail setup.
  */
@@ -179,6 +202,11 @@ app.locals.ENABLE_FORUM = process.env.FORUM | 0
 app.locals.EMOJI_PRIVATE = "\u{1F512}" // or 512
 app.locals.EMOJI_MATCH = "\u{1f3c6}"
 
+app.locals.TM_ICON_QUEUE = "\u{1f465}"
+app.locals.TM_ICON_TICKET = "\u{1f3ab}"
+app.locals.TM_ICON_ACTIVE = "\u{1f3c1}"
+app.locals.TM_ICON_FINISHED = "\u{1f3c6}"
+
 app.locals.PACE_ICON = [
 	"",		// none
 	"\u{26a1}",	// blitz
@@ -192,6 +220,8 @@ app.locals.PACE_TEXT = [
 	"3+ moves per day",
 	"1+ moves per day",
 ]
+
+app.locals.human_date = human_date
 
 app.set("x-powered-by", false)
 app.set("etag", false)
@@ -719,12 +749,14 @@ app.get("/user/:who_name", function (req, res) {
 		who.atime = human_date(who.atime)
 		let games = QUERY_LIST_PUBLIC_GAMES_OF_USER.all({ user_id: who.user_id })
 		annotate_games(games, 0, null)
+		let active_pools = TM_POOL_LIST_USER_ACTIVE.all(who.user_id)
+		let finished_pools = TM_POOL_LIST_USER_RECENT_FINISHED.all(who.user_id)
 		let relation = 0
 		if (req.user)
 			relation = SQL_SELECT_RELATION.get(req.user.user_id, who.user_id) | 0
-		res.render("user.pug", { user: req.user, who, relation, games })
+		res.render("user.pug", { user: req.user, who, relation, games, active_pools, finished_pools })
 	} else {
-		return res.status(404).send("Invalid user name.")
+		return res.status(404).send("User not found.")
 	}
 })
 
@@ -1320,7 +1352,6 @@ const SQL_SELECT_SNAP = SQL("select * from game_snap where game_id = ? and snap_
 const SQL_SELECT_SNAP_STATE = SQL("select state from game_snap where game_id = ? and snap_id = ?").pluck()
 const SQL_SELECT_SNAP_COUNT = SQL("select max(snap_id) from game_snap where game_id=?").pluck()
 
-
 const SQL_DELETE_GAME_SNAP = SQL("delete from game_snap where game_id=? and snap_id > ?")
 const SQL_DELETE_GAME_REPLAY = SQL("delete from game_replay where game_id=? and replay_id > ?")
 
@@ -1613,7 +1644,20 @@ app.get("/games/active", must_be_logged_in, function (req, res) {
 	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id })
 	let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(user_id)
 	annotate_games(games, user_id, unread)
+
+	let seeds = TM_SEED_LIST_USER.all(user_id)
+	let active_pools = TM_POOL_LIST_USER_ACTIVE.all(user_id)
+	let finished_pools = TM_POOL_LIST_USER_RECENT_FINISHED.all(user_id)
+
 	res.render("games_active.pug", { user: req.user, who: req.user, games, seeds, active_pools, finished_pools })
+})
+
+app.get("/tm/active", must_be_logged_in, function (req, res) {
+	let user_id = req.user.user_id
+	let seeds = TM_SEED_LIST_USER.all(user_id)
+	let active_pools = TM_POOL_LIST_USER_ACTIVE.all(user_id)
+	let finished_pools = TM_POOL_LIST_USER_RECENT_FINISHED.all(user_id)
+	res.render("tm_active.pug", { user: req.user, who: req.user, seeds, active_pools, finished_pools })
 })
 
 app.get("/games/finished", must_be_logged_in, function (req, res) {
@@ -1623,12 +1667,27 @@ app.get("/games/finished", must_be_logged_in, function (req, res) {
 	res.render("games_finished.pug", { user: req.user, who: req.user, games })
 })
 
+app.get("/tm/finished", must_be_logged_in, function (req, res) {
+	let pools = TM_POOL_LIST_USER_ALL_FINISHED.all(req.user.user_id)
+	res.render("tm_finished.pug", { user: req.user, who: req.user, pools })
+})
+
 app.get("/games/finished/:who_name", function (req, res) {
 	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
 	if (who) {
 		let games = QUERY_LIST_FINISHED_GAMES_OF_USER.all({ user_id: who.user_id })
 		annotate_games(games, 0, null)
-		res.render("games_finished.pug", { user: req.user, who: who, games: games })
+		res.render("games_finished.pug", { user: req.user, who, games })
+	} else {
+		return res.status(404).send("Invalid user name.")
+	}
+})
+
+app.get("/tm/finished/:who_name", function (req, res) {
+	let who = SQL_SELECT_USER_BY_NAME.get(req.params.who_name)
+	if (who) {
+		let pools = TM_POOL_LIST_USER_ALL_FINISHED.all(who.user_id)
+		res.render("tm_finished.pug", { user: req.user, who, pools })
 	} else {
 		return res.status(404).send("Invalid user name.")
 	}
@@ -1680,6 +1739,10 @@ function get_title_page(req, res, title_id) {
 	annotate_games(active_games, user_id, unread)
 	annotate_games(finished_games, user_id, unread)
 
+	let seeds = TM_SEED_LIST_TITLE.all(user_id, title_id)
+	let active_pools = TM_POOL_LIST_TITLE_ACTIVE.all(title_id)
+	let finished_pools = TM_POOL_LIST_TITLE_FINISHED.all(title_id)
+
 	res.render("info.pug", {
 		user: req.user,
 		title: title,
@@ -1687,6 +1750,9 @@ function get_title_page(req, res, title_id) {
 		replacement_games,
 		active_games,
 		finished_games,
+		seeds,
+		active_pools,
+		finished_pools,
 	})
 }
 
@@ -1806,6 +1872,11 @@ function insert_rematch_players(old_game_id, new_game_id, req_user_id, order) {
 
 app.get("/rematch/:old_game_id", must_be_logged_in, function (req, res) {
 	let old_game_id = req.params.old_game_id | 0
+
+	let pool_name = TM_FIND_POOL_NAME.get(old_game_id)
+	if (pool_name)
+		return res.redirect("/tm/pool/" + pool_name)
+
 	let magic = "\u{1F503} " + old_game_id
 	let new_game_id = SQL_SELECT_REMATCH.get(magic)
 	if (new_game_id)
@@ -1990,7 +2061,7 @@ app.post("/api/invite/:game_id/:role/:user", must_be_logged_in, function (req, r
 		res.send("User not found.")
 	else if (user_id === req.user.user_id)
 		res.send("You cannot invite yourself!")
-	else 
+	else
 		do_join(res, game_id, role, user_id, null, 1)
 })
 
@@ -2538,6 +2609,7 @@ const QUERY_PURGE_FINISHED_GAMES = SQL(`
 		games
 	where
 		status > 1
+		and not is_match
 		and ( not is_opposed or moves < player_count * 3 )
 		and julianday(mtime) < julianday('now', '-10 days')
 `)
@@ -2601,6 +2673,11 @@ function time_control_ticker() {
 		if (item.is_opposed) {
 			console.log("TIMED OUT GAME:", item.game_id, item.role)
 			do_resign(item.game_id, item.role, "timed out")
+			if (item.is_match) {
+				console.log("BANNED FROM TOURNAMENTS:", item.user_id)
+				TM_INSERT_BANNED.run(item.user_id)
+				TM_DELETE_QUEUE_ALL.run(item.user_id)
+			}
 		} else {
 			console.log("TIMED OUT GAME:", item.game_id, item.role, "(solo)")
 			SQL_DELETE_GAME.run(item.game_id)
@@ -2611,6 +2688,699 @@ function time_control_ticker() {
 // Run time control checks every 13 minutes.
 setInterval(time_control_ticker, 13 * 60 * 1000)
 setTimeout(time_control_ticker, 13 * 1000)
+
+/*
+ * TOURNAMENTS
+ */
+
+const designs = require("./designs.js")
+
+const TM_INSERT_BANNED = SQL("insert into tm_banned (user_id, time) values (?, datetime())")
+const TM_DELETE_QUEUE_ALL = SQL("delete from tm_queue where user_id=?")
+
+const TM_MAY_JOIN_ANY_SEED = SQL(`
+	select ( select notify and is_verified from users where user_id=@user_id )
+	or ( select exists ( select 1 from webhooks where user_id=@user_id and error is null ) )
+	or ( select exists ( select 1 from ratings where user_id=@user_id ) )
+	as may_join
+`).pluck()
+
+const TM_MAY_JOIN_SEED = SQL(`
+	select ( select not exists ( select 1 from tm_banned where user_id=@user_id ) )
+	and ( select coalesce(is_open, 0) as may_join from tm_seeds where seed_id=@seed_id )
+`).pluck()
+
+function may_join_any_seed(user_id) {
+	return DEBUG || TM_MAY_JOIN_ANY_SEED.get({user_id})
+}
+
+function may_join_seed(user_id, seed_id) {
+	return TM_MAY_JOIN_SEED.get({user_id,seed_id})
+}
+
+const TM_SEED_LIST_ALL = SQL(`
+	select
+		tm_seeds.*,
+		sum(level is 1) as queue_size,
+		sum(user_id is ?) as is_queued
+	from tm_seeds left join tm_queue using(seed_id)
+	group by seed_id
+	order by seed_name
+`)
+
+const TM_SEED_LIST_TITLE = SQL(`
+	select
+		tm_seeds.*,
+		sum(level is 1) as queue_size,
+		sum(user_id is ?) as is_queued
+	from tm_seeds left join tm_queue using(seed_id)
+	where title_id = ?
+	group by seed_id
+	order by seed_name
+`)
+
+const TM_SEED_LIST_USER = SQL(`
+	select
+		tm_seeds.*,
+		sum(level is 1) as queue_size,
+		sum(user_id is ?) as is_queued
+	from tm_seeds left join tm_queue using(seed_id)
+	group by seed_id
+	having is_queued
+	order by seed_name
+`)
+
+const TM_POOL_LIST_USER_ACTIVE = SQL(`
+	select * from tm_pool_active_view
+	where not is_finished and pool_id in (
+		select pool_id
+		from tm_rounds
+		join players using(game_id)
+		where user_id = ?
+	)
+`)
+
+const TM_POOL_LIST_USER_RECENT_FINISHED = SQL(`
+	select * from tm_pool_finished_view
+	where
+		finish_date > date('now', '-14 days')
+		and pool_id in (
+			select pool_id
+			from tm_rounds
+			join players using(game_id)
+			where user_id = ?
+		)
+`)
+
+const TM_POOL_LIST_USER_ALL_FINISHED = SQL(`
+	select * from tm_pool_finished_view
+	where
+		pool_id in (
+			select pool_id
+			from tm_rounds
+			join players using(game_id)
+			where user_id = ?
+		)
+`)
+
+const TM_POOL_LIST_TITLE_ACTIVE = SQL(`
+	select tm_pool_active_view.* from tm_pool_active_view join tm_seeds using(seed_id)
+	where tm_seeds.title_id = ?
+`)
+
+const TM_POOL_LIST_TITLE_FINISHED = SQL(`
+	select tm_pool_finished_view.* from tm_pool_finished_view join tm_seeds using(seed_id)
+	where tm_seeds.title_id = ? and finish_date > date('now', '-14 days')
+`)
+
+const TM_POOL_LIST_SEED_ACTIVE = SQL("select * from tm_pool_active_view where seed_id = ?")
+const TM_POOL_LIST_SEED_FINISHED = SQL("select * from tm_pool_finished_view where seed_id = ?")
+
+const TM_SELECT_QUEUE_BLACKLIST = SQL("select me, you from contacts join tm_queue q on q.user_id=me or q.user_id=you where relation < 0 and seed_id=? and level=?")
+const TM_SELECT_QUEUE_NAMES = SQL("select user_id, name, level from tm_queue join users using(user_id) where seed_id=? and level=? order by time")
+const TM_SELECT_QUEUE = SQL("select user_id from tm_queue where seed_id=? and level=? order by time desc").pluck()
+const TM_DELETE_QUEUE = SQL("delete from tm_queue where user_id=? and seed_id=? and level=?")
+const TM_INSERT_QUEUE = SQL("insert into tm_queue (user_id, seed_id, level) values (?,?,?)")
+
+const TM_SELECT_SEED = SQL("select * from tm_seeds where seed_id = ?")
+const TM_SELECT_SEED_BY_NAME = SQL("select * from tm_seeds where seed_name = ?")
+const TM_SELECT_POOL_BY_NAME = SQL("select * from tm_pools where pool_name=?")
+
+const TM_INSERT_POOL = SQL("insert into tm_pools (seed_id, level, is_finished, start_date, pool_name) values (?,?,0,datetime(),?) returning pool_id").pluck()
+const TM_INSERT_ROUND = SQL("insert into tm_rounds (game_id, pool_id, round) values (?,?,?)")
+
+const TM_UPDATE_POOL_FINISHED = SQL("update tm_pools set is_finished=1, finish_date=datetime() where pool_id=?")
+
+const TM_FIND_POOL_NAME = SQL("select pool_name from tm_rounds join tm_pools using(pool_id) where game_id=?").pluck()
+const TM_FIND_NEXT_POOL_NUMBER = SQL("select 1 + count(1) from tm_pools where seed_id = ? and level = ?").pluck()
+
+const TM_SELECT_GAMES = SQL(`
+	select
+		tm_rounds.*,
+		games.status,
+		games.moves,
+		json_group_object(role, name) as role_names,
+		json_group_object(role, score) as role_scores
+	from
+		tm_rounds
+		left join games using(game_id)
+		left join players using(game_id)
+		left join users using(user_id)
+	where
+		pool_id=?
+	group by
+		game_id
+`)
+
+const TM_SELECT_WINNERS = SQL("select * from tm_winners where pool_id = ?")
+
+const TM_SELECT_PLAYERS_2P = SQL(`
+	with
+		score_cte as (
+			select
+				pool_id,
+				u1.user_id as user_id,
+				u1.name as name,
+				u2.name as opponent,
+				json_group_array(json_array(game_id, p1.score)) as result
+			from
+				tm_rounds
+				left join players as p1 using(game_id)
+				left join players as p2 using(game_id)
+				left join users as u1 on u1.user_id=p1.user_id
+				left join users as u2 on u2.user_id=p2.user_id
+			where
+				pool_id = ?
+				and p1.user_id != p2.user_id
+			group by u1.name, u2.name
+		)
+	select
+		name,
+		json_group_object(opponent, json(result)) as result,
+		coalesce(points, 0) as points,
+		coalesce(son, 0) as son
+	from
+		score_cte
+		left join tm_results using(pool_id, user_id)
+	group by
+		user_id
+	order by
+		points desc, son desc, name
+`)
+
+const TM_SELECT_PLAYERS_MP = SQL(`
+	select
+		name,
+		json_group_array(json_array(game_id, score)) as result,
+		coalesce(points, 0) as points,
+		coalesce(son, 0) as son
+	from
+		tm_rounds
+		left join games using(game_id)
+		left join players using(game_id)
+		left join users using(user_id)
+		left join tm_results using(pool_id, user_id)
+	where
+		pool_id = ?
+	group by
+		user_id
+	order by
+		points desc, son desc, name
+`)
+
+const TM_FIND_NEXT_GAME_TO_START = SQL(`
+	with
+		user_busy as (
+			select
+				pool_id, round, user_id, role
+			from
+				tm_rounds
+				join games using(game_id)
+				join players using(game_id)
+			where
+				status = 1
+		),
+		next_round as (
+			select
+				pool_id,
+				round,
+				coalesce(
+					lag( sum(status < 2) = 0 ) over ( partition by pool_id order by round ),
+					1
+				) as is_round_ready
+			from
+				tm_rounds
+				join games using(game_id)
+			group by
+				pool_id, round
+		),
+		next_game as (
+			select
+				pool_id,
+				games.game_id,
+				games.title_id,
+				games.scenario,
+				games.options,
+				sum(
+					exists (
+						select 1 from user_busy
+							where user_busy.pool_id = tm_rounds.pool_id
+							and user_busy.round = tm_rounds.round
+							and user_busy.user_id = players.user_id
+							and user_busy.role = players.role
+					)
+				) = 0 as is_user_ready
+			from
+				next_round
+				join tm_rounds using(pool_id, round)
+				join games using(game_id)
+				join players using(game_id)
+			where
+				status = 0 and is_round_ready
+			group by
+				game_id
+			having
+				is_user_ready
+		)
+	select
+		pool_id, game_id, title_id, scenario, options
+	from
+		next_game
+	limit 1
+`)
+
+const TM_SELECT_ENDED_POOLS = SQL(`
+	select
+		pool_id, seed_id, level, pool_name, level_count
+	from
+		tm_pools
+		join tm_seeds using(seed_id)
+		join tm_rounds using(pool_id)
+		join games using(game_id)
+	where
+		not is_finished
+	group by
+		pool_id
+	having
+		sum(status < 2) = 0
+`)
+
+const TM_SELECT_SEED_READY_MINI_CUP = SQL(`
+	select
+		seed_id, level
+	from
+		tm_seeds
+		join tm_queue using(seed_id)
+	where
+		is_open and seed_name like 'mc.%'
+		and julianday(time) < julianday('now', '-30 seconds')
+	group by
+		seed_id, level
+	having
+		count(1) >= pool_size
+`)
+
+app.get("/tm/list", function (req, res) {
+	let seeds = TM_SEED_LIST_ALL.all(req.user ? req.user.user_id : 0)
+	let seeds_by_title = object_group_by(seeds, "title_id")
+	res.render("tm_list.pug", { user: req.user, seeds, seeds_by_title })
+})
+
+app.get("/tm/seed/:seed_name", function (req, res) {
+	let seed_name = req.params.seed_name
+	let seed = TM_SELECT_SEED_BY_NAME.get(seed_name)
+	if (!seed)
+		return res.status(404).send("Tournament seed not found.")
+	let seed_id = seed.seed_id
+	let queues = []
+	for (let level = 1; level <= seed.level_count; ++level)
+		queues[level-1] = TM_SELECT_QUEUE_NAMES.all(seed_id, level)
+
+	let active_pools = TM_POOL_LIST_SEED_ACTIVE.all(seed_id)
+	let finished_pools = TM_POOL_LIST_SEED_FINISHED.all(seed_id)
+
+	let error = null
+	let may_register = false
+	if (req.user && seed.is_open) {
+		if (!may_join_any_seed(req.user.user_id))
+			error = "Please verify your mail address and enable notifications to join tournaments."
+		else if (!may_join_seed(req.user.user_id, seed_id))
+			error = "You may not register for this tournament."
+		else
+			may_register = true
+	}
+
+	res.render("tm_seed.pug", { user: req.user, error, may_register, seed, queues, active_pools, finished_pools })
+})
+
+app.get("/tm/pool/:pool_name", function (req, res) {
+	let pool_name = req.params.pool_name
+	let pool = TM_SELECT_POOL_BY_NAME.get(pool_name)
+	if (!pool)
+		return res.status(404).send("Tournament pool not found.")
+	let pool_id = pool.pool_id
+	let seed = TM_SELECT_SEED.get(pool.seed_id)
+	let roles = get_game_roles(seed.title_id, seed.scenario, seed.options)
+	let players
+	if (seed.player_count === 2)
+		players = TM_SELECT_PLAYERS_2P.all(pool_id)
+	else
+		players = TM_SELECT_PLAYERS_MP.all(pool_id)
+	let games = TM_SELECT_GAMES.all(pool_id)
+	let games_by_round = object_group_by(games, "round")
+	res.render("tm_pool.pug", { user: req.user, seed, pool, roles, players, games_by_round })
+})
+
+app.post("/api/tm/register/:seed_id", must_be_logged_in, function (req, res) {
+	let seed_id = req.params.seed_id | 0
+	let user_id = req.user.user_id
+	if (!may_join_any_seed(user_id))
+		return res.status(401).send("You may not join any tournaments right now.")
+	if (!may_join_seed(user_id, seed_id))
+		return res.status(401).send("You may not join this tournament.")
+	TM_INSERT_QUEUE.run(user_id, seed_id, 1)
+	return res.redirect(req.headers.referer)
+})
+
+app.post("/api/tm/withdraw/:seed_id/:level", must_be_logged_in, function (req, res) {
+	let seed_id = req.params.seed_id | 0
+	let level = req.params.level | 0
+	let user_id = req.user.user_id
+	TM_DELETE_QUEUE.run(user_id, seed_id, level)
+	return res.redirect(req.headers.referer)
+})
+
+app.post("/api/tm/start/:seed_id/:level", must_be_administrator, function (req, res) {
+	let seed_id = req.params.seed_id | 0
+	let level = req.params.level | 0
+	start_tournament_seed(seed_id, level)
+	tm_start_ready_games()
+	return res.redirect(req.headers.referer)
+})
+
+function make_pools(seed, players) {
+	let v = players.length
+	let k = seed.player_count
+	let n = seed.round_count
+
+	if (k === 2) {
+		if (n === 4) {
+			if (v % 5 === 0)
+				return designs.pool_players(players, 5)
+			if (v % 3 === 0)
+				return designs.pool_players(players, 3)
+			if (v > 7)
+				return designs.pool_players_using_knapsack(players, "5/3")
+		}
+
+		if (n === 6) {
+			if (v % 7 === 0)
+				return designs.pool_players(players, 7)
+			if (v % 4 === 0)
+				return designs.pool_players(players, 4)
+			if (v > 17)
+				return designs.pool_players_using_knapsack(players, "7/4")
+		}
+
+		if (n === 8) {
+			if (v % 9 === 0)
+				return designs.pool_players(players, 9)
+			if (v % 5 === 0)
+				return designs.pool_players(players, 5)
+			if (v > 31)
+				return designs.pool_players_using_knapsack(players, "9/5")
+		}
+
+		if (v % (n+1) === 0)
+			return designs.pool_players(players, n+1)
+
+		throw new Error("cannot create pools for this player/rounds configuration")
+
+		if (v > n+1)
+			return designs.pool_players(players, n+1)
+
+		return [ players ]
+	}
+
+	if (k === 3) {
+		// youden squares
+		if (v % 7 === 0) return designs.pool_players(players, 7)
+		// kirkman triple systems
+		if (v % 9 === 0) return designs.pool_players(players, 9)
+		if (v % 15 === 0) return designs.pool_players(players, 15)
+		if (v % 21 === 0) return designs.pool_players(players, 21)
+		if (v % 27 === 0) return designs.pool_players(players, 27)
+		if (v % 33 === 0) return designs.pool_players(players, 33)
+		if (v % 39 === 0) return designs.pool_players(players, 39)
+		if (v % 45 === 0) return designs.pool_players(players, 45)
+		if (v % 51 === 0) return designs.pool_players(players, 51)
+		// misc bibd
+		if (v % 13 === 0 && n == 6)
+			return designs.pool_players(players, 13)
+	}
+
+	if (k === 4) {
+		// youden squares
+		if (v % 7 === 0) return designs.pool_players(players, 7)
+		if (v % 13 === 0) return designs.pool_players(players, 13)
+		// steiner quadrilateral systems
+		if (v % 16 === 0) return designs.pool_players(players, 16)
+		if (v % 28 === 0) return designs.pool_players(players, 28)
+		if (v % 40 === 0) return designs.pool_players(players, 40)
+		if (v % 52 === 0) return designs.pool_players(players, 52)
+		// misc bibd
+		if (v % 9 === 0 && n == 8)
+			return designs.pool_players(players, 9)
+	}
+
+	if (k === 5) {
+		// youden squares
+		if (v % 11 === 0) return designs.pool_players(players, 11)
+		if (v % 21 === 0) return designs.pool_players(players, 21)
+		// resolvable bibd
+		if (v % 25 === 0) return designs.pool_players(players, 25)
+	}
+
+	if (k === 6) {
+		// youden squares / bibd
+		if (v % 11 === 0) return designs.pool_players(players, 11)
+		if (v % 16 === 0) return designs.pool_players(players, 16)
+		if (v % 31 === 0) return designs.pool_players(players, 31)
+	}
+
+	throw new Error("cannot create pools for this player count")
+}
+
+function make_rounds(seed, players) {
+	let v = players.length
+	let k = seed.player_count
+	let n = seed.round_count
+	let rounds
+	if (seed.is_concurrent)
+		rounds = make_concurrent_rounds(v, k, n)
+	else
+		rounds = make_sequential_rounds(v, k, n)
+	return rounds.map(r => r.map(m => m.map(p => players[p])))
+}
+
+function make_concurrent_rounds(v, k, n) {
+	if (k === 2) {
+		if (v - 1 <= n / 2)
+			return [ designs.double_berger_table(v).flat() ]
+		else if (v & 1)
+			return [ designs.concurrent_round_robin(v).flat() ]
+		else
+			return [ designs.berger_table(v).flat() ]
+	}
+
+	let bibd = designs.youden_square(v, k)
+	if (bibd)
+		return [ bibd ]
+
+	let rbibd = designs.resolvable_bibd(v, k)
+	if (rbibd)
+		return rbibd.slice(0, n).flat()
+
+	throw new Error("cannot create rounds for this configuration")
+}
+
+function make_sequential_rounds(v, k, n) {
+	if (k === 2) {
+		if (v - 1 <= n / 2)
+			return designs.double_berger_table(v)
+		else
+			return designs.berger_table(v)
+	}
+
+	let rbibd = designs.resolvable_bibd(v, k)
+	if (rbibd)
+		return rbibd.slice(0, n)
+
+	throw new Error("cannot create rounds for this configuration")
+}
+
+function create_tournament(seed, level, players) {
+	let pools = make_pools(seed, players)
+	for (let i = 0; i < pools.length; ++i)
+		create_tournament_pool(seed, level, pools[i])
+}
+
+function create_tournament_pool(seed, level, players) {
+	let rounds = make_rounds(seed, players)
+
+	let pool_name = seed.seed_name + "." + level + "." + TM_FIND_NEXT_POOL_NUMBER.get(seed.seed_id, level)
+
+	let pool_id = TM_INSERT_POOL.get(seed.seed_id, level, pool_name)
+
+	console.log("TM POOL", pool_name, players.length, "players", rounds.length, "rounds")
+
+	for (let p of players) {
+		TM_DELETE_QUEUE.run(p, seed.seed_id, level)
+	}
+
+	for (let i = 0; i < rounds.length; ++i) {
+		for (let match of rounds[i]) {
+			create_tournament_game(seed, pool_id, i+1, pool_name, match)
+		}
+	}
+}
+
+function create_tournament_game(seed, pool_id, round, pool_name, players) {
+	if (players.length !== seed.player_count)
+		throw new Error("player count mismatch in tournament setup")
+
+	let roles = get_game_roles(seed.title_id, seed.scenario, parse_game_options(seed.options))
+	if (players.length !== roles.length)
+		throw new Error("player count mismatch in tournament setup")
+
+	let game_id = SQL_INSERT_GAME.get(
+		0, // owner
+		seed.title_id,
+		seed.scenario,
+		seed.options,
+		seed.player_count,
+		2, // pace
+		0, // is_private
+		0, // is_random
+		pool_name, // notice
+		1 // is_match
+	)
+
+	for (let i = 0; i < players.length; ++i)
+		SQL_INSERT_PLAYER_ROLE.run(game_id, roles[i], players[i], 0)
+
+	TM_INSERT_ROUND.run(game_id, pool_id, round)
+
+	return game_id
+}
+
+function filter_queue_through_blacklist(queue, count, blacklist) {
+	function can_add_player(pool, b) {
+		for (let a of pool) {
+			for (let {me, you} of blacklist) {
+				if (me === a && you === b)
+					return false
+				if (me === b && you === a)
+					return false
+			}
+		}
+		return true
+	}
+
+	function rec(output, input) {
+		for (;;) {
+			if (output.length === count)
+				return output
+			if (input.length === 0)
+				return false
+			let a = input.pop()
+			if (can_add_player(output, a)) {
+				output.push(a)
+				if (rec(output, input.slice()))
+					return output
+				output.pop()
+			}
+		}
+	}
+
+	return rec([], queue)
+}
+
+function start_tournament_seed_mc(seed_id, level) {
+	let seed = TM_SELECT_SEED.get(seed_id)
+	let queue = TM_SELECT_QUEUE.all(seed_id, level)
+	let blacklist = TM_SELECT_QUEUE_BLACKLIST.all(seed_id, level)
+
+	console.log("TM SPAWN SEED (MC)", seed.seed_name, level, queue.length)
+
+	let players = filter_queue_through_blacklist(queue, seed.pool_size, blacklist)
+	if (!players)
+		throw new Error("Too many blacklisted players to form pool!")
+
+	SQL_BEGIN.run()
+	try {
+		shuffle(players)
+		create_tournament(seed, level, players)
+		SQL_COMMIT.run()
+	} catch (err) {
+		console.log(err)
+	} finally {
+		if (db.inTransaction)
+			SQL_ROLLBACK.run()
+	}
+}
+
+function start_tournament_seed(seed_id, level) {
+	let seed = TM_SELECT_SEED.get(seed_id)
+
+	if (seed.seed_name.startsWith("mc."))
+		return start_tournament_seed_mc(seed_id, level)
+
+	let queue = TM_SELECT_QUEUE.all(seed_id, level)
+	console.log("TM SPAWN SEED", seed.seed_name, level, queue.length)
+
+	shuffle(queue)
+
+	SQL_BEGIN.run()
+	try {
+		create_tournament(seed, level, queue)
+		SQL_COMMIT.run()
+	} finally {
+		if (db.inTransaction)
+			SQL_ROLLBACK.run()
+	}
+}
+
+function tm_reap_pools() {
+	// reap pools that are finished (and promote winners)
+	let ended = TM_SELECT_ENDED_POOLS.all()
+	for (let item of ended) {
+		console.log("TM POOL - END", item.pool_name)
+		SQL_BEGIN.run()
+		try {
+			TM_UPDATE_POOL_FINISHED.run(item.pool_id)
+			if (item.level < item.level_count) {
+				let winners = TM_SELECT_WINNERS.all(item.pool_id)
+				for (let user_id of winners)
+					TM_INSERT_QUEUE.run(user_id, item.seed_id, item.level + 1)
+			}
+			SQL_COMMIT.run()
+		} finally {
+			if (db.inTransaction)
+				SQL_ROLLBACK.run()
+		}
+	}
+}
+
+function tm_start_ready_seeds() {
+	// start seeds that are ready
+	for (let item of TM_SELECT_SEED_READY_MINI_CUP.all())
+		start_tournament_seed_mc(item.seed_id, item.level)
+}
+
+function tm_start_ready_games() {
+	// start games that are ready
+	for (;;) {
+		let game = TM_FIND_NEXT_GAME_TO_START.get()
+		if (game)
+			start_game(game)
+		else
+			break
+	}
+}
+
+function tournament_ticker() {
+	try {
+		tm_reap_pools()
+		tm_start_ready_seeds()
+		tm_start_ready_games()
+	} catch (err) {
+		console.log(err)
+	}
+}
+
+setTimeout(tournament_ticker, 19 * 1000)
+setInterval(tournament_ticker, 97 * 1000)
 
 /*
  * GAME SERVER

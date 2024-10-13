@@ -1,0 +1,48 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		+social(SITE_NAME, "Play historic board games on the web.")
+		meta(name="keywords" content="wargames, war games, block games")
+		title= SITE_NAME
+		style.
+			.list {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+				grid-auto-rows: 190px;
+				gap: 8px;
+			}
+			.list a {
+				display: grid;
+				grid-template-rows: 146px 40px;
+				text-align: center;
+				font-family: var(--font-small);
+				font-size: 14px;
+				line-height: 20px;
+				text-wrap: balance;
+				gap: 4px;
+			}
+			.list img {
+				display: block;
+				margin: auto auto;
+				min-width: 108px;
+				min-height: 108px;
+				max-width: 144px;
+				max-height: 144px;
+				background-color: silver;
+				box-shadow: var(--drop-shadow);
+				border: var(--thin-border);
+			}
+	body
+		include header
+		article.wide
+
+			h1 Games
+
+			div.list
+				each title in TITLE_LIST
+					unless title.is_hidden
+						a.black(href="/"+title.title_id)
+							img(src="/"+title.title_id+"/thumbnail.jpg")
+							div= title.title_name

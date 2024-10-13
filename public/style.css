@@ -241,8 +241,19 @@ table.wide {
 }
 
 table.half {
-	min-width: 50%;
+	width: 100%;
+	max-width: 400px;
 }
+
+table.seeds td:nth-child(2) { text-align: right; }
+table.pools td:nth-child(2) { text-align: right; }
+table.seeds td:nth-child(3) { width: 24px; text-align: right; }
+table.pools td:nth-child(3) { width: 24px; text-align: right; }
+
+table.pools a { color: var(--color-black); text-decoration: none; }
+table.pools a:hover { color: var(--color-blue); text-decoration: underline; }
+table.seeds a { color: var(--color-black); text-decoration: none; }
+table.seeds a:hover { color: var(--color-blue); text-decoration: underline; }
 
 thead, th {
 	background-color: var(--color-table-head);
@@ -268,6 +279,7 @@ table.striped tr:nth-child(2n) {
 
 td.r, th.r { text-align: right; }
 td.w, th.w { white-space: nowrap; }
+td.n, th.n { width: 0px; white-space: nowrap; text-align: right; }
 
 /* FORUM AND MESSAGE POSTS */
 
@@ -308,6 +320,15 @@ div.body img {
 	gap: 24px;
 	margin: 16px 0;
 }
+
+.tour_list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(0, 400px));
+	gap: 24px;
+	margin: 16px 0;
+}
+
+.tour_list table { margin: 0 }
 
 .game_item {
 	border: var(--thin-border);

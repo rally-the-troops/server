@@ -1,0 +1,24 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= SITE_NAME
+	body
+		include header
+		article.wide
+			h1 Your Tournaments
+
+			if seeds && seeds.length > 0
+				+seedlist(seeds, "Registrations")
+			p
+				a(href="/tm/list") Join a tournament
+
+			if active_pools && active_pools.length > 0
+				div
+					+poollist(active_pools, "Active", TM_ICON_ACTIVE)
+			div
+				if finished_pools && finished_pools.length > 0
+					+poollist(finished_pools, "Finished", TM_ICON_FINISHED)
+				p
+					a(href="/tm/finished") All your finished tournaments

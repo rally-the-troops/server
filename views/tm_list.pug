@@ -1,0 +1,28 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title Tournaments
+	body
+		include header
+		article
+			h1 Tournaments
+
+			p See <a href="/docs/tournaments.html">tournament information</a>.
+
+			if 0
+				dl
+					each seeds, title_id in seeds_by_title
+						dt= TITLE_NAME[title_id]
+						each seed in seeds
+							dd
+								a(href="/tm/seed/" + seed.seed_name)= seed.seed_name
+								|  (#{seed.queue_size}/#{seed.pool_size})
+								if user && seed.is_queued
+									|  &#x1f3ab;
+			if 0
+				each seeds, title_id in seeds_by_title
+					+seedlist(seeds, TITLE_NAME[title_id])
+			if 1
+				+seedlist(seeds, "Mini Cup")

@@ -11,17 +11,20 @@ html
 
 			p.
 				Here you can play board games online with other players.
-				You can invite your friends or look in the waiting room to see whether someone wants to play.
+				You can invite your friends, compete in tournaments, or look in the public room to see whether someone wants to play.
 				Your opponents don't have to be online, but if they are you can play live.
 
 			p.
 				Registration and use is free, and there are no ads.
 
-			p.
-				Please read the <a href="/docs/tips.html">Tips &amp; Tricks</a> before playing!
+			p!= process.env.SITE_INVITE
 
-			p.
-				Read the developer <a href="/docs/">documentation</a> if you want to create modules.
+			h2 About
+
+			ul
+				li Read the <a href="/docs/tips.html">Tips &amp; Tricks</a> before playing!
+				li Read the <a href="/docs/tournaments.html">tournament information</a> before joining a tournament.
+				li Study the <a href="/docs/">developer documentation</a> if you want to create modules.
 
 			p.
 				The source code is available on #[a(href="https://git.rally-the-troops.com/") git.rally-the-troops.com].

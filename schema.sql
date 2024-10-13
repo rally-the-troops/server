@@ -440,12 +440,15 @@ create view game_view as
 	select
 		games.*,
 		titles.title_name,
-		owner.name as owner_name
+		owner.name as owner_name,
+		tm_pools.pool_name
 	from
 		games
 		join titles using(title_id)
 		left join users as owner
 			on owner.user_id = games.owner_id
+		left join tm_rounds using(game_id)
+		left join tm_pools using(pool_id)
 	;
 
 drop view if exists game_view_public;
@@ -497,6 +500,7 @@ drop view if exists time_control_view;
 create view time_control_view as
 	select
 		game_id,
+		user_id,
 		role,
 		is_opposed
 	from
@@ -558,6 +562,228 @@ create view game_export_view as
 	from games as outer
 	;
 
+-- Tournaments --
+
+create table if not exists tm_seeds (
+	seed_id integer primary key,
+	seed_name text unique,
+
+	title_id text,
+	scenario text,
+	options text,
+	player_count integer,
+
+	pace integer default 2,
+
+	pool_size integer default 3,
+	round_count integer default 4,
+	is_concurrent boolean default 1,
+
+	level_count integer default 1,
+
+	is_open boolean default 1
+);
+
+create table if not exists tm_banned (
+	user_id integer primary key,
+	time datetime default current_timestamp
+);
+
+create table if not exists tm_queue (
+	user_id integer,
+	seed_id integer,
+	level integer,
+	is_paused boolean default 0,
+	time datetime default current_timestamp,
+	primary key (user_id, seed_id, level)
+);
+
+create table if not exists tm_pools (
+	pool_id integer primary key,
+	seed_id integer,
+	level integer,
+	is_finished boolean,
+	start_date datetime,
+	finish_date datetime,
+	pool_name text unique
+);
+
+create table if not exists tm_rounds (
+	game_id integer primary key,
+	pool_id integer,
+	round integer
+);
+
+create index if not exists tm_rounds_pool_idx on tm_rounds(pool_id);
+
+create table if not exists tm_results (
+	pool_id integer,
+	user_id integer,
+	points integer,
+	son integer,
+	primary key (pool_id, user_id)
+);
+
+create table if not exists tm_winners (
+	pool_id integer,
+	user_id integer
+);
+
+create index if not exists tm_winners_pool_idx on tm_winners(pool_id);
+
+drop view if exists tm_pool_active_view;
+create view tm_pool_active_view as
+	select
+		tm_pools.*,
+		sum(status > 1) || ' / ' || count(1) as status
+	from
+		tm_pools
+		left join tm_rounds using(pool_id)
+		left join games using(game_id)
+	where
+		not is_finished
+	group by
+		pool_id
+	order by
+		pool_name
+;
+
+drop view if exists tm_pool_finished_view;
+create view tm_pool_finished_view as
+	select
+		tm_pools.*,
+		group_concat(name) as status
+	from
+		tm_pools
+		left join tm_winners using(pool_id)
+		left join users using(user_id)
+	where
+		is_finished
+	group by
+		pool_id
+	order by
+		pool_name
+;
+
+drop view if exists tm_pool_view;
+create view tm_pool_view as
+	select * from tm_pool_active_view
+	union all
+	select * from tm_pool_finished_view
+;
+
+drop trigger if exists tm_trigger_update_results;
+create trigger tm_trigger_update_results after update of result on games when new.is_match
+begin
+	-- each player scores
+	update players
+		set score = (
+			case
+				when new.result is null then null
+				when new.result = role then 2
+				when new.result = 'Draw' then 1
+				when instr(new.result, role) then 1
+				else 0
+			end
+		)
+	where
+		players.game_id = new.game_id
+	;
+
+	-- Neustadtl Sonneborn–Berger tie-breaker
+	insert or replace into
+		tm_results (pool_id, user_id, points, son)
+	with
+		pts_cte as (
+			select
+				pool_id,
+				user_id,
+				sum(coalesce(score, 0)) as points
+			from
+				tm_rounds
+				join games using(game_id)
+				join players using(game_id)
+			where
+				pool_id = ( select pool_id from tm_rounds where game_id = new.game_id )
+			group by
+				user_id
+		),
+		son_cte as (
+			select
+				rr.pool_id,
+				p1.user_id,
+				sum(
+					case
+					when p1.score > p2.score then
+						pp.points * 2
+					when p1.score = p2.score then
+						pp.points
+					else
+						0
+					end
+				) as son
+			from
+				tm_rounds as rr
+				join games using(game_id)
+				join players as p1 using(game_id)
+				join players as p2 using(game_id)
+				join pts_cte pp on rr.pool_id = pp.pool_id and p2.user_id = pp.user_id
+			where
+				rr.pool_id = ( select pool_id from tm_rounds where game_id = new.game_id )
+				and p1.user_id != p2.user_id
+			group by
+				p1.user_id
+		)
+	select
+		pool_id, user_id, points, son
+	from
+		pts_cte
+		join son_cte using(pool_id, user_id)
+	;
+
+end;
+
+drop trigger if exists tm_trigger_update_winners;
+create trigger tm_trigger_update_winners after update of is_finished on tm_pools when new.is_finished
+begin
+	delete from tm_winners where pool_id = new.pool_id;
+	insert into
+		tm_winners ( pool_id, user_id )
+	with
+		tt as (
+			select
+				round_count as threshold
+			from
+				tm_seeds
+			where
+				seed_id = ( select seed_id from tm_pools where pool_id = new.pool_id )
+		),
+		aa as (
+			select
+				max(points) as max_points
+			from
+				tm_results
+			where
+				pool_id = new.pool_id
+		),
+		bb as (
+			select
+				max_points,
+				max(son) as max_son
+			from
+				tm_results, aa
+			where
+				pool_id = new.pool_id and points = max_points
+		)
+	select
+		pool_id, user_id
+	from
+		tm_results, bb, tt
+	where
+		pool_id = new.pool_id and points > threshold and points = max_points and son = max_son
+	;
+end;
+
 -- Trigger to update player counts when players join and part games
 
 drop trigger if exists trigger_join_game;
@@ -599,26 +825,6 @@ begin
 		mtime = datetime()
 	where
 		games.game_id = old.game_id;
-end;
-
--- Trigger to update player score when game ends.
-
-drop trigger if exists trigger_update_score;
-create trigger trigger_update_score after update of result on games
-begin
-	update players
-		set score = (
-			case
-				when new.result is null then null
-				when new.result = role then 2
-				when new.result = 'Draw' then 1
-				when instr(new.result, role) then 1
-				else 0
-			end
-		)
-	where
-		players.game_id = new.game_id
-	;
 end;
 
 -- Trigger to track time spent!
@@ -673,6 +879,7 @@ begin
 	delete from posts where author_id = old.user_id;
 	delete from threads where author_id = old.user_id;
 	delete from game_chat where user_id = old.user_id;
+	delete from tm_queue where user_id = old.user_id;
 	delete from players where user_id = old.user_id and game_id in (select game_id from games where status = 0);
 	update games set owner_id = 0 where owner_id = old.user_id;
 end;

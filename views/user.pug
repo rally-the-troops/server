@@ -40,10 +40,12 @@ html
 					else
 						a(href="/contacts/add-friend/"+who.name) Add to friends
 						br
-						a(href="/contacts/add-enemy/"+who.name) Blacklist user
+						a(href="/contacts/add-enemy/"+who.name) Add to blacklist
+
+			+tourlist(null, active_pools, finished_pools)
 
 			if open_games.length > 0
-				h2 Open
+				h2 Invitations
 				+gamelist(open_games)
 
 			if active_games.length > 0
@@ -63,6 +65,7 @@ html
 				+gamelist(finished_games)
 
 			p <a href="/games/finished/#{who.name}">All #{who.name}'s finished games</a>
+			p <a href="/tm/finished/#{who.name}">All #{who.name}'s finished tournaments</a>
 
 			if user && user.user_id === 1
 				if who.is_banned

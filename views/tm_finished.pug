@@ -1,0 +1,18 @@
+//- vim:ts=4:sw=4:
+doctype html
+html
+	head
+		include head
+		title= SITE_NAME
+	body
+		include header
+		article.wide
+			if user && user.user_id === who.user_id
+				h1 Your finished tournaments
+			else
+				h1 #{who.name}&rsquo;s finished tournaments
+
+			if pools.length > 0
+				+poollist(pools, TM_ICON_FINISHED)
+			else
+				p Nothing here.
