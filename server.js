@@ -2750,6 +2750,8 @@ const TM_SEED_LIST_USER = SQL(`
 	order by seed_name
 `)
 
+const TM_POOL_LIST_ACTIVE = SQL("select * from tm_pool_active_view")
+
 const TM_POOL_LIST_USER_ACTIVE = SQL(`
 	select * from tm_pool_active_view
 	where not is_finished and pool_id in (
@@ -2983,7 +2985,8 @@ const TM_SELECT_SEED_READY_MINI_CUP = SQL(`
 app.get("/tm/list", function (req, res) {
 	let seeds = TM_SEED_LIST_ALL.all(req.user ? req.user.user_id : 0)
 	let seeds_by_title = object_group_by(seeds, "title_id")
-	res.render("tm_list.pug", { user: req.user, seeds, seeds_by_title })
+	let active_pools = TM_POOL_LIST_ACTIVE.all()
+	res.render("tm_list.pug", { user: req.user, seeds, seeds_by_title, active_pools })
 })
 
 app.get("/tm/seed/:seed_name", function (req, res) {
