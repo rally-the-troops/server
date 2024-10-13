@@ -745,8 +745,6 @@ app.post("/change-about", must_be_logged_in, function (req, res) {
 app.get("/user/:who_name", function (req, res) {
 	let who = SQL_SELECT_USER_PROFILE.get(req.params.who_name)
 	if (who) {
-		who.ctime = human_date(who.ctime)
-		who.atime = human_date(who.atime)
 		let games = QUERY_LIST_PUBLIC_GAMES_OF_USER.all({ user_id: who.user_id })
 		annotate_games(games, 0, null)
 		let active_pools = TM_POOL_LIST_USER_ACTIVE.all(who.user_id)
@@ -774,7 +772,6 @@ const SQL_SELECT_RELATION = SQL("select relation from contacts where me=? and yo
 
 app.get("/contacts", must_be_logged_in, function (req, res) {
 	let contacts = SQL_SELECT_CONTACT_LIST.all(req.user.user_id)
-	contacts.forEach(user => user.atime = human_date(user.atime))
 	res.render("contacts.pug", {
 		user: req.user,
 		friends: contacts.filter(user => user.relation > 0),
@@ -810,8 +807,6 @@ app.get("/contacts/search", must_be_logged_in, function (req, res) {
 		if (!q.includes("%"))
 			q = "%" + q + "%"
 		let results = SQL_SELECT_USER_BY_SEARCH.all(q)
-		for (let item of results)
-			item.atime = human_date(item.atime)
 		res.render("search_user.pug", {
 			user: req.user,
 			search: req.query.q,
@@ -862,8 +857,6 @@ const MESSAGE_DELETE_ALL_OUTBOX = SQL("UPDATE messages SET is_deleted_from_outbo
 
 app.get("/message/inbox", must_be_logged_in, function (req, res) {
 	let messages = MESSAGE_LIST_INBOX.all(req.user.user_id)
-	for (let i = 0; i < messages.length; ++i)
-		messages[i].time = human_date(messages[i].time)
 	res.render("message_inbox.pug", {
 		user: req.user,
 		messages: messages,
@@ -872,8 +865,6 @@ app.get("/message/inbox", must_be_logged_in, function (req, res) {
 
 app.get("/message/outbox", must_be_logged_in, function (req, res) {
 	let messages = MESSAGE_LIST_OUTBOX.all(req.user.user_id)
-	for (let i = 0; i < messages.length; ++i)
-		messages[i].time = human_date(messages[i].time)
 	res.render("message_outbox.pug", {
 		user: req.user,
 		messages: messages,
@@ -889,7 +880,6 @@ app.get("/message/read/:message_id", must_be_logged_in, function (req, res) {
 		MESSAGE_MARK_READ.run(message_id)
 		req.user.unread --
 	}
-	message.time = human_date(message.time)
 	message.body = linkify_post(message.body)
 	res.render("message_read.pug", {
 		user: req.user,
@@ -1026,8 +1016,6 @@ function show_forum_page(req, res, page) {
 		threads = FORUM_LIST_THREADS_USER.all(req.user.user_id, FORUM_PAGE_SIZE, FORUM_PAGE_SIZE * (page - 1))
 	else
 		threads = FORUM_LIST_THREADS.all(FORUM_PAGE_SIZE, FORUM_PAGE_SIZE * (page - 1))
-	for (let thread of threads)
-		thread.mtime = human_date(thread.mtime)
 	res.render("forum_view.pug", {
 		user: req.user,
 		threads: threads,
@@ -1063,8 +1051,6 @@ app.get("/forum/thread/:thread_id", function (req, res) {
 	for (let i = 0; i < posts.length; ++i) {
 		posts[i].body = linkify_post(posts[i].body)
 		posts[i].edited = posts[i].mtime !== posts[i].ctime
-		posts[i].ctime = human_date(posts[i].ctime)
-		posts[i].mtime = human_date(posts[i].mtime)
 	}
 	if (req.user)
 		FORUM_MARK_READ.run(req.user.user_id, thread_id)
@@ -1113,8 +1099,6 @@ app.get("/forum/edit/:post_id", must_be_logged_in, function (req, res) {
 	let post = FORUM_GET_POST.get(post_id)
 	if (!post || post.author_id != req.user.user_id)
 		return res.status(404).send("Invalid post ID.")
-	post.ctime = human_date(post.ctime)
-	post.mtime = human_date(post.mtime)
 	res.render("forum_edit.pug", {
 		user: req.user,
 		post: post,
@@ -1137,8 +1121,6 @@ app.get("/forum/reply/:post_id", must_be_logged_in, function (req, res) {
 	let thread = FORUM_GET_THREAD.get(post.thread_id)
 	post.body = linkify_post(post.body)
 	post.edited = post.mtime !== post.ctime
-	post.ctime = human_date(post.ctime)
-	post.mtime = human_date(post.mtime)
 	res.render("forum_reply.pug", {
 		user: req.user,
 		thread: thread,
@@ -1609,9 +1591,6 @@ function annotate_game_info(game, user_id, unread) {
 		if (your_count === 1)
 			game.your_role = your_role
 	}
-
-	game.ctime = human_date(game.ctime)
-	game.mtime = human_date(game.mtime)
 }
 
 function annotate_games(list, user_id, unread) {

@@ -22,7 +22,7 @@ html
 								tr
 									td
 										a.black(href="/user/"+who.name)= who.name
-									td.w= who.atime
+									td.w= human_date(who.atime)
 				else
 					p.error Nobody found matching "#{search}".
 

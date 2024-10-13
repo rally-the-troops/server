@@ -25,7 +25,7 @@ html
 						tr
 							td
 								a.black(href="/user/"+who.name)= who.name
-							td.w= who.atime
+							td.w= human_date(who.atime)
 							td.w.r
 								a.blue(href="/message/send/"+who.name) &#x1f4dd;
 								a.red(href="/contacts/remove/"+who.name) &#x274c;

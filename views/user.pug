@@ -26,8 +26,8 @@ html
 			if who.about
 				p.about= who.about
 
-			p Member since #{who.ctime}.
-			p Last seen #{who.atime}.
+			p Member since #{human_date(who.ctime)}.
+			p Last seen #{human_date(who.atime)}.
 
 			if user && (who.user_id !== user.user_id)
 				p

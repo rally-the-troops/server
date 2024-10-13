@@ -32,7 +32,7 @@ html
 						tr(class=row.is_read?"read":"unread")
 							td: a.black(href="/user/"+row.from_name)= row.from_name
 							td: a.black(href="/message/read/"+row.message_id)= subject
-							td.w= row.time
+							td.w= human_date(row.time)
 					else
 						tr
 							td(colspan=3) No messages.

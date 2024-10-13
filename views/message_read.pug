@@ -25,7 +25,7 @@ html
 					div.
 						From: #[a(href="/user/"+message.from_name)= message.from_name]
 						To: #[a(href="/user/"+message.to_name)= message.to_name]
-					div= message.time
+					div= human_date(message.time)
 				div.body!= message.body
 
 			p

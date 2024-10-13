@@ -29,7 +29,7 @@ html
 							td
 								a.black(href="/forum/thread/"+row.thread_id)= row.subject
 							td.r= row.count
-							td.w= row.mtime
+							td.w= human_date(row.mtime)
 				tfoot
 					tr
 						td(colspan=4)

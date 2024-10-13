@@ -5,7 +5,7 @@
 - let move_games = games.filter(game => game.status === 1 && game.is_opposed && game.your_turn)
 - let solo_games = games.filter(game => game.status === 1 && !game.is_opposed)
 - let finished_games = games.filter(game => game.status === 2)
-- move_games.sort((a,b)=>a.time_left-b.time_left)
+- move_games.sort((a,b)=> a.mtime < b.mtime ? -1 : a.mtime > b.mtime ? 1 : 0)
 doctype html
 html
 	head

@@ -28,10 +28,10 @@ mixin forumpost(row,show_buttons)
 	.post(id=row.post_id)
 		.head
 			.from: b: a.black(href="/user/"+row.author_name)= row.author_name
-			.time= row.ctime
+			.time= human_date(row.ctime)
 				if row.edited
 					|
-					| (edited #{row.mtime})
+					| (edited #{human_date(row.mtime)})
 		.body!= row.body
 	if show_buttons && user
 		.edit
@@ -120,9 +120,9 @@ mixin gamelist(list,hide_title=0)
 								div Players: <span class="error">Nobody</span>
 							case item.status
 								when 0
-									div Created: #{item.ctime}
+									div Created: #{human_date(item.ctime)}
 								when 1
-									div Last move: #{item.mtime}
+									div Last move: #{human_date(item.mtime)}
 									if item.your_turn
 										if item.time_left <= 0
 											div Time left: none.
@@ -131,10 +131,10 @@ mixin gamelist(list,hide_title=0)
 										else if item.time_left <= 5
 											div Time left: #{ item.time_left | 0 } days
 								when 2
-									div Finished: #{item.mtime}
+									div Finished: #{human_date(item.mtime)}
 									div Result: !{item.result}
 								when 3
-									div Finished: #{item.mtime}
+									div Finished: #{human_date(item.mtime)}
 									div Result: !{item.result}
 						unless hide_title
 							a(href=`/${item.title_id}`)
