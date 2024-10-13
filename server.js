@@ -1419,37 +1419,37 @@ const QUERY_LIST_PUBLIC_GAMES_REPLACEMENT = SQL(`
 
 const QUERY_LIST_PUBLIC_GAMES_ACTIVE = SQL(`
 	select * from game_view_public where status = 1 and join_count = player_count
-	order by mtime desc, ctime desc
+	order by mtime desc
 	limit 12
 	`)
 
 const QUERY_LIST_PUBLIC_GAMES_FINISHED = SQL(`
 	select * from game_view_public where status = 2
-	order by mtime desc, ctime desc
+	order by mtime desc
 	limit 12
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE_OPEN = SQL(`
 	select * from game_view_public where title_id=? and status = 0 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
-	order by mtime desc, ctime desc
+	order by game_id desc
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE_REPLACEMENT = SQL(`
 	select * from game_view_public where title_id=? and status = 1 and join_count < player_count
 	and not exists ( select 1 from contacts where me = owner_id and you = ? and relation < 0 )
-	order by mtime desc, ctime desc
+	order by game_id desc
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE_ACTIVE = SQL(`
 	select * from game_view_public where title_id=? and status = 1 and join_count = player_count
-	order by mtime desc, ctime desc
+	order by mtime desc
 	limit 12
 	`)
 
 const QUERY_LIST_GAMES_OF_TITLE_FINISHED = SQL(`
 	select * from game_view_public where title_id=? and status = 2
-	order by mtime desc, ctime desc
+	order by mtime desc
 	limit 12
 	`)
 
@@ -1482,7 +1482,7 @@ const QUERY_LIST_ACTIVE_GAMES_OF_USER = SQL(`
 		( owner_id=$user_id or game_id in ( select game_id from players where players.user_id=$user_id ) )
 		and
 		( status <= ${STATUS_FINISHED} )
-	order by status asc, mtime desc
+	order by game_id desc
 	`)
 
 const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
@@ -1600,14 +1600,6 @@ app.get("/games", function (_req, res) {
 	res.redirect("/games/public")
 })
 
-function sort_your_turn(a, b) {
-	if (a.is_opposed && b.is_opposed) {
-		if (a.your_turn && !b.your_turn) return -1
-		if (!a.your_turn && b.your_turn) return 1
-	}
-	return 0
-}
-
 app.get("/games/next", must_be_logged_in, function (req, res) {
 	let next = QUERY_NEXT_GAME_OF_USER.get(req.user.user_id)
 	if (next !== undefined)
@@ -1617,11 +1609,11 @@ app.get("/games/next", must_be_logged_in, function (req, res) {
 })
 
 app.get("/games/active", must_be_logged_in, function (req, res) {
-	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id: req.user.user_id })
-	let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(req.user.user_id)
-	annotate_games(games, req.user.user_id, unread)
-	games.sort(sort_your_turn)
-	res.render("games_active.pug", { user: req.user, who: req.user, games })
+	let user_id = req.user.user_id
+	let games = QUERY_LIST_ACTIVE_GAMES_OF_USER.all({ user_id })
+	let unread = SQL_SELECT_UNREAD_CHAT_GAMES.all(user_id)
+	annotate_games(games, user_id, unread)
+	res.render("games_active.pug", { user: req.user, who: req.user, games, seeds, active_pools, finished_pools })
 })
 
 app.get("/games/finished", must_be_logged_in, function (req, res) {
