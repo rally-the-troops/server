@@ -198,6 +198,7 @@ designs.resolvable_bibd = function (v, k) {
 		case 3:
 			switch (v) {
 				case 9: return designs.resolvable_bibd_9_3_1
+				case 12: return designs.social_golfer_12_3_1
 				case 15: return designs.resolvable_bibd_15_3_1
 				case 21: return designs.resolvable_bibd_21_3_1
 				case 27: return designs.resolvable_bibd_27_3_1
@@ -209,6 +210,7 @@ designs.resolvable_bibd = function (v, k) {
 			break
 		case 4:
 			switch (v) {
+				case 8: return designs.social_golfer_8_4_2
 				case 16: return designs.resolvable_bibd_16_4_1
 				case 28: return designs.resolvable_bibd_28_4_1
 				case 40: return designs.resolvable_bibd_40_4_1
@@ -708,6 +710,22 @@ designs.youden_square_15_7_3 = [
 ]
 
 // Other designs.
+
+// sit 1x - meet 1x - missed pairings
+designs.social_golfer_12_3_1 = [
+	[[2,0,1],[5,4,3],[6,8,7],[11,9,10]],
+	[[3,6,0],[9,1,4],[7,10,2],[8,11,5]],
+	[[0,7,9],[1,3,11],[4,2,8],[10,5,6]],
+	[[0,8,10],[1,5,7],[2,3,9],[4,6,11]]
+]
+
+// sit 1x - meet 2x - missed pairings
+designs.social_golfer_8_4_2 = [
+	[[1,2,3,4],[5,6,7,0]],
+	[[0,1,2,7],[4,5,6,3]],
+	[[7,4,1,6],[3,0,5,2]],
+	[[6,3,0,1],[2,7,4,5]],
+]
 
 // sit 2x - meet 1x
 designs.bibd_13_3_1 = [
