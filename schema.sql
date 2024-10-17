@@ -502,7 +502,8 @@ create view time_control_view as
 		game_id,
 		user_id,
 		role,
-		is_opposed
+		is_opposed,
+		is_match
 	from
 		games
 		join players using(game_id)
