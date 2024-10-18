@@ -1385,7 +1385,7 @@ const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role
 
 const SQL_SELECT_PLAYER_VIEW = SQL("select * from player_view where game_id = ?")
 
-const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN}`).pluck()
+const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN} and not is_match`).pluck()
 const SQL_COUNT_ACTIVE_GAMES = SQL(`
 	select count(*) from games
 	where status < 2 and exists (
