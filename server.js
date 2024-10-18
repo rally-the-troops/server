@@ -2813,7 +2813,7 @@ const TM_SELECT_GAMES = SQL(`
 		game_id
 `)
 
-const TM_SELECT_WINNERS = SQL("select * from tm_winners where pool_id = ?")
+const TM_SELECT_WINNERS = SQL("select user_id from tm_winners where pool_id = ?").pluck()
 
 const TM_SELECT_PLAYERS_2P = SQL(`
 	with
