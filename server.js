@@ -2620,7 +2620,7 @@ const SQL_UPDATE_PLAYERS_INIT_TIME = SQL(`
 		set clock = (
 			case (select pace from games where games.game_id = players.game_id)
 				when 1 then 1
-				when 2 then 2
+				when 2 then 3
 				when 3 then 3
 				else 14
 			end
