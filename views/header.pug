@@ -9,7 +9,8 @@ header
 		if user
 			if ENABLE_FORUM
 				a(href="/forum") Forum
-			a(href="/tm/list") Tournaments
+			if ENABLE_TOURNAMENTS
+				a(href="/tm/list") Tournaments
 			a(href="/games/public") Public
 			if user.waiting > 0
 				a(href="/games/active") Games (#{user.waiting})

@@ -128,7 +128,7 @@ function format_time_left(time) {
 		return "no time left"
 	if (time <= 2 / 24)
 		return Math.floor(time * 24 * 60) + " minutes left"
-	if (time <= 2)
+	if (time <= 3)
 		return Math.floor(time * 24) + " hours left"
 	return Math.floor(time) + " days left"
 }

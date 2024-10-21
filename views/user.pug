@@ -65,7 +65,8 @@ html
 				+gamelist(finished_games)
 
 			p <a href="/games/finished/#{who.name}">All #{who.name}'s finished games</a>
-			p <a href="/tm/finished/#{who.name}">All #{who.name}'s finished tournaments</a>
+			if ENABLE_TOURNAMENTS
+				p <a href="/tm/finished/#{who.name}">All #{who.name}'s finished tournaments</a>
 
 			if user && user.user_id === 1
 				if who.is_banned

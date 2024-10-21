@@ -198,6 +198,7 @@ app.locals.SITE_IMPRINT = process.env.SITE_IMPRINT
 app.locals.ENABLE_MAIL = !!mailer
 app.locals.ENABLE_WEBHOOKS = !!WEBHOOKS
 app.locals.ENABLE_FORUM = process.env.FORUM | 0
+app.locals.ENABLE_TOURNAMENTS = process.env.TOURNAMENTS | 0
 
 app.locals.EMOJI_PRIVATE = "\u{1F512}" // or 512
 app.locals.EMOJI_MATCH = "\u{1f3c6}"
@@ -3361,8 +3362,10 @@ function tournament_ticker() {
 	}
 }
 
-setTimeout(tournament_ticker, 19 * 1000)
-setInterval(tournament_ticker, 97 * 1000)
+if (app.locals.ENABLE_TOURNAMENTS) {
+	setTimeout(tournament_ticker, 19 * 1000)
+	setInterval(tournament_ticker, 97 * 1000)
+}
 
 /*
  * GAME SERVER
