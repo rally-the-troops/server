@@ -2704,6 +2704,7 @@ const TM_SEED_LIST_ALL = SQL(`
 		sum(level is 1) as queue_size,
 		sum(user_id is ?) as is_queued
 	from tm_seeds left join tm_queue using(seed_id)
+	where is_open
 	group by seed_id
 	order by seed_name
 `)
@@ -2714,7 +2715,7 @@ const TM_SEED_LIST_TITLE = SQL(`
 		sum(level is 1) as queue_size,
 		sum(user_id is ?) as is_queued
 	from tm_seeds left join tm_queue using(seed_id)
-	where title_id = ?
+	where title_id = ? and is_open
 	group by seed_id
 	order by seed_name
 `)
