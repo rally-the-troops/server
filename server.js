@@ -3262,8 +3262,10 @@ function start_tournament_seed_mc(seed_id, level) {
 	console.log("TM SPAWN SEED (MC)", seed.seed_name, level, queue.length)
 
 	let players = filter_queue_through_blacklist(queue, seed.pool_size, blacklist)
-	if (!players)
-		throw new Error("Too many blacklisted players to form pool!")
+	if (!players) {
+		console.log("Too many blacklisted players to form pool!")
+		return
+	}
 
 	SQL_BEGIN.run()
 	try {
