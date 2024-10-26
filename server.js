@@ -21,8 +21,6 @@ const SITE_NAME = process.env.SITE_NAME || "Localhost"
 const SITE_URL = process.env.SITE_URL || "http://" + HTTP_HOST + ":" + HTTP_PORT
 
 const LIMIT_WAITING_GAMES = (process.env.LIMIT_WAITING_GAMES | 0) || 3
-const LIMIT_OPEN_GAMES = (process.env.LIMIT_OPEN_GAMES | 0) || 7
-const LIMIT_ACTIVE_GAMES = (process.env.LIMIT_ACTIVE_GAMES | 0) || 29
 
 const REGEX_MAIL = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
 const REGEX_NAME = /^[\p{Alpha}\p{Number}'_-]+( [\p{Alpha}\p{Number}'_-]+)*$/u
@@ -1386,14 +1384,6 @@ const SQL_DELETE_PLAYER_ROLE = SQL("DELETE FROM players WHERE game_id=? AND role
 
 const SQL_SELECT_PLAYER_VIEW = SQL("select * from player_view where game_id = ?")
 
-const SQL_COUNT_OPEN_GAMES = SQL(`SELECT COUNT(*) FROM games WHERE owner_id=? AND status=${STATUS_OPEN} and not is_match`).pluck()
-const SQL_COUNT_ACTIVE_GAMES = SQL(`
-	select count(*) from games
-	where status < 2 and exists (
-		select 1 from players where players.user_id=? and players.game_id=games.game_id
-	)
-`).pluck()
-
 const SQL_SELECT_REMATCH = SQL(`SELECT game_id FROM games WHERE status < ${STATUS_FINISHED} AND notice=?`).pluck()
 const SQL_INSERT_REMATCH = SQL(`
 	insert or ignore into games
@@ -1511,18 +1501,12 @@ const QUERY_LIST_FINISHED_GAMES_OF_USER = SQL(`
 function check_create_game_limit(user) {
 	if (user.waiting > LIMIT_WAITING_GAMES)
 		return "You have too many games waiting!"
-	if (SQL_COUNT_OPEN_GAMES.get(user.user_id) >= LIMIT_OPEN_GAMES)
-		return "You have too many open games!"
-	if (SQL_COUNT_ACTIVE_GAMES.get(user.user_id) >= LIMIT_ACTIVE_GAMES)
-		return "You cannot join any more games!"
 	return null
 }
 
 function check_join_game_limit(user) {
 	if (user.waiting > LIMIT_WAITING_GAMES + 1)
 		return "You have too many games waiting!"
-	if (SQL_COUNT_ACTIVE_GAMES.get(user.user_id) >= LIMIT_ACTIVE_GAMES)
-		return "You cannot join any more games!"
 	return null
 }
 
