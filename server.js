@@ -3082,6 +3082,9 @@ function make_pools(seed, players) {
 		if (v % 39 === 0) return designs.pool_players(players, 39)
 		if (v % 45 === 0) return designs.pool_players(players, 45)
 		if (v % 51 === 0) return designs.pool_players(players, 51)
+		// social golfer semi-solutions
+		if (v % 6 === 0) return designs.pool_players(players, 6)
+		if (v % 12 === 0) return designs.pool_players(players, 12)
 		// misc bibd
 		if (v % 13 === 0 && n == 6)
 			return designs.pool_players(players, 13)
@@ -3096,6 +3099,8 @@ function make_pools(seed, players) {
 		if (v % 28 === 0) return designs.pool_players(players, 28)
 		if (v % 40 === 0) return designs.pool_players(players, 40)
 		if (v % 52 === 0) return designs.pool_players(players, 52)
+		// social golfer semi-solutions
+		if (v % 8 === 0) return designs.pool_players(players, 8)
 		// misc bibd
 		if (v % 9 === 0 && n == 8)
 			return designs.pool_players(players, 9)
