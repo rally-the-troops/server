@@ -171,7 +171,7 @@ mixin poollist(list, title, icon)
 			tbody
 				each pool in list
 					tr
-						td.w
+						td
 							a(href="/tm/pool/" + pool.pool_name)= pool.pool_name
 						if pool.is_finished
 							if pool.status
@@ -179,7 +179,7 @@ mixin poollist(list, title, icon)
 							else
 								td Nobody
 						else
-							td= pool.status
+							td.w= pool.status
 
 mixin tourlist(seeds, pools, fin)
 		if (seeds && seeds.length > 0) || (pools && pools.length > 0) || (fin && fin.length > 0)
