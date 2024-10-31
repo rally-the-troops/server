@@ -30,6 +30,10 @@ html
 					tr
 						td Scenario
 						td #{seed.scenario}
+				if seed.options !== "{}"
+					tr
+						td Options
+						td #{format_options(seed.options)}
 				if seed.pace
 					tr
 						td Pace

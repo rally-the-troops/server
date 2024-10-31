@@ -221,6 +221,7 @@ app.locals.PACE_TEXT = [
 ]
 
 app.locals.human_date = human_date
+app.locals.format_options = format_options
 
 app.set("x-powered-by", false)
 app.set("etag", false)
