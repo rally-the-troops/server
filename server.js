@@ -2768,7 +2768,7 @@ const TM_SELECT_QUEUE_BLACKLIST = SQL("select me, you from contacts join tm_queu
 const TM_SELECT_QUEUE_NAMES = SQL("select user_id, name, level from tm_queue join users using(user_id) where seed_id=? and level=? order by time")
 const TM_SELECT_QUEUE = SQL("select user_id from tm_queue where seed_id=? and level=? order by time desc").pluck()
 const TM_DELETE_QUEUE = SQL("delete from tm_queue where user_id=? and seed_id=? and level=?")
-const TM_INSERT_QUEUE = SQL("insert into tm_queue (user_id, seed_id, level) values (?,?,?)")
+const TM_INSERT_QUEUE = SQL("insert or ignore into tm_queue (user_id, seed_id, level) values (?,?,?)")
 
 const TM_SELECT_SEED = SQL("select * from tm_seeds where seed_id = ?")
 const TM_SELECT_SEED_BY_NAME = SQL("select * from tm_seeds where seed_name = ?")
