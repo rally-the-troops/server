@@ -329,6 +329,8 @@ function create_game_list() {
 
 	if (game.pool_name) {
 		create_game_list_item(list, "Tournament", `<a href="/tm/pool/${game.pool_name}">${game.pool_name}</a>`)
+		if (game.scenario !== "Standard")
+			create_game_list_item(list, "Scenario", game.scenario)
 	} else {
 		if (game.scenario !== "Standard")
 			create_game_list_item(list, "Scenario", game.scenario)
