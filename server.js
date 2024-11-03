@@ -2764,7 +2764,16 @@ const TM_POOL_LIST_TITLE_FINISHED = SQL(`
 const TM_POOL_LIST_SEED_ACTIVE = SQL("select * from tm_pool_active_view where seed_id = ?")
 const TM_POOL_LIST_SEED_FINISHED = SQL("select * from tm_pool_finished_view where seed_id = ?")
 
-const TM_SELECT_QUEUE_BLACKLIST = SQL("select me, you from contacts join tm_queue q on q.user_id=me or q.user_id=you where relation < 0 and seed_id=? and level=?")
+const TM_SELECT_QUEUE_BLACKLIST = SQL(`
+	with qq as (
+		select user_id from tm_queue where seed_id=? and level=?
+	)
+	select me, you
+	from contacts
+	join qq on qq.user_id = me
+	where relation < 0 and exists (select 1 from qq where user_id = you)
+`)
+
 const TM_SELECT_QUEUE_NAMES = SQL("select user_id, name, level from tm_queue join users using(user_id) where seed_id=? and level=? order by time")
 const TM_SELECT_QUEUE = SQL("select user_id from tm_queue where seed_id=? and level=? order by time desc").pluck()
 const TM_DELETE_QUEUE = SQL("delete from tm_queue where user_id=? and seed_id=? and level=?")
