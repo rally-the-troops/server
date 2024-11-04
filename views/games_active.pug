@@ -14,6 +14,7 @@ html
 		title= SITE_NAME
 		if active_games.length > 0
 			meta(http-equiv="refresh" content=600)
+		script window.onunload=function(){}
 	body
 		include header
 		article.wide
