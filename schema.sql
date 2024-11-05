@@ -636,9 +636,12 @@ drop view if exists tm_pool_active_view;
 create view tm_pool_active_view as
 	select
 		tm_pools.*,
+		tm_seeds.title_id,
+		tm_seeds.seed_name,
 		sum(status > 1) || ' / ' || count(1) as status
 	from
 		tm_pools
+		join tm_seeds using(seed_id)
 		left join tm_rounds using(pool_id)
 		left join games using(game_id)
 	where
@@ -646,16 +649,19 @@ create view tm_pool_active_view as
 	group by
 		pool_id
 	order by
-		pool_name
+		seed_name, level, pool_id
 ;
 
 drop view if exists tm_pool_finished_view;
 create view tm_pool_finished_view as
 	select
 		tm_pools.*,
+		tm_seeds.title_id,
+		tm_seeds.seed_name,
 		group_concat(name) as status
 	from
 		tm_pools
+		join tm_seeds using(seed_id)
 		left join tm_winners using(pool_id)
 		left join users using(user_id)
 	where
@@ -663,7 +669,7 @@ create view tm_pool_finished_view as
 	group by
 		pool_id
 	order by
-		pool_name
+		seed_name, level, pool_id
 ;
 
 drop view if exists tm_pool_view;

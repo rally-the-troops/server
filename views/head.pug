@@ -166,7 +166,7 @@ mixin poollist(list, title, icon)
 			if title
 				thead
 					tr
-						th= title
+						th!= title
 						td= icon
 			tbody
 				each pool in list
