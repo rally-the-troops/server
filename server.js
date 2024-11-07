@@ -2136,7 +2136,6 @@ function start_game(game) {
 
 	update_join_clients(game.game_id)
 
-	send_game_started_notification_to_offline_users(game.game_id)
 	send_your_turn_notification_to_offline_users(game.game_id, null, state.active)
 }
 
@@ -2476,14 +2475,6 @@ function send_your_turn_notification_to_offline_users(game_id, old_active, activ
 			if (!is_player_online(game_id, p.user_id))
 				send_play_notification(p, game_id, "Your turn")
 		}
-	}
-}
-
-function send_game_started_notification_to_offline_users(game_id) {
-	let players = SQL_SELECT_PLAYERS.all(game_id)
-	for (let p of players) {
-		if (!is_player_online(game_id, p.user_id))
-			send_play_notification(p, game_id, "Started")
 	}
 }
 
