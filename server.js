@@ -2651,7 +2651,7 @@ setTimeout(time_control_ticker, 13 * 1000)
 
 const designs = require("./designs.js")
 
-const TM_INSERT_BANNED = SQL("insert into tm_banned (user_id, time) values (?, datetime())")
+const TM_INSERT_BANNED = SQL("insert or ignore into tm_banned (user_id, time) values (?, datetime())")
 const TM_DELETE_QUEUE_ALL = SQL("delete from tm_queue where user_id=?")
 
 const TM_MAY_JOIN_ANY_SEED = SQL(`
