@@ -2608,7 +2608,7 @@ const SQL_UPDATE_PLAYERS_INIT_TIME = SQL(`
 				when 1 then 1
 				when 2 then 3
 				when 3 then 3
-				else 14
+				else 21
 			end
 		)
 	where
@@ -2622,7 +2622,7 @@ const SQL_UPDATE_PLAYERS_ADD_TIME = SQL(`
 				when 1 then min(clock + ${4 / 24}, 3)
 				when 2 then min(clock + ${12 / 24}, 5)
 				when 3 then min(clock + ${36 / 24}, 10)
-				else 14
+				else 21
 			end
 		)
 	where
