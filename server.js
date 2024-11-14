@@ -2136,7 +2136,7 @@ function start_game(game) {
 
 	update_join_clients(game.game_id)
 
-	send_your_turn_notification_to_offline_users(game.game_id, null, state.active)
+	send_game_started_notification(game.game_id, state.active)
 }
 
 app.get("/api/replay/:game_id", function (req, res) {
@@ -2460,6 +2460,17 @@ function send_play_notification(user, game_id, message) {
 
 function send_chat_activity_notification(game_id, p) {
 	send_play_notification(p, game_id, "Chat activity")
+}
+
+function send_game_started_notification(game_id, active) {
+	let players = SQL_SELECT_PLAYERS.all(game_id)
+	for (let p of players) {
+		let p_is_active = active === p.role || active === "Both"
+		if (p_is_active)
+			send_play_notification(p, game_id, "Started - Your turn")
+		else
+			send_play_notification(p, game_id, "Started")
+	}
 }
 
 function send_your_turn_notification_to_offline_users(game_id, old_active, active) {
