@@ -711,6 +711,13 @@ designs.youden_square_15_7_3 = [
 
 // Other designs.
 
+// sit 1x - meet 1x and 2x - missed pairings (0 and 3 never meet)
+designs.social_golfer_6_3_1 = [
+	[[0,1,2],[3,4,5]],
+	[[5,0,1],[2,3,4]],
+	[[4,5,0],[1,2,3]],
+]
+
 // sit 1x - meet 1x - missed pairings
 designs.social_golfer_12_3_1 = [
 	[[2,0,1],[5,4,3],[6,8,7],[11,9,10]],
@@ -725,6 +732,17 @@ designs.social_golfer_8_4_2 = [
 	[[0,1,2,7],[4,5,6,3]],
 	[[7,4,1,6],[3,0,5,2]],
 	[[6,3,0,1],[2,7,4,5]],
+	// meet 3x / 1x if extra round
+	[[1,5,2,6],[3,7,4,0]],
+]
+
+// https://faculty.mercer.edu/schultz_sr/social_golfer/social_golfer.html#434
+// sit 1x - meet 1x (missed 7 pairings, max 4 pairings)
+designs.social_golfer_12_4_1 = [
+	[[8,7,5,3],[9,2,10,4],[11,1,6,0]],
+	[[10,11,8,7],[2,6,3,1],[0,4,9,5]],
+	[[4,3,11,9],[7,8,0,2],[5,10,1,6]],
+	[[3,0,4,10],[6,5,2,11],[1,9,7,8]]
 ]
 
 // sit 2x - meet 1x
