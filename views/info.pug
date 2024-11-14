@@ -17,16 +17,18 @@ html
 
 			p Read more about the game on #[a(href="https://boardgamegeek.com/boardgame/"+title.bgg) boardgamegeek.com].
 
+			h2 Open
 			if open_games.length > 0
-				h2 Open
 				+gamelist(open_games, true)
+			else
+				p No open games right now.
+
+			p
+				a(href="/create/"+title.title_id) Create a new game
 
 			if replacement_games.length > 0
 				h2 Open (missing players)
 				+gamelist(replacement_games, true)
-
-			p
-				a(href="/create/"+title.title_id) Create a new game
 
 			+tourlist(seeds, active_pools, finished_pools)
 
