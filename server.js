@@ -2798,7 +2798,7 @@ const TM_SELECT_GAMES = SQL(`
 		tm_rounds.*,
 		games.status,
 		games.moves,
-		json_group_object(role, name) as role_names,
+		json_group_object(role, coalesce(name, 'null')) as role_names,
 		json_group_object(role, score) as role_scores
 	from
 		tm_rounds
@@ -2819,8 +2819,8 @@ const TM_SELECT_PLAYERS_2P = SQL(`
 			select
 				pool_id,
 				u1.user_id as user_id,
-				u1.name as name,
-				u2.name as opponent,
+				coalesce(u1.name, 'null') as name,
+				coalesce(u2.name, 'null') as opponent,
 				json_group_array(json_array(game_id, p1.score)) as result
 			from
 				tm_rounds

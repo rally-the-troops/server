@@ -70,7 +70,7 @@ html
 							tr
 								td= rx+1
 								td
-									if row.name
+									if row.name && row.name !== "null"
 										<a class="black" href="/user/#{row.name}">#{row.name}</a>
 									else
 										| null
@@ -109,7 +109,7 @@ html
 							tr
 								td= rx+1
 								td
-									if row.name
+									if row.name && row.name !== "null"
 										<a class="black" href="/user/#{row.name}">#{row.name}</a>
 									else
 										| null
@@ -143,7 +143,10 @@ html
 								each role in roles
 									- var p = role_names[role]
 									td
-										a.black(href="/user/"+p)= p
+										if p && p !== "null"
+											a.black(href="/user/"+p)= p
+										else
+											| null
 
 								if game.status > 1
 									td.w.r
