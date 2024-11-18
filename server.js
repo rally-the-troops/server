@@ -1306,7 +1306,7 @@ const SQL_FINISH_GAME = SQL(`
 `)
 
 const SQL_REWIND_GAME_CLOCK = SQL("update players set clock=1 where game_id=? and clock < 1")
-const SQL_REWIND_GAME = SQL("update games set status=1,moves=?,active=?,mtime=datetime() where game_id=?")
+const SQL_REWIND_GAME = SQL("update games set status=1,result=null,moves=?,active=?,mtime=datetime() where game_id=?")
 const SQL_SELECT_REWIND = SQL("select snap_id, state->>'$.active' as active, state->>'$.state' as state from game_snap where game_id=? order by snap_id desc")
 
 const SQL_UPDATE_GAME_ACTIVE = SQL("update games set active=?,mtime=datetime(),moves=moves+1 where game_id=?")
