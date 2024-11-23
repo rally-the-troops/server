@@ -2593,6 +2593,7 @@ function purge_game_ticker() {
 	QUERY_PURGE_ACTIVE_GAMES.run()
 	QUERY_PURGE_FINISHED_GAMES.run()
 	QUERY_PURGE_MESSAGES.run()
+	TM_DELETE_QUEUE_INACTIVE.run()
 }
 
 // Purge abandoned games every 31 minutes.
@@ -2662,8 +2663,19 @@ setTimeout(time_control_ticker, 13 * 1000)
 
 const designs = require("./designs.js")
 
+const TM_SELECT_BANNED = SQL("select exists ( select 1 from tm_banned where user_id=? )").pluck()
 const TM_INSERT_BANNED = SQL("insert or ignore into tm_banned (user_id, time) values (?, datetime())")
+
 const TM_DELETE_QUEUE_ALL = SQL("delete from tm_queue where user_id=?")
+
+const TM_DELETE_QUEUE_INACTIVE = SQL(`
+	delete from tm_queue where exists (
+		select 1
+		from user_last_seen
+		where user_last_seen.user_id = tm_queue.user_id
+		and julianday() - julianday(atime) > 14
+	)
+`)
 
 const TM_MAY_JOIN_ANY_SEED = SQL(`
 	select ( select notify and is_verified from users where user_id=@user_id )
@@ -2673,16 +2685,21 @@ const TM_MAY_JOIN_ANY_SEED = SQL(`
 `).pluck()
 
 const TM_MAY_JOIN_SEED = SQL(`
-	select ( select not exists ( select 1 from tm_banned where user_id=@user_id ) )
-	and ( select coalesce(is_open, 0) as may_join from tm_seeds where seed_id=@seed_id )
+	select is_open or exists ( select 1 from tm_queue_view where tm_queue_view.seed_id = tm_seeds.seed_id )
+	from tm_seeds
+	where seed_id=?
 `).pluck()
+
+function is_banned_from_tournaments(user_id) {
+	return TM_SELECT_BANNED.get(user_id)
+}
 
 function may_join_any_seed(user_id) {
 	return DEBUG || TM_MAY_JOIN_ANY_SEED.get({user_id})
 }
 
-function may_join_seed(user_id, seed_id) {
-	return TM_MAY_JOIN_SEED.get({user_id,seed_id})
+function may_join_seed(seed_id) {
+	return TM_MAY_JOIN_SEED.get(seed_id)
 }
 
 const TM_SEED_LIST_ALL = SQL(`
@@ -2690,8 +2707,9 @@ const TM_SEED_LIST_ALL = SQL(`
 		tm_seeds.*,
 		sum(level is 1) as queue_size,
 		sum(user_id is ?) as is_queued
-	from tm_seeds left join tm_queue using(seed_id)
-	where is_open
+	from tm_seeds left join tm_queue_view using(seed_id)
+	where
+		is_open or exists ( select 1 from tm_queue_view where tm_queue_view.seed_id = tm_seeds.seed_id )
 	group by seed_id
 	order by seed_name
 `)
@@ -2701,8 +2719,10 @@ const TM_SEED_LIST_TITLE = SQL(`
 		tm_seeds.*,
 		sum(level is 1) as queue_size,
 		sum(user_id is ?) as is_queued
-	from tm_seeds left join tm_queue using(seed_id)
-	where title_id = ? and is_open
+	from tm_seeds left join tm_queue_view using(seed_id)
+	where title_id = ? and (
+		is_open or exists ( select 1 from tm_queue_view where tm_queue_view.seed_id = tm_seeds.seed_id )
+	)
 	group by seed_id
 	order by seed_name
 `)
@@ -2712,7 +2732,7 @@ const TM_SEED_LIST_USER = SQL(`
 		tm_seeds.*,
 		sum(level is 1) as queue_size,
 		sum(user_id is ?) as is_queued
-	from tm_seeds left join tm_queue using(seed_id)
+	from tm_seeds left join tm_queue_view using(seed_id)
 	group by seed_id
 	having is_queued
 	order by seed_name
@@ -2768,7 +2788,7 @@ const TM_POOL_LIST_SEED_FINISHED = SQL("select * from tm_pool_finished_view wher
 
 const TM_SELECT_QUEUE_BLACKLIST = SQL(`
 	with qq as (
-		select user_id from tm_queue where seed_id=? and level=?
+		select user_id from tm_queue_view where seed_id=? and level=?
 	)
 	select me, you
 	from contacts
@@ -2776,8 +2796,8 @@ const TM_SELECT_QUEUE_BLACKLIST = SQL(`
 	where relation < 0 and exists (select 1 from qq where user_id = you)
 `)
 
-const TM_SELECT_QUEUE_NAMES = SQL("select user_id, name, level from tm_queue join users using(user_id) where seed_id=? and level=? order by time")
-const TM_SELECT_QUEUE = SQL("select user_id from tm_queue where seed_id=? and level=? order by time desc").pluck()
+const TM_SELECT_QUEUE_NAMES = SQL("select user_id, name, level from tm_queue_view join users using(user_id) where seed_id=? and level=? order by time")
+const TM_SELECT_QUEUE = SQL("select user_id from tm_queue_view where seed_id=? and level=? order by time desc").pluck()
 const TM_DELETE_QUEUE = SQL("delete from tm_queue where user_id=? and seed_id=? and level=?")
 const TM_INSERT_QUEUE = SQL("insert or ignore into tm_queue (user_id, seed_id, level) values (?,?,?)")
 
@@ -2949,9 +2969,9 @@ const TM_SELECT_SEED_READY_MINI_CUP = SQL(`
 		seed_id, level
 	from
 		tm_seeds
-		join tm_queue using(seed_id)
+		join tm_queue_view using(seed_id)
 	where
-		is_open and seed_name like 'mc.%'
+		seed_name like 'mc.%'
 		and julianday(time) < julianday('now', '-30 seconds')
 	group by
 		seed_id, level
@@ -2982,11 +3002,13 @@ app.get("/tm/seed/:seed_name", function (req, res) {
 
 	let error = null
 	let may_register = false
-	if (req.user && seed.is_open) {
-		if (!may_join_any_seed(req.user.user_id))
+	if (req.user) {
+		if (is_banned_from_tournaments(req.user.user_id))
+			error = "You may not join any tournaments."
+		else if (!may_join_any_seed(req.user.user_id))
 			error = "Please verify your mail address and enable notifications to join tournaments."
-		else if (!may_join_seed(req.user.user_id, seed_id))
-			error = "You may not register for this tournament."
+		else if (!may_join_seed(seed_id))
+			error = "This tournament is closed."
 		else
 			may_register = true
 	}
@@ -3015,10 +3037,12 @@ app.get("/tm/pool/:pool_name", function (req, res) {
 app.post("/api/tm/register/:seed_id", must_be_logged_in, function (req, res) {
 	let seed_id = req.params.seed_id | 0
 	let user_id = req.user.user_id
+	if (is_banned_from_tournaments(req.user.user_id))
+		return res.status(401).send("You may not join any tournaments.")
 	if (!may_join_any_seed(user_id))
 		return res.status(401).send("You may not join any tournaments right now.")
-	if (!may_join_seed(user_id, seed_id))
-		return res.status(401).send("You may not join this tournament.")
+	if (!may_join_seed(seed_id))
+		return res.status(401).send("This tournament is closed.")
 	TM_INSERT_QUEUE.run(user_id, seed_id, 1)
 	return res.redirect(req.headers.referer)
 })

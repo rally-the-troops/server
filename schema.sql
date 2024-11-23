@@ -632,6 +632,17 @@ create table if not exists tm_winners (
 
 create index if not exists tm_winners_pool_idx on tm_winners(pool_id);
 
+drop view if exists tm_queue_view;
+create view tm_queue_view as
+	select
+		tm_queue.*
+	from
+		tm_queue
+		join user_last_seen using(user_id)
+	where
+		julianday() - julianday(atime) < 3
+	;
+
 drop view if exists tm_pool_active_view;
 create view tm_pool_active_view as
 	select

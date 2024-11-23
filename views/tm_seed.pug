@@ -48,7 +48,7 @@ html
 					else
 						td #{seed.round_count} sequential
 
-			if seed.is_open
+			if seed.is_open || queues.some(q => q.length > 0)
 				each queue,ix in queues
 					table.half
 						thead
@@ -66,21 +66,18 @@ html
 									td Nobody
 
 					if user
-						if ix === 0
-							if may_register
-								if !queue.find(p => p.user_id === user.user_id)
-									form(method="post" action="/api/tm/register/" + seed.seed_id)
-										button(type="submit") Register
-										button(disabled) Withdraw
-							else
-								div
-									button(disabled) Register
-									button(disabled) Withdraw
-
 						if queue.find(p => p.user_id === user.user_id)
 							form(method="post" action="/api/tm/withdraw/" + seed.seed_id + "/" + (ix+1))
 								button(disabled) Register
 								button(type="submit") Withdraw
+						else if ix === 0 && may_register
+							form(method="post" action="/api/tm/register/" + seed.seed_id)
+								button(type="submit") Register
+								button(disabled) Withdraw
+						else
+							div
+								button(disabled) Register
+								button(disabled) Withdraw
 
 						if user.user_id === 1
 							if queue.length >= seed.pool_size
