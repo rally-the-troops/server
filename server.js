@@ -3468,6 +3468,16 @@ function put_replay(game_id, role, action, args) {
 	return SQL_INSERT_REPLAY.get(game_id, game_id, role, action, args)
 }
 
+function dont_snap(rules, state, old_active) {
+	if (state.active === old_active)
+		return true
+	if (state.state === "game_over")
+		return true
+	if (rules.dont_snap && rules.dont_snap(state))
+		return true
+	return false
+}
+
 function put_snap(game_id, replay_id, state) {
 	let snap_id = SQL_INSERT_SNAP.get(game_id, game_id, replay_id, snap_from_state(state))
 	if (game_clients[game_id])
@@ -3494,12 +3504,12 @@ function put_game_state(game_id, state, old_active, current_role) {
 	}
 }
 
-function put_new_state(game_id, state, old_active, role, action, args) {
+function put_new_state(title_id, game_id, state, old_active, role, action, args) {
 	SQL_BEGIN.run()
 	try {
 		let replay_id = put_replay(game_id, role, action, args)
 
-		if (state.active !== old_active)
+		if (!dont_snap(RULES[title_id], state, old_active))
 			put_snap(game_id, replay_id, state)
 
 		put_game_state(game_id, state, old_active, role)
@@ -3544,7 +3554,7 @@ function on_action(socket, action, args, cookie) {
 			game_cookies[socket.game_id] ++
 
 		state = RULES[socket.title_id].action(state, socket.role, action, args)
-		put_new_state(socket.game_id, state, old_active, socket.role, action, args)
+		put_new_state(socket.title_id, socket.game_id, state, old_active, socket.role, action, args)
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, "error", err.toString())
@@ -3584,7 +3594,7 @@ function do_resign(game_id, role, how) {
 	state.log.push("")
 	state.log.push(state.victory)
 
-	put_new_state(game_id, state, old_active, role, ".resign", null)
+	put_new_state(game.title_id, game_id, state, old_active, role, ".resign", null)
 }
 
 function on_restore(socket, state_text) {
@@ -3601,7 +3611,7 @@ function on_restore(socket, state_text) {
 		for (let other of game_clients[socket.game_id])
 			other.seen = 0
 
-		put_new_state(socket.game_id, state, null, null, "$restore", state)
+		put_new_state(socket.title_id, socket.game_id, state, null, null, "$restore", state)
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, "error", err.toString())

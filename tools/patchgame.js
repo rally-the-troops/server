@@ -89,6 +89,16 @@ function is_valid_action(rules, state, role, action, arg) {
 	return false
 }
 
+function dont_snap(rules, state, old_active) {
+	if (state.state === "game_over")
+		return true
+	if (state.active === old_active)
+		return true
+	if (rules.dont_snap && rules.dont_snap(state))
+		return true
+	return false
+}
+
 function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_undo=false, delete_invalid=false}, verbose) {
 	let game = select_game.get(game_id)
 	if (!game) {
@@ -142,7 +152,7 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 
 			item.state = snapshot(state)
 			item.checksum = crc32c(item.state)
-			if (old_active !== state.active)
+			if (!dont_snap(rules, state, old_active))
 				item.save = 1
 			old_active = state.active
 
