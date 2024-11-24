@@ -590,6 +590,12 @@ create table if not exists tm_banned (
 	time datetime default current_timestamp
 );
 
+create table if not exists tm_timeout (
+	user_id integer,
+	game_id integer,
+	time datetime default current_timestamp
+);
+
 create table if not exists tm_queue (
 	user_id integer,
 	seed_id integer,

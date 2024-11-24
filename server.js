@@ -2643,6 +2643,7 @@ function time_control_ticker() {
 			do_resign(item.game_id, item.role, "timed out")
 			if (item.is_match) {
 				console.log("BANNED FROM TOURNAMENTS:", item.user_id)
+				TM_INSERT_TIMEOUT.run(item.user_id, item.game_id)
 				TM_INSERT_BANNED.run(item.user_id)
 				TM_DELETE_QUEUE_ALL.run(item.user_id)
 			}
@@ -2665,6 +2666,7 @@ const designs = require("./designs.js")
 
 const TM_SELECT_BANNED = SQL("select exists ( select 1 from tm_banned where user_id=? )").pluck()
 const TM_INSERT_BANNED = SQL("insert or ignore into tm_banned (user_id, time) values (?, datetime())")
+const TM_INSERT_TIMEOUT = SQL("insert into tm_timeout (user_id, game_id) values (?, ?)")
 
 const TM_DELETE_QUEUE_ALL = SQL("delete from tm_queue where user_id=?")
 
