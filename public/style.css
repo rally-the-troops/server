@@ -328,7 +328,8 @@ div.body img {
 	margin: 16px 0;
 }
 
-.tour_list table { margin: 0 }
+.tour_list table { margin: 0; }
+.tour_list table + table { margin-top: 24px; }
 
 .game_item {
 	border: var(--thin-border);

@@ -185,12 +185,8 @@ mixin tourlist(seeds, pools, fin)
 		if (seeds && seeds.length > 0) || (pools && pools.length > 0) || (fin && fin.length > 0)
 			h2 Tournaments
 			div.tour_list
-				if seeds && seeds.length > 0
-					div
-						+seedlist(seeds, "Registrations")
-				if pools && pools.length > 0
-					div
-						+poollist(pools, "Active", TM_ICON_ACTIVE)
-				if fin && fin.length > 0
-					div
-						+poollist(fin, "Finished", TM_ICON_FINISHED)
+				div
+					+seedlist(seeds, "Registrations")
+					+poollist(pools, "Active", TM_ICON_ACTIVE)
+				div
+					+poollist(fin, "Finished", TM_ICON_FINISHED)
