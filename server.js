@@ -1466,6 +1466,7 @@ const QUERY_NEXT_GAME_OF_USER = SQL(`
 		status = ${STATUS_ACTIVE}
 		and active in (role, 'Both')
 		and user_id = ?
+		and is_opposed
 	order by mtime
 	limit 1
 	`)
