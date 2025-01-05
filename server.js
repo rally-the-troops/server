@@ -2086,7 +2086,7 @@ function assign_random_roles(game, options, players) {
 app.post("/api/start/:game_id", must_be_logged_in, function (req, res) {
 	let game_id = req.params.game_id | 0
 	let game = SQL_SELECT_GAME.get(game_id)
-	if (game.owner_id !== req.user.user_id)
+	if (req.user.user_id !== game.owner_id && req.user.user_id !== 1)
 		return res.send("Not authorized to start that game ID.")
 	if (game.status !== STATUS_OPEN)
 		return res.send("The game is already started.")
