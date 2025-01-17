@@ -4,6 +4,7 @@ html
 	head
 		include head
 		title Login
+		+altcha_script()
 	body
 		include header
 		article
@@ -28,6 +29,7 @@ html
 						label Password:
 							br
 							input(type="password" name="password" required)
+					+altcha_widget()
 					p
 						button(type="submit") Login
 				p

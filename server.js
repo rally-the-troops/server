@@ -13,6 +13,7 @@ const sqlite3 = require("better-sqlite3")
 require("dotenv").config()
 
 const DEBUG = process.env.DEBUG || 0
+const ALTCHA = process.env.ALTCHA | 0
 
 const HTTP_HOST = process.env.HTTP_HOST || "localhost"
 const HTTP_PORT = process.env.HTTP_PORT || 8080
@@ -186,6 +187,7 @@ function set_static_headers(res, path) {
 let app = express()
 
 app.locals.DEBUG = DEBUG
+app.locals.ALTCHA = ALTCHA
 
 app.locals.SITE_NAME = SITE_NAME
 app.locals.SITE_NAME_P = SITE_NAME.endsWith("!") ? SITE_NAME : SITE_NAME + "."
@@ -343,6 +345,72 @@ function hash_password(password, salt) {
 }
 
 /*
+ * ALTCHA ANTI-BOT SIGNUP
+ */
+
+const ALTCHA_HMAC_KEY = crypto.randomBytes(16).toString("hex")
+
+function sha2_hex(salty_secret) {
+	var hash = crypto.createHash("sha256")
+	hash.update(salty_secret)
+	return hash.digest("hex")
+}
+
+function hmac_sha2_hex(challenge, key) {
+	var hmac = crypto.createHmac("sha256", key)
+	hmac.update(challenge)
+	return hmac.digest("hex")
+}
+
+function altcha_create_challenge() {
+	var maxnumber = ALTCHA
+	var secret = crypto.randomInt(maxnumber)
+	var salt = crypto.randomBytes(16).toString("hex")
+	var challenge = sha2_hex(salt + secret)
+	var signature = hmac_sha2_hex(challenge, ALTCHA_HMAC_KEY)
+	return {
+		algorithm: "SHA-256",
+		challenge,
+		maxnumber,
+		salt,
+		signature
+	}
+}
+
+function altcha_verify_solution(payload) {
+	var data
+	if (!payload)
+		return "missing altcha payload"
+	try {
+		data = JSON.parse(atob(payload))
+	} catch (error) {
+		return "invalid altcha payload"
+	}
+	if (data.algorithm !== "SHA-256")
+		return "invalid altcha algorithm"
+	if (data.challenge !== sha2_hex(data.salt + data.number))
+		return "invalid altcha challenge"
+	if (data.signature !== hmac_sha2_hex(data.challenge, ALTCHA_HMAC_KEY))
+		return "invalid altcha signature"
+	return null
+}
+
+function must_pass_altcha(req, res, next) {
+	if (ALTCHA) {
+		var altcha_error = altcha_verify_solution(req.body.altcha)
+		if (altcha_error) {
+			setTimeout(() => res.status(500).send(altcha_error), 3000)
+			return
+		}
+	}
+	return next()
+}
+
+app.get("/altcha-challenge", async (req, res) => {
+	return res.json(altcha_create_challenge())
+})
+
+/*
  * USER AUTHENTICATION
  */
 
@@ -449,7 +517,7 @@ app.get("/login", function (req, res) {
 	res.render("login.pug", { redirect: req.query.redirect })
 })
 
-app.post("/login", function (req, res) {
+app.post("/login", must_pass_altcha, function (req, res) {
 	let name_or_mail = req.body.username
 	let password = req.body.password
 	let redirect = req.body.redirect
@@ -470,7 +538,7 @@ app.get("/signup", function (req, res) {
 	res.render("signup.pug")
 })
 
-app.post("/signup", function (req, res) {
+app.post("/signup", must_pass_altcha, function (req, res) {
 	function err(msg) {
 		res.render("signup.pug", { flash: msg })
 	}
@@ -531,7 +599,7 @@ app.get("/forgot-password", function (req, res) {
 	res.render("forgot_password.pug")
 })
 
-app.post("/forgot-password", function (req, res) {
+app.post("/forgot-password", must_pass_altcha, function (req, res) {
 	let mail = req.body.mail
 	let user = SQL_SELECT_LOGIN_BY_MAIL.get(mail)
 	if (user) {

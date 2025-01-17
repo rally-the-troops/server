@@ -8,6 +8,14 @@ link(rel="stylesheet" href="/style.css")
 if SITE_THEME
 	link(rel="stylesheet" href="/themes/"+SITE_THEME)
 
+mixin altcha_script()
+	if ALTCHA
+		script(async defer type="module" src="/altcha.min.js")
+
+mixin altcha_widget()
+	if ALTCHA
+		altcha-widget(challengeurl="/altcha-challenge" hidelogo hidefooter auto="onsubmit" style="--altcha-border-radius:0")
+
 mixin social(title,description,game)
 	meta(property="og:title" content=title)
 	meta(property="og:type" content="website")
