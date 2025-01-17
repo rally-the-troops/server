@@ -1,3 +1,46 @@
+# https://lobste.rs/s/ybowdq/great_gpt_firewall
+User-agent: Ai2Bot-Dolma
+User-agent: Ai2bot
+User-agent: Amazonbot
+User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: Bytespider
+User-agent: CCBot
+User-agent: ChatGPT-User
+User-agent: Claude-Web
+User-agent: ClaudeBot
+User-agent: Cohere-ai
+User-agent: Diffbot
+User-agent: FacebookBot
+User-agent: GPTBot
+User-agent: Google-Extended
+User-agent: Meta-ExternalAgent
+User-agent: OAI-SearchBot
+User-agent: Omgili
+User-agent: Omgilibot
+User-agent: PanguBot
+User-agent: PerplexityBot
+User-agent: PetalBot
+User-agent: Timpibot
+User-agent: Webzio-Extended
+User-agent: YouBot
+User-agent: anthropic-ai
+Disallow: /
+
+# SEO/spam tools
+User-agent: AhrefsBot
+User-agent: BLEXBot
+User-agent: Clickagy
+User-agent: SemrushBot
+User-agent: SemrushBot-BA
+User-agent: SemrushBot-COUB
+User-agent: SemrushBot-CT
+User-agent: SemrushBot-SI
+User-agent: SemrushBot-SWA
+User-agent: SiteAuditBot
+User-agent: SplitSignalBot
+Disallow: /
+
 User-agent: *
 Disallow: /join
 Disallow: /login
@@ -6,6 +49,3 @@ Disallow: /forum
 Disallow: /user
 Disallow: /games
 Disallow: /*play*
-
-User-agent: Google-Extended
-Disallow: /
