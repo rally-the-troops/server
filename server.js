@@ -1478,7 +1478,7 @@ const QUERY_LIST_PUBLIC_GAMES_OF_USER = SQL(`
 		and
 		( status <= ${STATUS_FINISHED} )
 		and
-		( not is_private or status = ${STATUS_ACTIVE} )
+		( not is_private or status >= ${STATUS_ACTIVE} )
 	order by status asc, mtime desc
 	`)
 
