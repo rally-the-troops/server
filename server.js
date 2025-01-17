@@ -352,7 +352,7 @@ const SQL_BLACKLIST_NAME = SQL("select exists ( select 1 from blacklist_name whe
 const SQL_EXISTS_USER_NAME = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE name=? )").pluck()
 const SQL_EXISTS_USER_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE mail=? )").pluck()
 
-const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt,notify) VALUES (?,?,?,?,?) RETURNING user_id,name,mail,notify")
+const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt) VALUES (?,?,?,?) RETURNING user_id,name,mail")
 const SQL_DELETE_USER = SQL("DELETE FROM users WHERE user_id = ?")
 
 const SQL_SELECT_LOGIN = SQL("SELECT * FROM user_login_view WHERE user_id=?")
@@ -365,7 +365,7 @@ const SQL_SELECT_USER_DYNAMIC = SQL("select * from user_dynamic_view where user_
 const SQL_SELECT_USER_ID = SQL("SELECT user_id FROM users WHERE name=?").pluck()
 const SQL_SELECT_USER_BY_SEARCH = SQL("select name, atime from users left join user_last_seen using(user_id) where name like ? order by name")
 
-const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify FROM users WHERE user_id=?").pluck()
+const SQL_SELECT_USER_NOTIFY = SQL("SELECT notify and is_verified FROM users WHERE user_id=?").pluck()
 const SQL_SELECT_USER_VERIFIED = SQL("SELECT is_verified FROM users WHERE user_id=?").pluck()
 const SQL_UPDATE_USER_NOTIFY = SQL("UPDATE users SET notify=? WHERE user_id=?")
 const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?")
@@ -477,7 +477,6 @@ app.post("/signup", function (req, res) {
 	let name = req.body.username
 	let mail = req.body.mail
 	let password = req.body.password
-	let notify = req.body.notify === "true"
 	name = clean_user_name(name)
 	if (!is_valid_user_name(name))
 		return err("Invalid user name!")
@@ -493,7 +492,7 @@ app.post("/signup", function (req, res) {
 		return err("Password is too long!")
 	let salt = crypto.randomBytes(32).toString("hex")
 	let hash = hash_password(password, salt)
-	let user = SQL_INSERT_USER.get(name, mail, hash, salt, notify ? 1 : 0)
+	let user = SQL_INSERT_USER.get(name, mail, hash, salt)
 	login_insert(res, user.user_id)
 	res.redirect("/profile")
 })
@@ -681,7 +680,6 @@ app.get("/unsubscribe", must_be_logged_in, function (req, res) {
 })
 
 app.get("/webhook", must_be_logged_in, function (req, res) {
-	req.user.notify = SQL_SELECT_USER_NOTIFY.get(req.user.user_id)
 	let webhook = SQL_SELECT_WEBHOOK.get(req.user.user_id)
 	res.render("webhook.pug", { user: req.user, webhook: webhook })
 })

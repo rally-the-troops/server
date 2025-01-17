@@ -14,12 +14,13 @@ html
 
 			if ENABLE_MAIL
 				if !user.is_verified
-					p &#x26a0; <a href="/verify-mail">Verify your mail address</a>
-
+					p &#x26a0; <a href="/verify-mail">Verify your mail address!</a>
+					p You must verify your mail address before you can enable notifications.
+				else
+					if !user.notify
+						p <a href="/subscribe">Enable mail notifications</a>
 				if user.notify
 					p <a href="/unsubscribe">Disable mail notifications</a>
-				else
-					p <a href="/subscribe">Enable mail notifications</a>
 
 			p
 				| <a href="/change-password">Change password</a>
