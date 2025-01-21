@@ -12,7 +12,8 @@ const sqlite3 = require("better-sqlite3")
 
 require("dotenv").config()
 
-const DEBUG = process.env.DEBUG || 0
+const DEBUG = process.env.DEBUG | 0
+const TIMEOUT = process.env.TIMEOUT | 0
 const ALTCHA = process.env.ALTCHA | 0
 
 const HTTP_HOST = process.env.HTTP_HOST || "localhost"
@@ -2722,8 +2723,10 @@ function time_control_ticker() {
 }
 
 // Run time control checks every 13 minutes.
-setInterval(time_control_ticker, 13 * 60 * 1000)
-setTimeout(time_control_ticker, 13 * 1000)
+if (TIMEOUT) {
+	setInterval(time_control_ticker, 13 * 60 * 1000)
+	setTimeout(time_control_ticker, 13 * 1000)
+}
 
 /*
  * TOURNAMENTS
