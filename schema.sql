@@ -38,17 +38,30 @@ create table if not exists users (
 	mail text unique collate nocase,
 	notify integer default 0,
 	is_verified boolean default 0,
-	is_banned boolean default 0,
-	ctime datetime default current_timestamp,
-	password text,
-	salt text,
-	about text
+	is_banned boolean default 0
 );
 
 insert or ignore into
-	users (user_id, name, mail, ctime)
-	values (0, 'Deleted', 'deleted@nowhere', null)
+	users (user_id, name, mail)
+	values (0, 'Deleted', 'deleted@nowhere')
 ;
+
+create table if not exists user_password (
+	user_id integer primary key,
+	password text,
+	salt text
+);
+
+create table if not exists user_about (
+	user_id integer primary key,
+	about text
+);
+
+create table if not exists user_first_seen (
+	user_id integer primary key,
+	ctime datetime,
+	ip text
+);
 
 create table if not exists user_last_seen (
 	user_id integer primary key,
@@ -84,6 +97,7 @@ create view user_login_view as
 		user_id, name, mail, notify, password, salt
 	from
 		users
+		left join user_password using(user_id)
 	;
 
 drop view if exists user_profile_view;
@@ -92,7 +106,9 @@ create view user_profile_view as
 		user_id, name, mail, notify, ctime, atime, about, is_banned
 	from
 		users
+		left join user_first_seen using(user_id)
 		left join user_last_seen using(user_id)
+		left join user_about using(user_id)
 	;
 
 drop view if exists user_dynamic_view;
@@ -892,10 +908,13 @@ end;
 drop trigger if exists trigger_delete_on_users;
 create trigger trigger_delete_on_users after delete on users
 begin
+	delete from user_password where user_id = old.user_id;
+	delete from user_first_seen where user_id = old.user_id;
+	delete from user_last_seen where user_id = old.user_id;
+	delete from user_about where user_id = old.user_id;
+	delete from webhooks where user_id = old.user_id;
 	delete from logins where user_id = old.user_id;
 	delete from tokens where user_id = old.user_id;
-	delete from webhooks where user_id = old.user_id;
-	delete from user_last_seen where user_id = old.user_id;
 	delete from read_threads where user_id = old.user_id;
 	delete from unread_chats where user_id = old.user_id;
 	delete from contacts where me = old.user_id or you = old.user_id;

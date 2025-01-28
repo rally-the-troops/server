@@ -421,14 +421,15 @@ const SQL_BLACKLIST_NAME = SQL("select exists ( select 1 from blacklist_name whe
 const SQL_EXISTS_USER_NAME = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE name=? )").pluck()
 const SQL_EXISTS_USER_MAIL = SQL("SELECT EXISTS ( SELECT 1 FROM users WHERE mail=? )").pluck()
 
-const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail,password,salt) VALUES (?,?,?,?) RETURNING user_id,name,mail")
+const SQL_INSERT_USER = SQL("INSERT INTO users (name,mail) VALUES (?,?) RETURNING user_id,name,mail")
 const SQL_DELETE_USER = SQL("DELETE FROM users WHERE user_id = ?")
 
 const SQL_SELECT_LOGIN = SQL("SELECT * FROM user_login_view WHERE user_id=?")
-const SQL_SELECT_USER_VIEW = SQL("SELECT * FROM user_view WHERE user_id=?")
-const SQL_SELECT_USER_BY_NAME = SQL("SELECT * FROM user_view WHERE name=?")
 const SQL_SELECT_LOGIN_BY_MAIL = SQL("SELECT * FROM user_login_view WHERE mail=?")
 const SQL_SELECT_LOGIN_BY_NAME = SQL("SELECT * FROM user_login_view WHERE name=?")
+
+const SQL_SELECT_USER_VIEW = SQL("SELECT * FROM user_view WHERE user_id=?")
+const SQL_SELECT_USER_BY_NAME = SQL("SELECT * FROM user_view WHERE name=?")
 const SQL_SELECT_USER_PROFILE = SQL("SELECT * FROM user_profile_view WHERE name=?")
 const SQL_SELECT_USER_DYNAMIC = SQL("select * from user_dynamic_view where user_id=?")
 const SQL_SELECT_USER_ID = SQL("SELECT user_id FROM users WHERE name=?").pluck()
@@ -440,9 +441,12 @@ const SQL_UPDATE_USER_NOTIFY = SQL("UPDATE users SET notify=? WHERE user_id=?")
 const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?")
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?")
 const SQL_UPDATE_USER_VERIFIED = SQL("UPDATE users SET is_verified=? WHERE user_id=?")
-const SQL_UPDATE_USER_ABOUT = SQL("UPDATE users SET about=? WHERE user_id=?")
-const SQL_UPDATE_USER_PASSWORD = SQL("UPDATE users SET password=?, salt=? WHERE user_id=?")
-const SQL_UPDATE_USER_LAST_SEEN = SQL("INSERT OR REPLACE INTO user_last_seen (user_id,atime,ip) VALUES (?,datetime(),?)")
+
+const SQL_SELECT_USER_ABOUT = SQL("SELECT about FROM user_about WHERE user_id=?").pluck()
+const SQL_UPDATE_USER_ABOUT = SQL("insert or replace into user_about (user_id,about) values (?,?)")
+const SQL_UPDATE_USER_PASSWORD = SQL("insert or replace into user_password (user_id,password,salt) values (?,?,?)")
+const SQL_UPDATE_USER_FIRST_SEEN = SQL("insert or replace into user_first_seen (user_id,ctime,ip) values (?,datetime(),?)")
+const SQL_UPDATE_USER_LAST_SEEN = SQL("insert or replace into user_last_seen (user_id,atime,ip) values (?,datetime(),?)")
 const SQL_UPDATE_USER_IS_BANNED = SQL("update users set is_banned=? where name=?")
 
 const SQL_SELECT_WEBHOOK = SQL("SELECT * FROM webhooks WHERE user_id=?")
@@ -543,6 +547,7 @@ app.post("/signup", must_pass_altcha, function (req, res) {
 	function err(msg) {
 		res.render("signup.pug", { flash: msg })
 	}
+	let ip = req.headers["x-real-ip"] || req.ip || req.connection.remoteAddress || "0.0.0.0"
 	let name = req.body.username
 	let mail = req.body.mail
 	let password = req.body.password
@@ -561,7 +566,9 @@ app.post("/signup", must_pass_altcha, function (req, res) {
 		return err("Password is too long!")
 	let salt = crypto.randomBytes(32).toString("hex")
 	let hash = hash_password(password, salt)
-	let user = SQL_INSERT_USER.get(name, mail, hash, salt)
+	let user = SQL_INSERT_USER.get(name, mail)
+	SQL_UPDATE_USER_FIRST_SEEN.run(user.user_id, ip)
+	SQL_UPDATE_USER_PASSWORD.run(user.user_id, hash, salt)
 	login_insert(res, user.user_id)
 	res.redirect("/profile")
 })
@@ -653,7 +660,7 @@ app.post("/reset-password", function (req, res) {
 		return err("Invalid or expired token!")
 	let salt = crypto.randomBytes(32).toString("hex")
 	let hash = hash_password(password, salt)
-	SQL_UPDATE_USER_PASSWORD.run(hash, salt, user.user_id)
+	SQL_UPDATE_USER_PASSWORD.run(user.user_id, hash, salt)
 	SQL_UPDATE_USER_VERIFIED.run(1, user.user_id)
 	login_insert(res, user.user_id)
 	return res.redirect("/profile")
@@ -677,7 +684,7 @@ app.post("/change-password", must_be_logged_in, function (req, res) {
 		return res.render("change_password.pug", { user: req.user, flash: "Wrong password!" })
 	let salt = crypto.randomBytes(32).toString("hex")
 	let hash = hash_password(newpass, salt)
-	SQL_UPDATE_USER_PASSWORD.run(hash, salt, user.user_id)
+	SQL_UPDATE_USER_PASSWORD.run(user.user_id, hash, salt)
 	return res.redirect("/profile")
 })
 
@@ -805,7 +812,7 @@ app.get("/change-about", must_be_logged_in, function (req, res) {
 })
 
 app.post("/change-about", must_be_logged_in, function (req, res) {
-	SQL_UPDATE_USER_ABOUT.run(req.body.about, req.user.user_id)
+	SQL_UPDATE_USER_ABOUT.run(req.user.user_id, req.body.about)
 	return res.redirect("/profile")
 })
 
