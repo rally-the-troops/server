@@ -86,7 +86,10 @@ mixin gamelist(list,hide_title=0)
 
 						case item.status
 							when 0
-								a(class="command" href=`/join/${item.game_id}`) Join
+								if item.is_match
+									a(class="command" href="/join/"+item.game_id) Wait
+								else
+									a(class="command" href="/join/"+item.game_id) Join
 							when 1
 								if !item.is_ready
 									a(class="command" href="/join/"+item.game_id) Join
