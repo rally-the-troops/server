@@ -120,29 +120,14 @@ function drag_element_with_mouse(element_sel, grabber_sel) {
 
 /* TITLE BLINKER */
 
-let blink_title = document.title
-let blink_timer = 0
+var game_title = document.title
 
-function start_blinker(message) {
-	let tick = false
-	if (blink_timer)
-		stop_blinker()
-	if (!document.hasFocus()) {
-		document.title = message
-		blink_timer = setInterval(function () {
-			document.title = tick ? message : blink_title
-			tick = !tick
-		}, 1000)
-	}
+function update_title() {
+	if (is_your_turn || (chat && chat.has_unread))
+		document.title = "\u2bc8 " + game_title
+	else
+		document.title = game_title
 }
-
-function stop_blinker() {
-	document.title = blink_title
-	clearInterval(blink_timer)
-	blink_timer = 0
-}
-
-window.addEventListener("focus", stop_blinker)
 
 /* CHAT */
 
@@ -245,16 +230,22 @@ function fetch_chat() {
 
 function update_chat_new() {
 	let button = document.getElementById("chat_button")
-	start_blinker("NEW MESSAGE")
-	if (chat && chat.is_visible)
+	if (chat && chat.is_visible) {
+		if (!document.hasFocus())
+			chat.has_unread = true
 		fetch_chat()
-	else
+	} else {
+		chat.has_unread = true
 		button.classList.add("new")
+	}
+	update_title()
 }
 
 function update_chat_old() {
 	let button = document.getElementById("chat_button")
 	document.getElementById("chat_button").classList.remove("new")
+	chat.has_unread = false
+	update_title()
 }
 
 function show_chat() {
@@ -264,6 +255,10 @@ function show_chat() {
 		document.getElementById("chat_input").focus()
 		chat.is_visible = true
 		fetch_chat()
+		if (chat.has_unread) {
+			chat.has_unread = false
+			update_title()
+		}
 	}
 }
 
@@ -281,6 +276,13 @@ function toggle_chat() {
 	else
 		show_chat()
 }
+
+window.addEventListener("focus", function () {
+	if (chat && chat.is_visible && chat.has_unread) {
+		chat.has_unread = false
+		update_title()
+	}
+})
 
 /* NOTEPAD */
 
@@ -593,14 +595,13 @@ function on_update_header() {
 		document.querySelector("header").classList.remove("replay")
 	if (view.actions) {
 		document.querySelector("header").classList.add("your_turn")
-		if (!is_your_turn || old_active !== view.active)
-			start_blinker("YOUR TURN")
 		is_your_turn = true
 	} else {
 		document.querySelector("header").classList.remove("your_turn")
 		is_your_turn = false
 	}
 	old_active = view.active
+	update_title()
 }
 
 function on_update_roles() {
