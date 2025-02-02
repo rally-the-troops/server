@@ -79,11 +79,9 @@ function is_valid_action(rules, state, role, action, arg) {
 	let view = rules.view(state, role)
 	let va = view.actions[action]
 	if (va) {
-		if (Array.isArray(arg))
-			arg = arg[0]
 		if (Array.isArray(va) && va.includes(arg))
 			return true
-		if (arg === undefined || arg === null || arg === 1)
+		if (arg === undefined || arg === null || arg === 1 || Array.isArray(arg))
 			return (va === 1 || va === true || typeof va === "string")
 	}
 	return false
