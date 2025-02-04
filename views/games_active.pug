@@ -11,7 +11,10 @@ doctype html
 html
 	head
 		include head
-		title= SITE_NAME
+		if user.waiting > 0
+			title= "Games (" + user.waiting + ")"
+		else
+			title Games
 		if active_games.length > 0
 			meta(http-equiv="refresh" content=600)
 		script window.onunload=function(){}
