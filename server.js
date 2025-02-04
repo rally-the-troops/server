@@ -3657,6 +3657,7 @@ function do_resign(game_id, role, how) {
 		result = roles.filter(r => r !== role).join(", ")
 	}
 
+	// TODO: clean up
 	state.state = "game_over"
 	state.active = "None"
 	state.result = result
@@ -3665,42 +3666,6 @@ function do_resign(game_id, role, how) {
 	state.log.push(state.victory)
 
 	put_new_state(game.title_id, game_id, state, old_active, role, ".resign", null)
-}
-
-function on_restore(socket, state_text) {
-	if (!DEBUG)
-		send_message(socket, "error", "Debugging is not enabled on this server.")
-	SLOG(socket, "RESTORE")
-	try {
-		let state = JSON.parse(state_text)
-
-		// reseed!
-		state.seed = random_seed()
-
-		// resend full log!
-		for (let other of game_clients[socket.game_id])
-			other.seen = 0
-
-		put_new_state(socket.title_id, socket.game_id, state, null, null, "$restore", state)
-	} catch (err) {
-		console.log(err)
-		return send_message(socket, "error", err.toString())
-	}
-}
-
-function on_save(socket) {
-	if (!DEBUG)
-		send_message(socket, "error", "Debugging is not enabled on this server.")
-	SLOG(socket, "SAVE")
-	try {
-		let game_state = SQL_SELECT_GAME_STATE.get(socket.game_id)
-		if (!game_state)
-			return send_message(socket, "error", "No game with that ID.")
-		send_message(socket, "save", game_state)
-	} catch (err) {
-		console.log(err)
-		return send_message(socket, "error", err.toString())
-	}
 }
 
 function on_query(socket, q, params) {
@@ -3860,12 +3825,6 @@ function handle_player_message(socket, cmd, arg) {
 		break
 	case "querysnap":
 		on_query_snap(socket, arg[0], arg[1], arg[2])
-		break
-	case "save":
-		on_save(socket)
-		break
-	case "restore":
-		on_restore(socket, arg)
 		break
 	default:
 		send_message(socket, "error", "Invalid server command: " + cmd)

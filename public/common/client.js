@@ -569,10 +569,6 @@ function connect_play() {
 			if (typeof on_reply === "function")
 				on_reply(arg[0], arg[1])
 			break
-
-		case "save":
-			window.localStorage[params.title_id + "/save"] = arg
-			break
 		}
 	}
 }
@@ -741,14 +737,6 @@ function send_query(q, param) {
 		send_message("querysnap", [ snap_this, q, param ])
 	else
 		send_message("query", [ q, param ])
-}
-
-function send_save() {
-	send_message("save")
-}
-
-function send_restore() {
-	send_message("restore", window.localStorage[params.title_id + "/save"])
 }
 
 /* REPLAY */
