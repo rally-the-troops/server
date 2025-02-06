@@ -70,8 +70,8 @@ html
 							form(method="post" action="/api/tm/withdraw/" + seed.seed_id + "/" + (ix+1))
 								button(disabled) Register
 								button(type="submit") Withdraw
-						else if ix === 0 && may_register
-							form(method="post" action="/api/tm/register/" + seed.seed_id)
+						else if may_register && may_join_seed_level(user.user_id, seed.seed_id, ix+1)
+							form(method="post" action="/api/tm/register/" + seed.seed_id + "/" + (ix+1))
 								button(type="submit") Register
 								button(disabled) Withdraw
 						else

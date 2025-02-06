@@ -234,6 +234,8 @@ app.locals.human_date = human_date
 app.locals.format_options = format_options
 app.locals.format_minutes = format_minutes
 
+app.locals.may_join_seed_level = may_join_seed_level
+
 app.set("x-powered-by", false)
 app.set("etag", false)
 app.set("view engine", "pug")
@@ -2864,6 +2866,33 @@ const TM_MAY_JOIN_SEED = SQL(`
 	where seed_id=?
 `).pluck()
 
+const TM_MAY_JOIN_SEED_LEVEL = SQL(`
+	with
+		win_cte as (
+			select
+				count(1) as n_win
+			from
+				tm_winners
+				join tm_pools using(pool_id)
+			where
+				level = @level - 1 and user_id = @user_id and seed_id = @seed_id
+		),
+		play_cte as (
+			select
+				count(distinct pool_id) as n_play
+			from
+				tm_rounds
+				join tm_pools using(pool_id)
+				join players using(game_id)
+			where
+				level = @level and user_id = @user_id and seed_id = @seed_id
+		)
+	select
+		coalesce(n_win, 0) > coalesce(n_play, 0) as may_join
+	from
+		win_cte, play_cte
+`).pluck()
+
 function is_banned_from_tournaments(user_id) {
 	return TM_SELECT_BANNED.get(user_id)
 }
@@ -2874,6 +2903,14 @@ function may_join_any_seed(user_id) {
 
 function may_join_seed(seed_id) {
 	return TM_MAY_JOIN_SEED.get(seed_id)
+}
+
+function may_join_seed_level(user_id, seed_id, level) {
+	if (level === 1)
+		return true
+	if (level >= 2)
+		return TM_MAY_JOIN_SEED_LEVEL.get({ level, user_id, seed_id })
+	return false
 }
 
 const TM_SEED_LIST_ALL = SQL(`
@@ -3006,7 +3043,6 @@ const TM_SELECT_GAMES = SQL(`
 		game_id
 `)
 
-const TM_SELECT_WINNERS = SQL("select user_id from tm_winners where pool_id = ?").pluck()
 const TM_SELECT_PLAYERS_IN_POOL = SQL(`
 	select
 		user_view.*
@@ -3135,10 +3171,9 @@ const TM_FIND_NEXT_GAME_TO_START = SQL(`
 
 const TM_SELECT_ENDED_POOLS = SQL(`
 	select
-		pool_id, seed_id, level, pool_name, level_count
+		pool_id, pool_name
 	from
 		tm_pools
-		join tm_seeds using(seed_id)
 		join tm_rounds using(pool_id)
 		join games using(game_id)
 	where
@@ -3216,8 +3251,9 @@ app.get("/tm/pool/:pool_name", function (req, res) {
 	res.render("tm_pool.pug", { user: req.user, seed, pool, roles, players, games, games_by_round })
 })
 
-app.post("/api/tm/register/:seed_id", must_be_logged_in, function (req, res) {
+app.post("/api/tm/register/:seed_id/:level", must_be_logged_in, function (req, res) {
 	let seed_id = req.params.seed_id | 0
+	let level = req.params.level | 0
 	let user_id = req.user.user_id
 	if (is_banned_from_tournaments(req.user.user_id))
 		return res.status(401).send("You may not join any tournaments.")
@@ -3225,7 +3261,9 @@ app.post("/api/tm/register/:seed_id", must_be_logged_in, function (req, res) {
 		return res.status(401).send("You may not join any tournaments right now.")
 	if (!may_join_seed(seed_id))
 		return res.status(401).send("This tournament is closed.")
-	TM_INSERT_QUEUE.run(user_id, seed_id, 1)
+	if (!may_join_seed_level(req.user.user_id, seed_id, level))
+		return res.status(401).send("You may not join this tournament.")
+	TM_INSERT_QUEUE.run(user_id, seed_id, level)
 	return res.redirect(req.headers.referer)
 })
 
@@ -3527,25 +3565,11 @@ function start_tournament_seed(seed_id, level) {
 }
 
 function tm_reap_pools() {
-	// reap pools that are finished (and promote winners)
 	// reap pools that are finished (and notify players)
 	let ended = TM_SELECT_ENDED_POOLS.all()
 	for (let item of ended) {
-		console.log("TM POOL - END", item.pool_name)
-
-		SQL_BEGIN.run()
-		try {
-			TM_UPDATE_POOL_FINISHED.run(item.pool_id)
-			if (item.level < item.level_count) {
-				let winners = TM_SELECT_WINNERS.all(item.pool_id)
-				for (let user_id of winners)
-					TM_INSERT_QUEUE.run(user_id, item.seed_id, item.level + 1)
-			}
-			SQL_COMMIT.run()
-		} finally {
-			if (db.inTransaction)
-				SQL_ROLLBACK.run()
-		}
+		console.log("TM POOL FINISHED", item.pool_name)
+		TM_UPDATE_POOL_FINISHED.run(item.pool_id)
 
 		let players = TM_SELECT_PLAYERS_IN_POOL.all(item.pool_id)
 		for (let user of players)
