@@ -197,6 +197,7 @@ designs.resolvable_bibd = function (v, k) {
 	switch (k) {
 		case 3:
 			switch (v) {
+				case 6: return designs.social_golfer_6_3_1
 				case 9: return designs.resolvable_bibd_9_3_1
 				case 12: return designs.social_golfer_12_3_1
 				case 15: return designs.resolvable_bibd_15_3_1
@@ -233,6 +234,7 @@ designs.youden_square = function (v, k) {
 			case 3: return designs.youden_square_3_3_3
 			case 4: return designs.youden_square_4_3_2
 			case 7: return designs.youden_square_7_3_1
+			case 13: return designs.bibd_13_3_1 // sit twice
 			}
 			break
 		case 4:
@@ -240,6 +242,7 @@ designs.youden_square = function (v, k) {
 			case 4: return designs.youden_square_4_4_4
 			case 5: return designs.youden_square_5_4_3
 			case 7: return designs.youden_square_7_4_2
+			case 9: return designs.bibd_9_4_3 // sit twice
 			case 13: return designs.youden_square_13_4_1
 			}
 			break

@@ -407,7 +407,7 @@ function must_pass_altcha(req, res, next) {
 	return next()
 }
 
-app.get("/altcha-challenge", async (req, res) => {
+app.get("/altcha-challenge", function (req, res) {
 	return res.json(altcha_create_challenge())
 })
 
@@ -3261,7 +3261,7 @@ function make_concurrent_rounds(v, k, n) {
 
 	let rbibd = designs.resolvable_bibd(v, k)
 	if (rbibd)
-		return rbibd.slice(0, n).flat()
+		return [ rbibd.slice(0, n).flat() ]
 
 	throw new Error("cannot create rounds for this configuration")
 }
