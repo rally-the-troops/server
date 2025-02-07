@@ -2862,9 +2862,11 @@ const TM_SELECT_QUEUE_BLACKLIST = SQL(`
 	with qq as (
 		select user_id from tm_queue_view where seed_id=? and level=?
 	)
-	select me, you
+	select me, you, u_me.name as me_name, u_you.name as you_name
 	from contacts
 	join qq on qq.user_id = me
+	join users u_me on u_me.user_id=me
+	join users u_you on u_you.user_id=you
 	where relation < 0 and exists (select 1 from qq where user_id = you)
 `)
 
@@ -3374,6 +3376,7 @@ function start_tournament_seed_mc(seed_id, level) {
 	let blacklist = TM_SELECT_QUEUE_BLACKLIST.all(seed_id, level)
 
 	console.log("TM SPAWN SEED (MC)", seed.seed_name, level, queue.length)
+	console.log("TM BLACKLIST", blacklist)
 
 	let players = filter_queue_through_blacklist(queue, seed.pool_size, blacklist)
 	if (!players) {
