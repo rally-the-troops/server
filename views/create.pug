@@ -19,27 +19,36 @@ html
 				p.error You are not logged in!
 
 			form(method="post" action="/create/"+title.title_id)
-				if Array.isArray(scenarios)
-					if scenarios.length > 1
+				if Array.isArray(rules.scenarios)
+					if rules.scenarios.length > 1
 						p Scenario:
 							br
 							select(name="scenario")
-								each scenario in scenarios
-									option(value=scenario)= scenario
+								each scenario in rules.scenarios
+									if scenario === rules.default_scenario
+										option(value=scenario selected)= scenario
+									else
+										option(value=scenario)= scenario
 					else
-						input(type="hidden" name="scenario" value=scenarios[0])
+						input(type="hidden" name="scenario" value=rules.scenarios[0])
 				else
 					p Scenario:
 						br
 						select(name="scenario")
-							each list, name in scenarios
+							each list, name in rules.scenarios
 								if name === ""
 									each scenario in list
-										option(value=scenario)= scenario
+										if scenario === rules.default_scenario
+											option(value=scenario selected)= scenario
+										else
+											option(value=scenario)= scenario
 								else
 									optgroup(label=name)
 										each scenario in list
-											option(value=scenario)= scenario
+											if scenario === rules.default_scenario
+												option(value=scenario selected)= scenario
+											else
+												option(value=scenario)= scenario
 
 				| !{ title.create_html }
 

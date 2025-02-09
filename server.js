@@ -1808,7 +1808,7 @@ app.get("/create/:title_id", function (req, res) {
 		user: req.user,
 		title: title,
 		limit: req.user ? check_create_game_limit(req.user) : null,
-		scenarios: RULES[title_id].scenarios,
+		rules: RULES[title_id],
 	})
 })
 
