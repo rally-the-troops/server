@@ -1539,7 +1539,8 @@ const QUERY_NEXT_GAME_OF_USER = SQL(`
 	join players using(game_id)
 	where
 		status = ${STATUS_ACTIVE}
-		and active in (role, 'Both')
+		-- and active in (role, 'Both')
+		and ( active = 'Both' or instr(active, role) > 0 )
 		and user_id = ?
 		and is_opposed
 	order by mtime
@@ -2197,7 +2198,7 @@ function start_game(game) {
 
 		state = RULES[game.title_id].setup(seed, game.scenario, options)
 
-		SQL_START_GAME.run(state.active, game.game_id)
+		SQL_START_GAME.run(String(state.active), game.game_id)
 		let replay_id = put_replay(game.game_id, null, ".setup", [ seed, game.scenario, options ])
 		put_snap(game.game_id, replay_id, state)
 		SQL_INSERT_GAME_STATE.run(game.game_id, JSON.stringify(state))
@@ -2248,7 +2249,7 @@ function rewind_game_to_snap(game_id, snap_id) {
 		SQL_DELETE_GAME_REPLAY.run(game_id, snap.replay_id)
 		SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(snap_state))
 
-		SQL_REWIND_GAME.run(snap_id - 1, snap_state.active, game_id)
+		SQL_REWIND_GAME.run(snap_id - 1, String(snap_state.active), game_id)
 		SQL_REWIND_GAME_CLOCK.run(game_id)
 
 		update_join_clients(game_id)
@@ -2538,14 +2539,10 @@ function send_chat_activity_notification(game_id, p) {
 	send_play_notification(p, game_id, "Chat activity")
 }
 
-function is_active_role(active, role) {
-	return active === "Both" || active === role
-}
-
 function send_game_started_notification(game_id, active) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		let p_is_active = is_active_role(active, p.role)
+		let p_is_active = is_role_active(active, p.role)
 		if (p_is_active)
 			send_play_notification(p, game_id, "Started - Your turn")
 		else
@@ -2553,15 +2550,15 @@ function send_game_started_notification(game_id, active) {
 	}
 }
 
-function send_your_turn_notification_to_offline_users(game_id, old_active, active) {
+function send_your_turn_notification_to_offline_users(game_id, old_active, new_active) {
 	// Only send notifications when the active player changes.
-	if (old_active === active)
+	if (!is_changed_active(old_active, new_active))
 		return
 
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		let p_was_active = is_active_role(old_active, p.role)
-		let p_is_active = is_active_role(active, p.role)
+		let p_was_active = is_role_active(old_active, p.role)
+		let p_is_active = is_role_active(new_active, p.role)
 		if (!p_was_active && p_is_active) {
 			if (!is_player_online(game_id, p.user_id))
 				send_play_notification(p, game_id, "Your turn")
@@ -3489,6 +3486,26 @@ if (app.locals.ENABLE_TOURNAMENTS) {
  * GAME SERVER
  */
 
+function is_role_active(active, role) {
+	return active === role || active === "Both" || active.includes(role)
+}
+
+function is_nobody_active(active) {
+	return !active || active === "None"
+}
+
+function is_multi_active(active) {
+	if (!active)
+		return false
+	if (Array.isArray(active))
+		return true
+	return active === "Both" || active.includes(",")
+}
+
+function is_changed_active(old_active, new_active) {
+	return String(old_active) !== String(new_active)
+}
+
 function is_player_online(game_id, user_id) {
 	if (game_clients[game_id])
 		for (let other of game_clients[game_id])
@@ -3515,7 +3532,7 @@ function send_state(socket, state) {
 			socket.send('["state",' + this_view + "," + game_cookies[socket.game_id] + "]")
 			socket.last_view = this_view
 		}
-		if (!state.active || state.active === "None") {
+		if (is_nobody_active(state.active)) {
 			socket.send('["finished"]')
 		}
 	} catch (err) {
@@ -3557,7 +3574,11 @@ function put_replay(game_id, role, action, args) {
 }
 
 function dont_snap(rules, state, old_active) {
-	if (state.active === old_active || !state.active || state.active === "None")
+	if (is_nobody_active(state.active))
+		return true
+	if (is_multi_active(old_active) && is_multi_active(state.active))
+		return true
+	if (!is_changed_active(old_active, state.active))
 		return true
 	if (rules.dont_snap && rules.dont_snap(state))
 		return true
@@ -3573,17 +3594,16 @@ function put_snap(game_id, replay_id, state) {
 
 function put_game_state(game_id, state, old_active, current_role) {
 	// TODO: separate state, undo, and log entries (and reuse "snap" json stringifaction?)
-
 	SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(state))
 
-	if (state.active !== old_active) {
-		SQL_UPDATE_GAME_ACTIVE.run(state.active, game_id)
+	if (is_changed_active(old_active, state.active)) {
+		SQL_UPDATE_GAME_ACTIVE.run(String(state.active), game_id)
 
 		// add time for the player who took the current action
 		SQL_UPDATE_PLAYERS_ADD_TIME.run(game_id, current_role)
 	}
 
-	if (!state.active || state.active === "None") {
+	if (is_nobody_active(state.active)) {
 		SQL_FINISH_GAME.run(state.result, game_id)
 		if (state.result && state.result !== "None")
 			update_elo_ratings(game_id)
@@ -3600,13 +3620,14 @@ function put_new_state(title_id, game_id, state, old_active, role, action, args)
 
 		put_game_state(game_id, state, old_active, role)
 
-		if (state.active !== old_active)
+		if (is_changed_active(old_active, state.active))
 			update_join_clients(game_id)
+
 		if (game_clients[game_id])
 			for (let other of game_clients[game_id])
 				send_state(other, state)
 
-		if (!state.active || state.active === "None")
+		if (is_nobody_active(state.active))
 			send_game_finished_notification_to_offline_users(game_id, state.result)
 		else
 			send_your_turn_notification_to_offline_users(game_id, old_active, state.active)
@@ -3632,11 +3653,11 @@ function on_action(socket, action, args, cookie) {
 
 	try {
 		let state = get_game_state(socket.game_id)
-		let old_active = state.active
+		let old_active = String(state.active)
 
 		// Don't update cookie during simultaneous turns, as it results
 		// in many in-flight collisions.
-		if (old_active !== "Both")
+		if (!is_multi_active(old_active))
 			game_cookies[socket.game_id] ++
 
 		state = RULES[socket.title_id].action(state, socket.role, action, args)
@@ -3660,7 +3681,7 @@ function on_resign(socket) {
 function do_timeout(game_id, role) {
 	let game = SQL_SELECT_GAME.get(game_id)
 	let state = get_game_state(game_id)
-	let old_active = state.active
+	let old_active = String(state.active)
 	state = finish_game_state(game.title_id, state, "None", role + " timed out.")
 	put_new_state(game.title_id, game_id, state, old_active, role, ".timeout", null)
 }
@@ -3668,7 +3689,7 @@ function do_timeout(game_id, role) {
 function do_resign(game_id, role) {
 	let game = SQL_SELECT_GAME.get(game_id)
 	let state = get_game_state(game_id)
-	let old_active = state.active
+	let old_active = String(state.active)
 
 	let result = "None"
 	let roles = get_game_roles(game.title_id, game.scenario, game.options)

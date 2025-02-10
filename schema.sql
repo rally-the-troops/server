@@ -154,7 +154,9 @@ create view user_dynamic_view as
 				status = 1
 				and user_count = player_count
 				and players.user_id = users.user_id
-				and active in ( 'Both', players.role )
+				-- and active in ( 'Both', players.role )
+				and ( active = 'Both' or instr(active, players.role) )
+
 		) + (
 			select
 				count(*)
@@ -510,13 +512,17 @@ create view player_view as
 			when 0 then
 				owner_id = user_id
 			when 1 then
-				active in ( 'Both', role )
+				-- active in ( 'Both', role )
+				( active = 'Both' or instr(active, role) )
 			else
 				0
 			end
 		) as is_active,
 		(
-			case when active in ( 'Both', role ) then
+			case when
+				-- active in ( 'Both', role )
+				( active = 'Both' or instr(active, role) )
+			then
 				clock - (julianday() - julianday(mtime))
 			else
 				clock
@@ -543,7 +549,8 @@ create view time_control_view as
 		join players using(game_id)
 	where
 		status = 1
-		and active in ( 'Both', role )
+		-- and active in ( 'Both', role )
+		and ( active = 'Both' or instr(active, role) )
 		and clock - (julianday() - julianday(mtime)) < 0
 	;
 
@@ -888,7 +895,8 @@ begin
 	update players
 		set clock = clock - (julianday() - julianday(old.mtime))
 	where players.game_id = old.game_id
-		and old.active in ( 'Both', players.role )
+		-- and old.active in ( 'Both', players.role )
+		and ( old.active = 'Both' or instr(old.active, players.role) )
 	;
 end;
 
@@ -902,7 +910,8 @@ begin
 			user_id, old.game_id, (julianday() - julianday(old.mtime))
 		from players
 		where players.game_id = old.game_id
-			and old.active in ( 'Both', players.role )
+			-- and old.active in ( 'Both', players.role )
+			and ( old.active = 'Both' or instr(old.active, players.role) )
 	;
 end;
 

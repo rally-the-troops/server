@@ -71,10 +71,30 @@ function snapshot(state) {
 	return snap
 }
 
+function is_role_active(active, role) {
+	return active === role || active === "Both" || active.includes(role)
+}
+
+function is_nobody_active(active) {
+	return !active || active === "None"
+}
+
+function is_multi_active(active) {
+	if (!active)
+		return false
+	if (Array.isArray(active))
+		return true
+	return active === "Both" || active.includes(",")
+}
+
+function is_changed_active(old_active, new_active) {
+	return String(old_active) !== String(new_active)
+}
+
 function is_valid_action(rules, state, role, action, arg) {
 	if (action === "undo") // for jc, hots, r3, and cr compatibility
 		return true
-	if (state.active !== role && state.active !== "Both")
+	if (!is_role_active(state.active, role))
 		return false
 	let view = rules.view(state, role)
 	let va = view.actions[action]
@@ -88,9 +108,11 @@ function is_valid_action(rules, state, role, action, arg) {
 }
 
 function dont_snap(rules, state, old_active) {
-	if (state.state === "game_over")
+	if (is_nobody_active(state.active))
 		return true
-	if (state.active === old_active)
+	if (is_multi_active(old_active) && is_multi_active(state.active))
+		return true
+	if (!is_changed_active(old_active, state.active))
 		return true
 	if (rules.dont_snap && rules.dont_snap(state))
 		return true
@@ -219,7 +241,7 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 					insert_snap.run(game_id, ++snap_id, item.replay_id, item.state)
 		}
 
-		update_active.run(state.active, game_id)
+		update_active.run(String(state.active), game_id)
 		update_state.run(JSON.stringify(state), game_id)
 
 		if (state.state === "game_over")
