@@ -2346,7 +2346,7 @@ function is_winner(role, result) {
 }
 
 function elo_k(a) {
-	return a.count < 10 ? 60 : 30
+	return 30
 }
 
 function elo_ev(a, players) {
