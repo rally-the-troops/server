@@ -78,6 +78,14 @@ create table if not exists user_timeout (
 
 create index if not exists user_timeout_idx on user_timeout(user_id, time);
 
+create table if not exists user_move_time (
+	user_id integer,
+	game_id integer,
+	time real
+);
+
+create index if not exists user_move_time_idx on user_move_time(user_id, game_id);
+
 create table if not exists tokens (
 	user_id integer primary key,
 	token text,
@@ -879,8 +887,23 @@ create trigger trigger_time_used_update before update of active on games
 begin
 	update players
 		set clock = clock - (julianday() - julianday(old.mtime))
-	where
-		players.game_id = old.game_id and old.active in ( 'Both', players.role );
+	where players.game_id = old.game_id
+		and old.active in ( 'Both', players.role )
+	;
+end;
+
+-- Trigger to track move times
+
+drop trigger if exists trigger_move_time;
+create trigger trigger_move_time before update of active on games when old.is_opposed
+begin
+	insert into user_move_time (user_id,game_id,time)
+		select
+			user_id, old.game_id, (julianday() - julianday(old.mtime))
+		from players
+		where players.game_id = old.game_id
+			and old.active in ( 'Both', players.role )
+	;
 end;
 
 -- Trigger to remove game data when filing a game as archived
@@ -917,6 +940,8 @@ begin
 	delete from user_first_seen where user_id = old.user_id;
 	delete from user_last_seen where user_id = old.user_id;
 	delete from user_about where user_id = old.user_id;
+	delete from user_move_time where user_id = old.user_id;
+	delete from user_timeout where user_id = old.user_id;
 	delete from webhooks where user_id = old.user_id;
 	delete from logins where user_id = old.user_id;
 	delete from tokens where user_id = old.user_id;
