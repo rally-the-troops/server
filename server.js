@@ -2716,14 +2716,16 @@ const SQL_UPDATE_PLAYERS_ADD_TIME = SQL(`
 
 const SQL_SELECT_TIME_CONTROL = SQL("select * from time_control_view")
 
+const SQL_INSERT_TIMEOUT = SQL("insert into user_timeout (user_id, game_id) values (?, ?)")
+
 function time_control_ticker() {
 	for (let item of SQL_SELECT_TIME_CONTROL.all()) {
 		if (item.is_opposed) {
 			console.log("TIMED OUT GAME:", item.game_id, item.role)
 			do_timeout(item.game_id, item.role, item.role + " timed out.")
+			SQL_INSERT_TIMEOUT.run(item.user_id, item.game_id)
 			if (item.is_match) {
 				console.log("BANNED FROM TOURNAMENTS:", item.user_id)
-				TM_INSERT_TIMEOUT.run(item.user_id, item.game_id)
 				TM_INSERT_BANNED.run(item.user_id)
 				TM_DELETE_QUEUE_ALL.run(item.user_id)
 			}
@@ -2748,7 +2750,6 @@ const designs = require("./designs.js")
 
 const TM_SELECT_BANNED = SQL("select exists ( select 1 from tm_banned where user_id=? )").pluck()
 const TM_INSERT_BANNED = SQL("insert or ignore into tm_banned (user_id, time) values (?, datetime())")
-const TM_INSERT_TIMEOUT = SQL("insert into tm_timeout (user_id, game_id) values (?, ?)")
 
 const TM_DELETE_QUEUE_ALL = SQL("delete from tm_queue where user_id=?")
 

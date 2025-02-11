@@ -69,6 +69,15 @@ create table if not exists user_last_seen (
 	ip text
 );
 
+create table if not exists user_timeout (
+	user_id integer,
+	game_id integer,
+	time datetime default current_timestamp,
+	primary key (user_id, game_id)
+);
+
+create index if not exists user_timeout_idx on user_timeout(user_id, time);
+
 create table if not exists tokens (
 	user_id integer primary key,
 	token text,
@@ -604,12 +613,6 @@ create table if not exists tm_seeds (
 
 create table if not exists tm_banned (
 	user_id integer primary key,
-	time datetime default current_timestamp
-);
-
-create table if not exists tm_timeout (
-	user_id integer,
-	game_id integer,
 	time datetime default current_timestamp
 );
 
