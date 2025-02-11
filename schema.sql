@@ -119,13 +119,57 @@ create view user_login_view as
 
 drop view if exists user_profile_view;
 create view user_profile_view as
-	select
-		user_id, name, mail, notify, ctime, atime, about, is_banned
-	from
-		users
-		left join user_first_seen using(user_id)
-		left join user_last_seen using(user_id)
-		left join user_about using(user_id)
+	with
+		timeout as (
+			select
+				user_id,
+				count(1) as timeout_total,
+				max(time) as timeout_last
+			from
+				user_timeout
+			group by
+				user_id
+		),
+		move_time as (
+			select
+				user_id,
+				avg(time) as move_time_avg
+			from
+				user_move_time
+			group by
+				user_id
+		),
+		profile as (
+			select
+				user_id, name, mail, notify, ctime, atime, about, is_banned,
+				coalesce(timeout_total, 0) as timeout_total,
+				coalesce(timeout_last, 0) as timeout_last,
+				move_time_avg
+			from
+				users
+				left join user_first_seen using(user_id)
+				left join user_last_seen using(user_id)
+				left join user_about using(user_id)
+				left join timeout using(user_id)
+				left join move_time using(user_id)
+		)
+		select
+			profile.*,
+			(
+				select
+					count(1)
+				from
+					players
+					join games using(game_id)
+				where
+					players.user_id = profile.user_id
+					and games.is_opposed
+					and games.status > 1
+					and games.result != 'None'
+					and games.mtime > timeout_last
+			) as games_since_timeout
+		from
+			profile
 	;
 
 drop view if exists user_dynamic_view;

@@ -827,13 +827,22 @@ app.get("/user/:who_name", function (req, res) {
 	let who = SQL_SELECT_USER_PROFILE.get(req.params.who_name)
 	if (who) {
 		let games = QUERY_LIST_PUBLIC_GAMES_OF_USER.all({ user_id: who.user_id })
+		let ratings = SQL_USER_RATINGS.all(who.user_id)
 		annotate_games(games, 0, null)
 		let active_pools = TM_POOL_LIST_USER_ACTIVE.all(who.user_id)
 		let finished_pools = TM_POOL_LIST_USER_RECENT_FINISHED.all(who.user_id)
 		let relation = 0
 		if (req.user)
 			relation = SQL_SELECT_RELATION.get(req.user.user_id, who.user_id) | 0
-		res.render("user.pug", { user: req.user, who, relation, games, active_pools, finished_pools })
+		res.render("user.pug", {
+			user: req.user,
+			who,
+			relation,
+			games,
+			active_pools,
+			finished_pools,
+			ratings,
+		})
 	} else {
 		return res.status(404).send("User not found.")
 	}
@@ -4189,12 +4198,12 @@ const SQL_USER_STATS = SQL(`
 	`)
 
 const SQL_USER_RATINGS = SQL(`
-	select title_name, rating, count, date(last) as last
+	select title_id, title_name, rating, count, date(last) as last
 	from ratings
 	join titles using(title_id)
 	where user_id = ?
-	and count >= 5
-	order by rating desc
+	and count >= 3
+	order by count desc
 	`)
 
 const SQL_GAME_RATINGS = SQL(`
