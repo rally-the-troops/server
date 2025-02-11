@@ -137,7 +137,7 @@ create view user_dynamic_view as
 				status = 1
 				and user_count = player_count
 				and players.user_id = users.user_id
-				and active in ( players.role, 'Both' )
+				and active in ( 'Both', players.role )
 		) + (
 			select
 				count(*)
@@ -875,7 +875,7 @@ begin
 	update players
 		set clock = clock - (julianday() - julianday(old.mtime))
 	where
-		players.game_id = old.game_id and players.role in ( 'Both', old.active );
+		players.game_id = old.game_id and old.active in ( 'Both', players.role );
 end;
 
 -- Trigger to remove game data when filing a game as archived

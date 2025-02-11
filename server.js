@@ -2537,10 +2537,14 @@ function send_chat_activity_notification(game_id, p) {
 	send_play_notification(p, game_id, "Chat activity")
 }
 
+function is_active_role(active, role) {
+	return active === "Both" || active === role
+}
+
 function send_game_started_notification(game_id, active) {
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		let p_is_active = active === p.role || active === "Both"
+		let p_is_active = is_active_role(active, p.role)
 		if (p_is_active)
 			send_play_notification(p, game_id, "Started - Your turn")
 		else
@@ -2555,8 +2559,8 @@ function send_your_turn_notification_to_offline_users(game_id, old_active, activ
 
 	let players = SQL_SELECT_PLAYERS.all(game_id)
 	for (let p of players) {
-		let p_was_active = old_active === p.role || old_active === "Both"
-		let p_is_active = active === p.role || active === "Both"
+		let p_was_active = is_active_role(old_active, p.role)
+		let p_is_active = is_active_role(active, p.role)
 		if (!p_was_active && p_is_active) {
 			if (!is_player_online(game_id, p.user_id))
 				send_play_notification(p, game_id, "Your turn")
@@ -3503,12 +3507,13 @@ function send_state(socket, state) {
 			view.log_start = view.log.length
 		socket.seen = view.log.length
 		view.log = view.log.slice(view.log_start)
-		if (state.state === "game_over")
-			view.game_over = 1
 		let this_view = JSON.stringify(view)
 		if (view.actions || socket.last_view !== this_view) {
 			socket.send('["state",' + this_view + "," + game_cookies[socket.game_id] + "]")
 			socket.last_view = this_view
+		}
+		if (!state.active || state.active === "None") {
+			socket.send('["finished"]')
 		}
 	} catch (err) {
 		console.log(err)
@@ -3549,9 +3554,7 @@ function put_replay(game_id, role, action, args) {
 }
 
 function dont_snap(rules, state, old_active) {
-	if (state.active === old_active)
-		return true
-	if (state.state === "game_over")
+	if (state.active === old_active || !state.active || state.active === "None")
 		return true
 	if (rules.dont_snap && rules.dont_snap(state))
 		return true
@@ -3577,7 +3580,7 @@ function put_game_state(game_id, state, old_active, current_role) {
 		SQL_UPDATE_PLAYERS_ADD_TIME.run(game_id, current_role)
 	}
 
-	if (state.state === "game_over") {
+	if (!state.active || state.active === "None") {
 		SQL_FINISH_GAME.run(state.result, game_id)
 		if (state.result && state.result !== "None")
 			update_elo_ratings(game_id)
@@ -3600,7 +3603,7 @@ function put_new_state(title_id, game_id, state, old_active, role, action, args)
 			for (let other of game_clients[game_id])
 				send_state(other, state)
 
-		if (state.state === "game_over")
+		if (!state.active || state.active === "None")
 			send_game_finished_notification_to_offline_users(game_id, state.result)
 		else
 			send_your_turn_notification_to_offline_users(game_id, old_active, state.active)

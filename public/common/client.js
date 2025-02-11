@@ -361,9 +361,9 @@ function toggle_notepad() {
 		show_notepad()
 }
 
-/* REMATCH & REPLAY BUTTONS WHEN GAME OVER */
+/* REMATCH & REPLAY BUTTONS WHEN GAME IS FINISHED */
 
-function on_game_over() {
+function on_finished() {
 	remove_resign_menu()
 
 	add_icon_button(1, "replay_button", "sherlock-holmes-mirror",
@@ -547,8 +547,10 @@ function connect_play() {
 			if (typeof on_update === "function")
 				on_update()
 			on_update_log(view.log_start, game_log.length)
-			if (view.game_over)
-				on_game_over()
+			break
+
+		case "finished":
+			on_finished()
 			break
 
 		case "snapsize":
