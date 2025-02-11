@@ -173,6 +173,7 @@ create view rated_games_view as
 		and moves >= player_count * 3
 		and user_count = player_count
 		and player_count > 1
+		and result != 'None'
 		and not exists (
 			select 1 from players where players.game_id = games.game_id and user_id = 0
 		)
@@ -720,6 +721,7 @@ begin
 		set score = (
 			case
 				when new.result is null then null
+				when new.result = 'None' then null
 				when new.result = role then 2
 				when new.result = 'Draw' then 1
 				when instr(new.result, role) then 1

@@ -49,9 +49,9 @@ html
 				tr
 					td Started
 					td= human_date(pool.start_date)
-				tr
-					td Finished
-					if pool.finish_date
+				if pool.finish_date
+					tr
+						td Finished
 						td= human_date(pool.finish_date)
 
 			if seed.player_count === 2
@@ -84,7 +84,10 @@ html
 													if ix > 0
 														| &nbsp;
 													if gs[1] === null
-														a.black(href="/join/" + gs[0]) &minus;
+														if games.find(game => game.game_id === gs[0]).is_abandoned
+															a.black(href="/join/" + gs[0]) &#xd7;
+														else
+															a.black(href="/join/" + gs[0]) &minus;
 													else
 														a.black(href="/join/" + gs[0])= gs[1]
 								td.r= row.points
@@ -116,7 +119,10 @@ html
 								each gs in result
 									td.c
 										if gs[1] === null
-											a.black(href="/join/" + gs[0]) &minus;
+											if games.find(game => game.game_id === gs[0]).is_abandoned
+												a.black(href="/join/" + gs[0]) &#xd7;
+											else
+												a.black(href="/join/" + gs[0]) &minus;
 										else
 											a.black(href="/join/" + gs[0])= gs[1]
 								td.r= row.points
@@ -150,10 +156,16 @@ html
 
 								if game.status > 1
 									td.w.r
-										each role, ix in roles
-											if ix > 0
-												| &nbsp;:&nbsp;
-											| #{role_scores[role]}
+										if game.is_abandoned
+											| None
+										else
+											each role, ix in roles
+												if ix > 0
+													| &nbsp;:&nbsp;
+												if role_scores[role] === null
+													| &#xd7;
+												else
+													| #{role_scores[role]}
 								else
 									td.r
 								if game.status > 0

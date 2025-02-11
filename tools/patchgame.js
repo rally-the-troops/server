@@ -97,6 +97,34 @@ function dont_snap(rules, state, old_active) {
 	return false
 }
 
+function get_game_roles(rules, scenario, options) {
+	let roles = rules.roles
+	if (typeof roles === "function") {
+		if (typeof options === "string")
+			options = JSON.parse(options)
+		return roles(scenario, options)
+	}
+	return roles
+}
+
+function get_resign_result(roles, role) {
+	return roles.filter(r => r !== role).join(", ")
+}
+
+function finish_game(rules, state, result, message) {
+	if (typeof rules.finish === "function") {
+		state = RULES[title_id].finish(state, result, message)
+	} else {
+		state.state = "game_over"
+		state.active = "None"
+		state.result = result
+		state.victory = message
+		state.log.push("")
+		state.log.push(message)
+	}
+	return state
+}
+
 function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_undo=false, delete_invalid=false}, verbose) {
 	let game = select_game.get(game_id)
 	if (!game) {
@@ -106,6 +134,7 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 
 	let title_id = game.title_id
 	let rules = require("../public/" + title_id + "/rules.js")
+	let roles = get_game_roles(rules, game.scenario, game.options)
 
 	let replay = select_replay.all(game_id)
 	if (replay.length === 0)
@@ -129,8 +158,13 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 			case ".setup":
 				state = rules.setup(...args)
 				break
+			case ".timeout":
+				finish_game(rules, state, "None", item.role + " timed out.")
+				break
+			case ".abandon":
+				finish_game(rules, state, "None", item.role + " abandoned the game.")
 			case ".resign":
-				state = rules.resign(state, item.role)
+				finish_game(rules, state, get_resign_result(roles, item.role), item.role + " resigned.")
 				break
 			default:
 				if (validate_actions) {

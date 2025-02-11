@@ -1277,10 +1277,11 @@ function format_options(options_json) {
 
 function get_game_roles(title_id, scenario, options) {
 	let roles = RULES[title_id].roles
-	if (typeof options === "string")
-		options = parse_game_options(options)
-	if (typeof roles === "function")
+	if (typeof roles === "function") {
+		if (typeof options === "string")
+			options = parse_game_options(options)
 		return roles(scenario, options)
+	}
 	return roles
 }
 
@@ -2719,7 +2720,7 @@ function time_control_ticker() {
 	for (let item of SQL_SELECT_TIME_CONTROL.all()) {
 		if (item.is_opposed) {
 			console.log("TIMED OUT GAME:", item.game_id, item.role)
-			do_resign(item.game_id, item.role, "timed out")
+			do_timeout(item.game_id, item.role, item.role + " timed out.")
 			if (item.is_match) {
 				console.log("BANNED FROM TOURNAMENTS:", item.user_id)
 				TM_INSERT_TIMEOUT.run(item.user_id, item.game_id)
@@ -2903,6 +2904,7 @@ const TM_SELECT_GAMES = SQL(`
 		tm_rounds.*,
 		games.status,
 		games.moves,
+		games.status > 1 and games.result = 'None' as is_abandoned,
 		json_group_object(role, coalesce(name, 'null')) as role_names,
 		json_group_object(role, score) as role_scores
 	from
@@ -3116,7 +3118,7 @@ app.get("/tm/pool/:pool_name", function (req, res) {
 		players = TM_SELECT_PLAYERS_MP.all(pool_id)
 	let games = TM_SELECT_GAMES.all(pool_id)
 	let games_by_round = object_group_by(games, "round")
-	res.render("tm_pool.pug", { user: req.user, seed, pool, roles, players, games_by_round })
+	res.render("tm_pool.pug", { user: req.user, seed, pool, roles, players, games, games_by_round })
 })
 
 app.post("/api/tm/register/:seed_id", must_be_logged_in, function (req, res) {
@@ -3647,20 +3649,27 @@ function on_action(socket, action, args, cookie) {
 function on_resign(socket) {
 	SLOG(socket, "RESIGN")
 	try {
-		do_resign(socket.game_id, socket.role, "resigned")
+		do_resign(socket.game_id, socket.role)
 	} catch (err) {
 		console.log(err)
 		return send_message(socket, "error", err.toString())
 	}
 }
 
-function do_resign(game_id, role, how) {
+function do_timeout(game_id, role) {
+	let game = SQL_SELECT_GAME.get(game_id)
+	let state = get_game_state(game_id)
+	let old_active = state.active
+	state = finish_game_state(game.title_id, state, "None", role + " timed out.")
+	put_new_state(game.title_id, game_id, state, old_active, role, ".timeout", null)
+}
+
+function do_resign(game_id, role) {
 	let game = SQL_SELECT_GAME.get(game_id)
 	let state = get_game_state(game_id)
 	let old_active = state.active
 
 	let result = "None"
-
 	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	if (game.player_count === 2) {
 		for (let r of roles)
@@ -3670,15 +3679,23 @@ function do_resign(game_id, role, how) {
 		result = roles.filter(r => r !== role).join(", ")
 	}
 
-	// TODO: clean up
-	state.state = "game_over"
-	state.active = "None"
-	state.result = result
-	state.victory = role + " " + how + "."
-	state.log.push("")
-	state.log.push(state.victory)
+	state = finish_game_state(game.title_id, state, result, role + " resigned.")
 
-	put_new_state(game.title_id, game_id, state, old_active, role, ".resign", null)
+	put_new_state(game.title_id, game_id, state, old_active, role, ".resign", result)
+}
+
+function finish_game_state(title_id, state, result, message) {
+	if (typeof RULES[title_id].finish === "function") {
+		state = RULES[title_id].finish(state, result, message)
+	} else {
+		state.state = "game_over"
+		state.active = "None"
+		state.result = result
+		state.victory = message
+		state.log.push("")
+		state.log.push(message)
+	}
+	return state
 }
 
 function on_query(socket, q, params) {
