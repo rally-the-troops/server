@@ -578,7 +578,6 @@ function connect_play() {
 /* HEADER */
 
 let is_your_turn = false
-let old_active = null
 
 function on_update_header() {
 	if (typeof on_prompt === "function")
@@ -598,14 +597,15 @@ function on_update_header() {
 		document.querySelector("header").classList.remove("your_turn")
 		is_your_turn = false
 	}
-	old_active = view.active
 	update_title()
 }
 
 function on_update_roles() {
 	if (view.active !== undefined)
 		for (let role in roles)
-			roles[role].element.classList.toggle("active", view.active === role)
+			roles[role].element.classList.toggle("active",
+				view.active === role || view.active === "Both" || view.active.includes(role)
+			)
 }
 
 /* LOG */
