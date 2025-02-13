@@ -9,7 +9,7 @@ html
 		article
 			h1= SITE_NAME
 
-			p Welcome, #{user.name}!
+			p Welcome, <a class="black" href="/user/#{user.name}">#{user.name}</a>!
 			p Your mail address is #{user.mail}
 
 			if ENABLE_MAIL
