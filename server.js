@@ -2604,6 +2604,10 @@ function message_link(msg_id) {
 	return SITE_URL + "/message/read/" + msg_id
 }
 
+function tour_pool_link(pool_id) {
+	return SITE_URL + "/tm/pool/" + pool_id
+}
+
 function send_notification(user, link, message) {
 	if (WEBHOOKS) {
 		let webhook = SQL_SELECT_WEBHOOK_SEND.get(user.user_id)
@@ -2636,6 +2640,10 @@ function send_play_notification(user, game_id, message) {
 	let title_id = SQL_SELECT_GAME_TITLE.get(game_id)
 	let title_name = TITLE_NAME[title_id]
 	send_notification(user, game_play_link(game_id, title_id, user), `${title_name} #${game_id} (${user.role}) - ${message}`)
+}
+
+function send_tour_notification(user, pool_name, message) {
+	send_notification(user, tour_pool_link(pool_name), `${pool_name} - ${message}`)
 }
 
 function send_chat_activity_notification(game_id, p) {
@@ -3020,6 +3028,16 @@ const TM_SELECT_GAMES = SQL(`
 `)
 
 const TM_SELECT_WINNERS = SQL("select user_id from tm_winners where pool_id = ?").pluck()
+const TM_SELECT_PLAYERS_IN_POOL = SQL(`
+	select
+		user_view.*
+	from
+		tm_rounds
+		join players using(game_id)
+		join user_view using(user_id)
+	group by
+		user_id
+`)
 
 const TM_SELECT_PLAYERS_2P = SQL(`
 	with
@@ -3534,9 +3552,11 @@ function start_tournament_seed(seed_id, level) {
 
 function tm_reap_pools() {
 	// reap pools that are finished (and promote winners)
+	// reap pools that are finished (and notify players)
 	let ended = TM_SELECT_ENDED_POOLS.all()
 	for (let item of ended) {
 		console.log("TM POOL - END", item.pool_name)
+
 		SQL_BEGIN.run()
 		try {
 			TM_UPDATE_POOL_FINISHED.run(item.pool_id)
@@ -3550,6 +3570,10 @@ function tm_reap_pools() {
 			if (db.inTransaction)
 				SQL_ROLLBACK.run()
 		}
+
+		let players = TM_SELECT_PLAYERS_IN_POOL.all(item.pool_id)
+		for (let user of players)
+			send_tour_notification(user, item.pool_name, "Finished")
 	}
 }
 
