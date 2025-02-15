@@ -2,6 +2,8 @@
 
 attach database 'db' as live;
 
+pragma live.busy_timeout=10000;
+
 create temporary view prune_snap_list as
 	select
 		distinct game_id
