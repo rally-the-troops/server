@@ -3,11 +3,11 @@ doctype html
 html
 	head
 		include head
-		title= SITE_NAME
+		title Your tournaments
 	body
 		include header
 		article.wide
-			h1 Your Tournaments
+			h1 Your tournaments
 
 			if seeds && seeds.length > 0
 				+seedlist(seeds, "Registrations")

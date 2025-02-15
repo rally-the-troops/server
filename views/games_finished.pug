@@ -3,7 +3,10 @@ doctype html
 html
 	head
 		include head
-		title= SITE_NAME
+		if user && user.user_id === who.user_id
+			title Your finished games
+		else
+			title #{who.name}&rsquo;s finished games
 	body
 		include header
 		article.wide
