@@ -78,13 +78,12 @@ create table if not exists user_timeout (
 
 create index if not exists user_timeout_idx on user_timeout(user_id, time);
 
-create table if not exists user_move_time (
+create table if not exists user_move_hist (
 	user_id integer,
-	game_id integer,
-	time real
-);
-
-create index if not exists user_move_time_idx on user_move_time(user_id, game_id);
+	minutes integer,
+	frequency integer default 1,
+	primary key (user_id, minutes)
+) without rowid;
 
 create table if not exists tokens (
 	user_id integer primary key,
@@ -117,6 +116,41 @@ create view user_login_view as
 		left join user_password using(user_id)
 	;
 
+drop view if exists user_move_iqr;
+create view user_move_iqr as
+	with
+		aa as (
+			select
+				user_id,
+				sum(frequency) as total
+			from user_move_hist
+			group by user_id
+		),
+		bb as (
+			select
+				user_id,
+				minutes,
+				4 * sum(frequency) over (partition by user_id order by minutes) / (total+1) as quartile
+			from aa join user_move_hist using(user_id)
+		),
+		cc as (
+			select
+				user_id,
+				quartile,
+				last_value(minutes) over (partition by user_id order by quartile) as minutes
+			from bb
+			where quartile < 3
+			group by user_id, quartile
+		)
+	select
+		user_id,
+		sum(minutes) filter (where quartile = 0) as q1,
+		sum(minutes) filter (where quartile = 1) as q2,
+		sum(minutes) filter (where quartile = 2) as q3
+	from cc
+	group by user_id
+	;
+
 drop view if exists user_profile_view;
 create view user_profile_view as
 	with
@@ -130,28 +164,32 @@ create view user_profile_view as
 			group by
 				user_id
 		),
-		move_time as (
+		user_move_mean as (
 			select
 				user_id,
-				avg(time) as move_time_avg
+				sum(minutes * frequency) / sum(frequency) as move_time_mean
 			from
-				user_move_time
+				user_move_hist
 			group by
 				user_id
 		),
 		profile as (
 			select
 				user_id, name, mail, notify, ctime, atime, about, is_banned,
+				move_time_mean,
+				coalesce(q1, q2, q3) as move_time_q1,
+				coalesce(q2, q3) as move_time_q2,
+				q3 as move_time_q3,
 				coalesce(timeout_total, 0) as timeout_total,
-				coalesce(timeout_last, 0) as timeout_last,
-				move_time_avg
+				coalesce(timeout_last, 0) as timeout_last
 			from
 				users
 				left join user_first_seen using(user_id)
 				left join user_last_seen using(user_id)
 				left join user_about using(user_id)
 				left join timeout using(user_id)
-				left join move_time using(user_id)
+				left join user_move_mean using(user_id)
+				left join user_move_iqr using(user_id)
 		)
 		select
 			profile.*,
@@ -196,18 +234,17 @@ create view user_dynamic_view as
 				join games using(game_id)
 			where
 				status = 1
-				and user_count = player_count
+				and is_opposed
+				and is_active
 				and players.user_id = users.user_id
-				-- and active in ( 'Both', players.role )
-				and ( active = 'Both' or instr(active, players.role) )
-
 		) + (
 			select
 				count(*)
 			from
 				players
 			where
-				players.user_id = users.user_id and players.is_invite
+				is_invite
+				and players.user_id = users.user_id
 		) + (
 			select
 				count(*)
@@ -507,6 +544,8 @@ create table if not exists players (
 	role text,
 	user_id integer,
 	is_invite integer,
+	is_active boolean,
+	active_time real, -- julianday
 	clock real,
 	score integer,
 	primary key (game_id, role)
@@ -551,23 +590,11 @@ create view player_view as
 		name,
 		role,
 		is_invite,
+		is_active,
 		(
-			case status
-			when 0 then
-				owner_id = user_id
-			when 1 then
-				-- active in ( 'Both', role )
-				( active = 'Both' or instr(active, role) )
-			else
-				0
-			end
-		) as is_active,
-		(
-			case when
-				-- active in ( 'Both', role )
-				( active = 'Both' or instr(active, role) )
+			case when is_active
 			then
-				clock - (julianday() - julianday(mtime))
+				clock - (julianday() - julianday(active_time))
 			else
 				clock
 			end
@@ -593,9 +620,8 @@ create view time_control_view as
 		join players using(game_id)
 	where
 		status = 1
-		-- and active in ( 'Both', role )
-		and ( active = 'Both' or instr(active, role) )
-		and clock - (julianday() - julianday(mtime)) < 0
+		and is_active
+		and clock - (julianday() - julianday(players.active_time)) < 0
 	;
 
 -- Export game state as JSON
@@ -931,31 +957,90 @@ begin
 		games.game_id = old.game_id;
 end;
 
--- Trigger to track time spent!
+-- Triggers to track is_active and time spent!
 
-drop trigger if exists trigger_time_used_update;
-create trigger trigger_time_used_update before update of active on games
+drop trigger if exists trigger_game_started;
+create trigger trigger_game_started after update of status on games
+	when old.status = 0 and new.status = 1
 begin
-	update players
-		set clock = clock - (julianday() - julianday(old.mtime))
-	where players.game_id = old.game_id
-		-- and old.active in ( 'Both', players.role )
-		and ( old.active = 'Both' or instr(old.active, players.role) )
+	update
+		players
+	set
+		clock = (
+			case (select pace from games where old.game_id = players.game_id)
+				when 1 then 1
+				when 2 then 3
+				when 3 then 3
+				else 21
+			end
+		)
+	where
+		players.game_id = old.game_id
 	;
 end;
 
--- Trigger to track move times
-
-drop trigger if exists trigger_move_time;
-create trigger trigger_move_time before update of active on games when old.is_opposed
+drop trigger if exists trigger_active_changed;
+create trigger trigger_active_changed after update of active on games
 begin
-	insert into user_move_time (user_id,game_id,time)
+	update
+		players
+	set
+		is_active = ( new.active = 'Both' or instr(new.active, players.role) )
+	where
+		players.game_id = old.game_id
+	;
+end;
+
+drop trigger if exists trigger_player_to_active;
+create trigger trigger_player_to_active after update of is_active on players
+	when old.is_active is not true and new.is_active
+begin
+	update
+		players
+	set
+		active_time = julianday()
+	where
+		players.game_id = old.game_id and players.role = old.role
+	;
+end;
+
+drop trigger if exists trigger_player_to_inactive;
+create trigger trigger_player_to_inactive after update of is_active on players
+	when old.is_active and (not new.is_active)
+begin
+	update
+		players
+	set
+		active_time = null,
+		clock = (
+			case (select pace from games where games.game_id = players.game_id)
+				when 1 then min(clock - (julianday() - julianday(old.active_time)) + 4 / 24.0, 3)
+				when 2 then min(clock - (julianday() - julianday(old.active_time)) + 12 / 24.0, 5)
+				when 3 then min(clock - (julianday() - julianday(old.active_time)) + 36 / 24.0, 10)
+				else 21
+			end
+		)
+	where
+		players.game_id = old.game_id and players.role = old.role
+	;
+	insert into user_move_hist (user_id, minutes)
 		select
-			user_id, old.game_id, (julianday() - julianday(old.mtime))
-		from players
-		where players.game_id = old.game_id
-			-- and old.active in ( 'Both', players.role )
-			and ( old.active = 'Both' or instr(old.active, players.role) )
+			old.user_id,
+			case
+				when minutes < 60 then ceil(minutes)
+				when minutes < 720 then round(minutes / 5) * 5
+				when minutes < 4320 then round(minutes / 15) * 15
+				when minutes < 7200 then round(minutes / 60) * 60
+				else round(minutes / 360) * 360
+			end as minutes
+		from (
+			select (julianday() - julianday(old.active_time)) * 1440 as minutes
+		)
+		where (
+			select is_opposed from games where games.game_id = old.game_id
+		)
+	on conflict do update
+		set frequency = frequency + 1
 	;
 end;
 
@@ -993,7 +1078,7 @@ begin
 	delete from user_first_seen where user_id = old.user_id;
 	delete from user_last_seen where user_id = old.user_id;
 	delete from user_about where user_id = old.user_id;
-	delete from user_move_time where user_id = old.user_id;
+	delete from user_move_hist where user_id = old.user_id;
 	delete from user_timeout where user_id = old.user_id;
 	delete from webhooks where user_id = old.user_id;
 	delete from logins where user_id = old.user_id;

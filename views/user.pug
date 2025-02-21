@@ -42,8 +42,13 @@ html
 						br
 						a(href="/contacts/add-enemy/"+who.name) Add to blacklist
 
-			h3 Response time
-			div Average response time: #{(who.move_time_avg * 24).toFixed(2)} hours
+			if (who.move_time_mean !== null)
+				h3 Response time
+				div Average response time: #{format_minutes(who.move_time_mean)}
+				if (who.move_time_q2 !== null)
+					div Median response time: #{format_minutes(who.move_time_q2)}
+				if (who.move_time_q1 !== null && who.move_time_q2 !== null)
+					div Middle half of response times: #{format_minutes(who.move_time_q1)} to #{format_minutes(who.move_time_q3)}
 
 			h3 Timeouts
 			div Total number of timeouts: #{who.timeout_total}

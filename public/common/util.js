@@ -1,4 +1,4 @@
-// === COMMON LIBRARY ===
+/* COMMON LIBRARY */
 
 function clear_undo() {
 	if (game.undo) {

@@ -232,6 +232,7 @@ app.locals.PACE_TEXT = [
 
 app.locals.human_date = human_date
 app.locals.format_options = format_options
+app.locals.format_minutes = format_minutes
 
 app.set("x-powered-by", false)
 app.set("etag", false)
@@ -318,6 +319,15 @@ function human_date(date) {
 	if (days < 14) return Math.floor(days) + " days ago"
 	if (days < 31) return Math.floor(days / 7) + " weeks ago"
 	return new Date(epoch_from_julianday(date)).toISOString().substring(0,10)
+}
+
+function format_minutes(mins) {
+	if (mins > 59) {
+		var hh = mins / 60 | 0
+		var mm = mins % 60
+		return `${hh} hours ${mm} minutes`
+	}
+	return mins + " minutes"
 }
 
 function is_valid_email(email) {
@@ -2298,8 +2308,6 @@ function start_game(game) {
 		put_snap(game.game_id, replay_id, state)
 		SQL_INSERT_GAME_STATE.run(game.game_id, JSON.stringify(state))
 
-		SQL_UPDATE_PLAYERS_INIT_TIME.run(game.game_id)
-
 		SQL_COMMIT.run()
 	} finally {
 		if (db.inTransaction)
@@ -2792,34 +2800,8 @@ setTimeout(purge_game_ticker, 89 * 1000)
  * TIME CONTROL
  */
 
-const SQL_UPDATE_PLAYERS_INIT_TIME = SQL(`
-	update players
-		set clock = (
-			case (select pace from games where games.game_id = players.game_id)
-				when 1 then 1
-				when 2 then 3
-				when 3 then 3
-				else 21
-			end
-		)
-	where
-		players.game_id = ?
-`)
-
-const SQL_UPDATE_PLAYERS_ADD_TIME = SQL(`
-	update players
-		set clock = (
-			case (select pace from games where games.game_id = players.game_id)
-				when 1 then min(clock + ${4 / 24}, 3)
-				when 2 then min(clock + ${12 / 24}, 5)
-				when 3 then min(clock + ${36 / 24}, 10)
-				else 21
-			end
-		)
-	where
-		players.game_id = ? and players.role = ?
-`)
-
+// SQL_UPDATE_PLAYERS_INIT_TIME is handled by trigger
+// SQL_UPDATE_PLAYERS_ADD_TIME is handled by trigger
 // SQL_UPDATE_PLAYERS_USE_TIME is handled by trigger
 
 const SQL_SELECT_TIME_CONTROL = SQL("select * from time_control_view")
@@ -3727,12 +3709,8 @@ function put_game_state(game_id, state, old_active, current_role) {
 	// TODO: separate state, undo, and log entries (and reuse "snap" json stringifaction?)
 	SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(state))
 
-	if (is_changed_active(old_active, state.active)) {
+	if (is_changed_active(old_active, state.active))
 		SQL_UPDATE_GAME_ACTIVE.run(String(state.active), game_id)
-
-		// add time for the player who took the current action
-		SQL_UPDATE_PLAYERS_ADD_TIME.run(game_id, current_role)
-	}
 
 	if (is_nobody_active(state.active)) {
 		SQL_FINISH_GAME.run(state.result, game_id)
