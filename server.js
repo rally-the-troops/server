@@ -3169,10 +3169,7 @@ const TM_SELECT_SEED_READY_MINI_CUP = SQL(`
 
 app.get("/tm/list", function (req, res) {
 	let seeds = TM_SEED_LIST_ALL.all(req.user ? req.user.user_id : 0)
-	let seeds_by_title = object_group_by(seeds, "title_id")
-	let active_pools = TM_POOL_LIST_ACTIVE.all()
-	let pools_by_seed = object_group_by(active_pools, "seed_name")
-	res.render("tm_list.pug", { user: req.user, seeds, seeds_by_title, active_pools, pools_by_seed })
+	res.render("tm_list.pug", { user: req.user, seeds })
 })
 
 app.get("/tm/seed/:seed_name", function (req, res) {

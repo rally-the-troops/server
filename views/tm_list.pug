@@ -12,7 +12,3 @@ html
 			p See <a href="/docs/tournaments.html">tournament information</a>.
 
 			+seedlist(seeds, "Mini Cup")
-
-			h2 Active
-			each pools, seed_name in pools_by_seed
-				+poollist(pools, `<a href="/tm/seed/${seed_name}">${seed_name}</a>`)
