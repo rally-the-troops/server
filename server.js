@@ -424,7 +424,7 @@ function must_pass_altcha(req, res, next) {
 	return next()
 }
 
-app.get("/altcha-challenge", function (req, res) {
+app.get("/altcha-challenge", function (_req, res) {
 	return res.json(altcha_create_challenge())
 })
 
@@ -459,7 +459,6 @@ const SQL_UPDATE_USER_NAME = SQL("UPDATE users SET name=? WHERE user_id=?")
 const SQL_UPDATE_USER_MAIL = SQL("UPDATE users SET mail=? WHERE user_id=?")
 const SQL_UPDATE_USER_VERIFIED = SQL("UPDATE users SET is_verified=? WHERE user_id=?")
 
-const SQL_SELECT_USER_ABOUT = SQL("SELECT about FROM user_about WHERE user_id=?").pluck()
 const SQL_UPDATE_USER_ABOUT = SQL("insert or replace into user_about (user_id,about) values (?,?)")
 const SQL_UPDATE_USER_PASSWORD = SQL("insert or replace into user_password (user_id,password,salt) values (?,?,?)")
 const SQL_UPDATE_USER_FIRST_SEEN = SQL("insert or replace into user_first_seen (user_id,ctime,ip) values (?,datetime(),?)")
@@ -2456,7 +2455,7 @@ function is_winner(role, result) {
 	return (result === "Draw" || result === role || result.includes(role))
 }
 
-function elo_k(a) {
+function elo_k(_) {
 	return 30
 }
 
@@ -2912,8 +2911,6 @@ const TM_SEED_LIST_USER = SQL(`
 	having is_queued
 	order by seed_name
 `)
-
-const TM_POOL_LIST_ACTIVE = SQL("select * from tm_pool_active_view")
 
 const TM_POOL_LIST_USER_ACTIVE = SQL(`
 	select * from tm_pool_active_view
@@ -3702,7 +3699,7 @@ function put_snap(game_id, replay_id, state) {
 			send_message(other, "snapsize", snap_id)
 }
 
-function put_game_state(game_id, state, old_active, current_role) {
+function put_game_state(game_id, state, old_active) {
 	// TODO: separate state, undo, and log entries (and reuse "snap" json stringifaction?)
 	SQL_INSERT_GAME_STATE.run(game_id, JSON.stringify(state))
 
@@ -3724,7 +3721,7 @@ function put_new_state(title_id, game_id, state, old_active, role, action, args)
 		if (!dont_snap(RULES[title_id], state, old_active))
 			put_snap(game_id, replay_id, state)
 
-		put_game_state(game_id, state, old_active, role)
+		put_game_state(game_id, state, old_active)
 
 		if (is_changed_active(old_active, state.active))
 			update_join_clients(game_id)
