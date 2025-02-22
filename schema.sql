@@ -882,7 +882,7 @@ begin
 	with
 		tt as (
 			select
-				round_count as threshold
+				(2 * round_count) / player_count as threshold
 			from
 				tm_seeds
 			where
