@@ -40,8 +40,9 @@ for (let file of input) {
 	let db = new sqlite3("db")
 
 	let insert_game = db.prepare("insert into games(status,owner_id,title_id,scenario,options,player_count,active,moves,notice) values (1,1,:title_id,:scenario,:options,:player_count,:active,:moves,:notice) returning game_id").pluck()
-	let insert_player = db.prepare("insert into players(game_id,role,user_id) values (?,?,?)")
+	let insert_player = db.prepare("insert into players(game_id,role,user_id,clock) values (?,?,?,21)")
 	let insert_state = db.prepare("insert into game_state(game_id,state) values (?,?)")
+	let update_active_trigger = db.prepare("update games set active=active where game_id=?")
 
 	let select_user = db.prepare("select user_id from users where name=?").pluck()
 
@@ -57,6 +58,7 @@ for (let file of input) {
 	for (let p of game.players)
 		insert_player.run(game_id, p.role, find_user(p.name))
 	insert_state.run(game_id, JSON.stringify(game.state))
+	update_active_trigger.run(game_id)
 
 	if (game.replay) {
 		let insert_replay = db.prepare("insert into game_replay(game_id,replay_id,role,action,arguments) values (?,?,?,?,?)")
