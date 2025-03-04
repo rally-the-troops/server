@@ -2413,7 +2413,7 @@ const SQL_CLONE_1 = SQL(`
 `).pluck()
 
 const SQL_CLONE_2 = [
-	SQL(`insert into players(game_id,role,user_id) select $new_game_id,role,user_id from players where game_id=$old_game_id`),
+	SQL(`insert into players(game_id,role,user_id,is_active) select $new_game_id,role,user_id,is_active from players where game_id=$old_game_id`),
 	SQL(`insert into game_state(game_id,state) select $new_game_id,state from game_state where game_id=$old_game_id`),
 	SQL(`insert into game_replay(game_id,replay_id,role,action,arguments) select $new_game_id,replay_id,role,action,arguments from game_replay where game_id=$old_game_id`),
 	SQL(`insert into game_snap(game_id,snap_id,replay_id,state) select $new_game_id,snap_id,replay_id,state from game_snap where game_id=$old_game_id`),
