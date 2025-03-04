@@ -28,12 +28,8 @@ create temporary view prune_all_list as
 		)
 	;
 
-begin immediate;
-
 select 'PURGE SNAPS FROM ' || count(1) from prune_snap_list;
 delete from live.game_snap where game_id in (select game_id from prune_snap_list);
 
 select 'PURGE ALL FROM ' || count(1) from prune_all_list;
 update live.games set status = 3 where game_id in (select game_id from prune_all_list);
-
-commit;
