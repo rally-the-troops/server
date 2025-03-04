@@ -3819,13 +3819,11 @@ function do_resign(game_id, role) {
 	let old_active = String(state.active)
 
 	let result = "None"
-	let roles = get_game_roles(game.title_id, game.scenario, game.options)
 	if (game.player_count === 2) {
+		let roles = get_game_roles(game.title_id, game.scenario, game.options)
 		for (let r of roles)
 			if (r !== role)
 				result = r
-	} else {
-		result = roles.filter(r => r !== role).join(", ")
 	}
 
 	state = finish_game_state(game.title_id, state, result, role + " resigned.")
