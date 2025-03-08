@@ -92,6 +92,20 @@ function snap_from_state(state) {
 	return snap
 }
 
+function finish_game_state(state, result, message) {
+	if (typeof rules.finish === "function") {
+		state = rules.finish(state, result, message)
+	} else {
+		state.state = "game_over"
+		state.active = "None"
+		state.result = result
+		state.victory = message
+		state.log.push("")
+		state.log.push(message)
+	}
+	return state
+}
+
 function eval_action(s, item, p) {
 	let [ item_role, item_action, item_arguments ] = item
 	switch (item_action) {
@@ -101,11 +115,15 @@ function eval_action(s, item, p) {
 		if (params.mode === "debug")
 			s.log.push([p, item_role.substring(0,2), item_action, null])
 
-		s.state = "game_over"
-		s.active = "None"
-		s.victory = item_role + " resigned."
-		s.log.push("")
-		s.log.push(s.victory)
+		let result = "None"
+		if (roles.length === 2) {
+			for (let r of roles)
+				if (r !== item_role)
+					result = r
+		}
+
+		s = finish_game_state(s, result, role + " resigned.")
+
 		return s
 	default:
 		if (params.mode === "debug")
@@ -150,11 +168,6 @@ function update_replay_view() {
 	view = rules.view(replay_state, player)
 	if (params.mode !== "debug")
 		view.actions = null
-
-	if (viewpoint === "Observer")
-		view.game_over = 1
-	if (replay_state.state === "game_over")
-		view.game_over = 1
 
 	if (replay.length > 0) {
 		if (document.body.classList.contains("shift")) {
