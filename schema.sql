@@ -967,7 +967,7 @@ begin
 		players
 	set
 		clock = (
-			case (select pace from games where old.game_id = players.game_id)
+			case old.pace
 				when 1 then 1
 				when 2 then 3
 				when 3 then 3
