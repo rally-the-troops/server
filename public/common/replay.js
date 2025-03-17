@@ -122,7 +122,7 @@ function eval_action(s, item, p) {
 					result = r
 		}
 
-		s = finish_game_state(s, result, role + " resigned.")
+		s = finish_game_state(s, result, item_role + " resigned.")
 
 		return s
 	default:
