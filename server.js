@@ -2818,7 +2818,7 @@ function time_control_ticker() {
 			if (item.is_match) {
 				console.log("BANNED FROM TOURNAMENTS:", item.user_id)
 				TM_INSERT_BANNED.run(item.user_id)
-				TM_DELETE_QUEUE_ALL.run(item.user_id)
+				TM_DELETE_QUEUE_USER.run(item.user_id)
 			}
 		} else {
 			console.log("TIMED OUT GAME:", item.game_id, item.role, "(solo)")
@@ -2842,7 +2842,7 @@ const designs = require("./designs.js")
 const TM_SELECT_BANNED = SQL("select exists ( select 1 from tm_banned where user_id=? )").pluck()
 const TM_INSERT_BANNED = SQL("insert or ignore into tm_banned (user_id, time) values (?, datetime())")
 
-const TM_DELETE_QUEUE_ALL = SQL("delete from tm_queue where user_id=?")
+const TM_DELETE_QUEUE_USER = SQL("delete from tm_queue where user_id=?")
 
 const TM_DELETE_QUEUE_INACTIVE = SQL(`
 	delete from tm_queue where exists (
@@ -3011,6 +3011,8 @@ const TM_SELECT_QUEUE_NAMES = SQL("select user_id, name, level from tm_queue_vie
 const TM_SELECT_QUEUE = SQL("select user_id from tm_queue_view where seed_id=? and level=? order by time desc").pluck()
 const TM_DELETE_QUEUE = SQL("delete from tm_queue where user_id=? and seed_id=? and level=?")
 const TM_INSERT_QUEUE = SQL("insert or ignore into tm_queue (user_id, seed_id, level) values (?,?,?)")
+
+const TM_DELETE_QUEUE_SEED = SQL("delete from tm_queue where seed_id=? and level=?")
 
 const TM_SELECT_SEED = SQL("select * from tm_seeds where seed_id = ?")
 const TM_SELECT_SEED_BY_NAME = SQL("select * from tm_seeds where seed_name = ?")
@@ -3534,6 +3536,8 @@ function start_tournament_seed_mc(seed_id, level) {
 	try {
 		shuffle(players)
 		create_tournament(seed, level, players)
+		if (!seed.is_open)
+			TM_DELETE_QUEUE_SEED.run(seed_id, level)
 		SQL_COMMIT.run()
 	} catch (err) {
 		console.log(err)
