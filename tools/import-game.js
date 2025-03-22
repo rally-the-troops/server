@@ -34,7 +34,7 @@ for (let file of input) {
 	if (game.setup.options === undefined)
 		game.setup.options = "{}"
 
-	game.setup.active = game.state.active
+	game.setup.active = String(game.state.active)
 	game.setup.moves = game.snaps && game.snaps.length > 0 ? game.snaps.length - 1 : 0
 
 	let db = new sqlite3("db")
