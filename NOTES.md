@@ -40,18 +40,18 @@
 
 * Screen size thresholds for layout triggers:
 
-	@media (max-width: 400)
+	@media (max-width: 400px)
 		one-column tabbed mode
 
-	@media (max-width: 800)
+	@media (max-width: 800px)
 		mobile phone layout
 		two-column tabbed mode (notepad and chat window fill screen)
 		horizontally scroll basic content; use full map width for hands etc
 
-	@media (max-height: 600)
+	@media (max-height: 600px)
 		mobile phone landscape layout
 		start hiding player names behind tap/hover
 		hide or reduce turn info, role info, and current card
 
-	@media (max-height: 800)
+	@media (max-height: 800px)
 		small laptop screen
