@@ -2009,8 +2009,16 @@ function insert_rematch_players(old_game_id, new_game_id, req_user_id, order) {
 		break
 	}
 
-	for (let p of players)
+	for (let p of players) {
+		if (SQL_SELECT_RELATION.get(p.user_id, req_user_id) < 0)
+			throw new Error("could not create rematch")
+		if (SQL_SELECT_RELATION.get(req_user_id, p.user_id) < 0)
+			throw new Error("could not create rematch")
+	}
+
+	for (let p of players) {
 		SQL_INSERT_PLAYER_ROLE.run(new_game_id, p.role, p.user_id, p.user_id !== req_user_id ? 1 : 0)
+	}
 }
 
 app.get("/rematch/:old_game_id", must_be_logged_in, function (req, res) {
@@ -2174,6 +2182,12 @@ function do_join(res, game_id, role, user_id, user_name, is_invite) {
 	} else {
 		if (!roles.includes(role))
 			return res.status(404).send("Invalid role.")
+	}
+	if (is_invite) {
+		if (SQL_SELECT_RELATION.get(user_id, game.owner_id) < 0)
+			return res.send("Could not invite that user.")
+		if (SQL_SELECT_RELATION.get(game.owner_id, user_id) < 0)
+			return res.send("Could not invite that user.")
 	}
 	let info = SQL_INSERT_PLAYER_ROLE.run(game_id, role, user_id, is_invite ? 2 : 0)
 	if (info.changes === 1) {
