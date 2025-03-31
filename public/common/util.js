@@ -1,16 +1,17 @@
 /* COMMON LIBRARY */
 
 function clear_undo() {
-	if (game.undo) {
-		game.undo.length = 0
+	if (G.undo) {
+		G.undo.length = 0
 	}
 }
 
 function push_undo() {
-	if (game.undo) {
-		let copy = {}
-		for (let k in game) {
-			let v = game[k]
+	var copy, k, v
+	if (G.undo) {
+		copy = {}
+		for (k in G) {
+			v = G[k]
 			if (k === "undo")
 				continue
 			else if (k === "log")
@@ -19,18 +20,18 @@ function push_undo() {
 				v = object_copy(v)
 			copy[k] = v
 		}
-		game.undo.push(copy)
+		G.undo.push(copy)
 	}
 }
 
 function pop_undo() {
-	if (game.undo) {
-		let save_log = game.log
-		let save_undo = game.undo
-		game = save_undo.pop()
-		save_log.length = game.log
-		game.log = save_log
-		game.undo = save_undo
+	if (G.undo) {
+		var save_log = G.log
+		var save_undo = G.undo
+		G = save_undo.pop()
+		save_log.length = G.log
+		G.log = save_log
+		G.undo = save_undo
 	}
 }
 
@@ -38,7 +39,7 @@ function random(range) {
 	// An MLCG using integer arithmetic with doubles.
 	// https://www.ams.org/journals/mcom/1999-68-225/S0025-5718-99-00996-5/S0025-5718-99-00996-5.pdf
 	// m = 2**35 − 31
-	return (game.seed = game.seed * 200105 % 34359738337) % range
+	return (G.seed = G.seed * 200105 % 34359738337) % range
 }
 
 function random_bigint(range) {
@@ -46,14 +47,15 @@ function random_bigint(range) {
 	// Uses BigInt for arithmetic, so is an order of magnitude slower.
 	// https://www.ams.org/journals/mcom/1999-68-225/S0025-5718-99-00996-5/S0025-5718-99-00996-5.pdf
 	// m = 2**53 - 111
-	return (game.seed = Number(BigInt(game.seed) * 5667072534355537n % 9007199254740881n)) % range
+	return (G.seed = Number(BigInt(G.seed) * 5667072534355537n % 9007199254740881n)) % range
 }
 
 function shuffle(list) {
 	// Fisher-Yates shuffle
-	for (let i = list.length - 1; i > 0; --i) {
-		let j = random(i + 1)
-		let tmp = list[j]
+	var i, j, tmp
+	for (i = list.length - 1; i > 0; --i) {
+		j = random(i + 1)
+		tmp = list[j]
 		list[j] = list[i]
 		list[i] = tmp
 	}
@@ -61,9 +63,10 @@ function shuffle(list) {
 
 function shuffle_bigint(list) {
 	// Fisher-Yates shuffle
-	for (let i = list.length - 1; i > 0; --i) {
-		let j = random_bigint(i + 1)
-		let tmp = list[j]
+	var i, j, tmp
+	for (i = list.length - 1; i > 0; --i) {
+		j = random_bigint(i + 1)
+		tmp = list[j]
 		list[j] = list[i]
 		list[i] = tmp
 	}
@@ -71,11 +74,12 @@ function shuffle_bigint(list) {
 
 // Fast deep copy for objects without cycles
 function object_copy(original) {
+	var copy, i, n, v
 	if (Array.isArray(original)) {
-		let n = original.length
-		let copy = new Array(n)
-		for (let i = 0; i < n; ++i) {
-			let v = original[i]
+		n = original.length
+		copy = new Array(n)
+		for (i = 0; i < n; ++i) {
+			v = original[i]
 			if (typeof v === "object" && v !== null)
 				copy[i] = object_copy(v)
 			else
@@ -83,9 +87,9 @@ function object_copy(original) {
 		}
 		return copy
 	} else {
-		let copy = {}
-		for (let i in original) {
-			let v = original[i]
+		copy = {}
+		for (i in original) {
+			v = original[i]
 			if (typeof v === "object" && v !== null)
 				copy[i] = object_copy(v)
 			else
@@ -98,34 +102,34 @@ function object_copy(original) {
 // Array remove and insert (faster than splice)
 
 function array_remove(array, index) {
-	let n = array.length
-	for (let i = index + 1; i < n; ++i)
+	var i, n = array.length
+	for (i = index + 1; i < n; ++i)
 		array[i - 1] = array[i]
 	array.length = n - 1
 }
 
 function array_remove_item(array, item) {
-	let n = array.length
-	for (let i = 0; i < n; ++i)
+	var i, n = array.length
+	for (i = 0; i < n; ++i)
 		if (array[i] === item)
 			return array_remove(array, i)
 }
 
 function array_insert(array, index, item) {
-	for (let i = array.length; i > index; --i)
+	for (var i = array.length; i > index; --i)
 		array[i] = array[i - 1]
 	array[index] = item
 }
 
 function array_remove_pair(array, index) {
-	let n = array.length
-	for (let i = index + 2; i < n; ++i)
+	var i, n = array.length
+	for (i = index + 2; i < n; ++i)
 		array[i - 2] = array[i]
 	array.length = n - 2
 }
 
 function array_insert_pair(array, index, key, value) {
-	for (let i = array.length; i > index; i -= 2) {
+	for (var i = array.length; i > index; i -= 2) {
 		array[i] = array[i-2]
 		array[i+1] = array[i-1]
 	}
@@ -140,11 +144,11 @@ function set_clear(set) {
 }
 
 function set_has(set, item) {
-	let a = 0
-	let b = set.length - 1
+	var a = 0
+	var b = set.length - 1
 	while (a <= b) {
-		let m = (a + b) >> 1
-		let x = set[m]
+		var m = (a + b) >> 1
+		var x = set[m]
 		if (item < x)
 			b = m - 1
 		else if (item > x)
@@ -156,11 +160,11 @@ function set_has(set, item) {
 }
 
 function set_add(set, item) {
-	let a = 0
-	let b = set.length - 1
+	var a = 0
+	var b = set.length - 1
 	while (a <= b) {
-		let m = (a + b) >> 1
-		let x = set[m]
+		var m = (a + b) >> 1
+		var x = set[m]
 		if (item < x)
 			b = m - 1
 		else if (item > x)
@@ -172,11 +176,11 @@ function set_add(set, item) {
 }
 
 function set_delete(set, item) {
-	let a = 0
-	let b = set.length - 1
+	var a = 0
+	var b = set.length - 1
 	while (a <= b) {
-		let m = (a + b) >> 1
-		let x = set[m]
+		var m = (a + b) >> 1
+		var x = set[m]
 		if (item < x)
 			b = m - 1
 		else if (item > x)
@@ -189,11 +193,11 @@ function set_delete(set, item) {
 }
 
 function set_toggle(set, item) {
-	let a = 0
-	let b = set.length - 1
+	var a = 0
+	var b = set.length - 1
 	while (a <= b) {
-		let m = (a + b) >> 1
-		let x = set[m]
+		var m = (a + b) >> 1
+		var x = set[m]
 		if (item < x)
 			b = m - 1
 		else if (item > x)
@@ -213,11 +217,11 @@ function map_clear(map) {
 }
 
 function map_has(map, key) {
-	let a = 0
-	let b = (map.length >> 1) - 1
+	var a = 0
+	var b = (map.length >> 1) - 1
 	while (a <= b) {
-		let m = (a + b) >> 1
-		let x = map[m<<1]
+		var m = (a + b) >> 1
+		var x = map[m<<1]
 		if (key < x)
 			b = m - 1
 		else if (key > x)
@@ -229,11 +233,11 @@ function map_has(map, key) {
 }
 
 function map_get(map, key, missing) {
-	let a = 0
-	let b = (map.length >> 1) - 1
+	var a = 0
+	var b = (map.length >> 1) - 1
 	while (a <= b) {
-		let m = (a + b) >> 1
-		let x = map[m<<1]
+		var m = (a + b) >> 1
+		var x = map[m<<1]
 		if (key < x)
 			b = m - 1
 		else if (key > x)
@@ -245,11 +249,11 @@ function map_get(map, key, missing) {
 }
 
 function map_set(map, key, value) {
-	let a = 0
-	let b = (map.length >> 1) - 1
+	var a = 0
+	var b = (map.length >> 1) - 1
 	while (a <= b) {
-		let m = (a + b) >> 1
-		let x = map[m<<1]
+		var m = (a + b) >> 1
+		var x = map[m<<1]
 		if (key < x)
 			b = m - 1
 		else if (key > x)
@@ -263,11 +267,11 @@ function map_set(map, key, value) {
 }
 
 function map_delete(map, key) {
-	let a = 0
-	let b = (map.length >> 1) - 1
+	var a = 0
+	var b = (map.length >> 1) - 1
 	while (a <= b) {
-		let m = (a + b) >> 1
-		let x = map[m<<1]
+		var m = (a + b) >> 1
+		var x = map[m<<1]
 		if (key < x)
 			b = m - 1
 		else if (key > x)
@@ -280,29 +284,31 @@ function map_delete(map, key) {
 }
 
 function map_for_each(map, f) {
-	for (let i = 0; i < map.length; i += 2)
+	for (var i = 0; i < map.length; i += 2)
 		f(map[i], map[i+1])
 }
 
 function object_diff(a, b) {
+	var i, key
+	var a_length
 	if (a === b)
 		return false
 	if (a !== null && b !== null && typeof a === "object" && typeof b === "object") {
 		if (Array.isArray(a)) {
 			if (!Array.isArray(b))
 				return true
-			let a_length = a.length
+			a_length = a.length
 			if (b.length !== a_length)
 				return true
-			for (let i = 0; i < a_length; ++i)
+			for (i = 0; i < a_length; ++i)
 				if (object_diff(a[i], b[i]))
 					return true
 			return false
 		}
-		for (let key in a)
+		for (key in a)
 			if (object_diff(a[key], b[key]))
 				return true
-		for (let key in b)
+		for (key in b)
 			if (!(key in a))
 				return true
 		return false
@@ -312,18 +318,19 @@ function object_diff(a, b) {
 
 // same as Object.groupBy
 function object_group_by(items, callback) {
-	let groups = {}
+	var item, key
+	var groups = {}
 	if (typeof callback === "function") {
-		for (let item of items) {
-			let key = callback(item)
+		for (item of items) {
+			key = callback(item)
 			if (key in groups)
 				groups[key].push(item)
 			else
 				groups[key] = [ item ]
 		}
 	} else {
-		for (let item of items) {
-			let key = item[callback]
+		for (item of items) {
+			key = item[callback]
 			if (key in groups)
 				groups[key].push(item)
 			else
@@ -334,20 +341,21 @@ function object_group_by(items, callback) {
 }
 
 function map_group_by(items, callback) {
-	let groups = []
+	var item, key, arr
+	var groups = []
 	if (typeof callback === "function") {
-		for (let item of items) {
-			let key = callback(item)
-			let arr = map_get(groups, key)
+		for (item of items) {
+			key = callback(item)
+			arr = map_get(groups, key)
 			if (arr)
 				arr.push(item)
 			else
 				map_set(groups, key, [ item ])
 		}
 	} else {
-		for (let item of items) {
-			let key = item[callback]
-			let arr = map_get(groups, key)
+		for (item of items) {
+			key = item[callback]
+			arr = map_get(groups, key)
 			if (arr)
 				arr.push(item)
 			else
