@@ -60,7 +60,7 @@ mixin gamelist(list,hide_title=0)
 					let pace_icon = ""
 					let pace_text = ""
 					let chat_icon = ""
-					if (item.your_turn) className += " your_turn"
+					if (item.your_turn || item.is_unseen) className += " your_turn"
 					if (item.status === 0 && item.join_count === 0) className += " open replacement"
 					else if (item.status === 0 && item.join_count !== item.player_count) className += " open"
 					else if (item.status === 0 && item.join_count === item.player_count) className += " ready"
@@ -68,7 +68,7 @@ mixin gamelist(list,hide_title=0)
 					else if (item.status === 1 && item.join_count === item.player_count) className += " active"
 					else if (item.status === 2) className += " finished"
 					else if (item.status === 3) className += " archived"
-					if (item.is_unread) chat_icon = "\u{1f4dd}"
+					if (item.is_unread) { chat_icon = "\u{1f4dd}"; className += " unread" }
 					if (item.is_private) pace_icon += EMOJI_PRIVATE
 					if (item.is_match)
 						pace_icon += EMOJI_MATCH

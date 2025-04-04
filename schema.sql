@@ -254,7 +254,10 @@ create view user_dynamic_view as
 				owner_id = users.user_id
 				and status = 0
 				and join_count = 0
-		) as waiting,
+		) + (
+			select count(1) from unseen_games where user_id = users.user_id
+		)
+		as waiting,
 		is_banned
 	from
 		users
@@ -501,6 +504,12 @@ create table if not exists game_chat (
 ) without rowid;
 
 create table if not exists unread_chats (
+	user_id integer,
+	game_id integer,
+	primary key (user_id, game_id)
+) without rowid;
+
+create table if not exists unseen_games (
 	user_id integer,
 	game_id integer,
 	primary key (user_id, game_id)
@@ -1055,6 +1064,7 @@ begin
 	delete from game_snap where game_id = old.game_id;
 	delete from game_notes where game_id = old.game_id;
 	delete from unread_chats where game_id = old.game_id;
+	delete from unseen_games where game_id = old.game_id;
 end;
 
 -- Triggers to clean up without relying on foreign key cascades
@@ -1068,6 +1078,7 @@ begin
 	delete from game_snap where game_id = old.game_id;
 	delete from game_notes where game_id = old.game_id;
 	delete from unread_chats where game_id = old.game_id;
+	delete from unseen_games where game_id = old.game_id;
 	delete from players where game_id = old.game_id;
 end;
 
@@ -1085,6 +1096,7 @@ begin
 	delete from tokens where user_id = old.user_id;
 	delete from read_threads where user_id = old.user_id;
 	delete from unread_chats where user_id = old.user_id;
+	delete from unseen_games where user_id = old.user_id;
 	delete from contacts where me = old.user_id or you = old.user_id;
 	delete from messages where from_id = old.user_id or to_id = old.user_id;
 	delete from posts where author_id = old.user_id;

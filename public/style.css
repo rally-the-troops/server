@@ -391,5 +391,6 @@ div.body img {
 .game_item.finished .game_main { background-color: gainsboro }
 .game_item.archived .game_head { background-color: darkgray }
 .game_item.archived .game_main { background-color: lightgray }
+.game_item.unread .game_head { background-color: orange }
 .game_item.your_turn .game_head { background-color: gold }
 .game_item.your_turn .game_main { background-color: lightyellow }
