@@ -2026,7 +2026,7 @@ function insert_rematch_players(old_game_id, new_game_id, req_user_id, order) {
 	case "swap":
 		players.sort((a, b) => roles.indexOf(a.role) - roles.indexOf(b.role))
 		for (let i = 0; i < n; ++i)
-			players[i].role = roles[(i+1) % n]
+			players[i].role = roles[(i + 1) % n]
 		break
 	case "keep":
 		// do nothing
@@ -2039,7 +2039,7 @@ function insert_rematch_players(old_game_id, new_game_id, req_user_id, order) {
 		break
 	case "random":
 		for (let i = 0; i < n; ++i)
-			players[i].role = "Random " + (i+1)
+			players[i].role = "Random " + (i + 1)
 		break
 	}
 
@@ -3372,11 +3372,12 @@ function make_pools(seed, players) {
 			return designs.pool_players(players, n+1)
 
 		throw new Error("cannot create pools for this player/rounds configuration")
-
+		/*
 		if (v > n+1)
 			return designs.pool_players(players, n+1)
 
 		return [ players ]
+		*/
 	}
 
 	if (k === 3) {
@@ -4071,7 +4072,7 @@ function handle_observer_message(socket, cmd, arg) {
 	case "querysnap":
 		on_query_snap(socket, arg[0], arg[1], arg[2])
 		break
-	case 'query':
+	case "query":
 		on_query(socket, arg[0], arg[1])
 		break
 	default:
