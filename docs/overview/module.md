@@ -1,189 +1,164 @@
-<!doctype html>
-<meta name="viewport" content="width=device-width">
-<title>Module Overview</title>
-<link rel="stylesheet" href="style.css">
-<body>
-<article>
+# Module Overview
 
-<h1>
-Module Overview
-</h1>
-
-<p>
 A module consists of a directory containing certain mandatory files which are loaded by the server.
 All the other resources needed for a module are also put in this directory.
 Note that all of the files in the module will be available on the web.
 
-<p>
 The module must be put in the server "public" directory, matching the name of title_id.
 If our example game has the title "My Example Module" and a title_id of "example",
 the module directory should be "public/example/".
 
-<h2>
-Metadata
-</h2>
+## Two halves make one
 
-<p>
+A module consists of two separate parts:
+
+1. The rules work with actions and their consequences.
+2. The client present the game and possible actions to the players.
+
+The rules run on the server. The client runs in the player's browser.
+The rules create a view object that is passed to the client, containing the visible game state
+and a list of possible actions. The client presents this to the players, and sends the chosen
+actions back to the rules for execution.
+
+
+## Metadata
+
 Each module needs to be registered in the database so that the system can find it.
-To do this we usually create a title.sql file that you will run to register the module.
+To do this we create a title.sql file that we source to register the module.
 
-<pre>
-insert or replace into titles
-	( title_id, title_name, bgg )
-values
-	( 'example', 'Example', 123 )
-;
-</pre>
+	insert or replace into titles
+		( title_id, title_name, bgg )
+	values
+		( 'example', 'Example', 123 )
+	;
 
-<p>
 The bgg column should have the <a href="httsp://www.boardgamegeek.com/">boardgamegeek.com</a> game id.
 
-<p>
 After creating this file, source it into the database and restart the server program.
 
-<pre>
-$ sqlite3 db < public/example/title.sql
-</pre>
+	$ sqlite3 db < public/example/title.sql
 
-<h2>
-Cover image
-</h2>
+## Cover image
 
-<p>
 Each game needs a cover image! Create a file containing the high resolution cover image named cover.png or cover.jpg. After you have created or modified the cover image, run the following script to generate the small cover images and thumbnails that the site uses.
 
-<pre>
-$ bash tools/gencovers.sh
-</pre>
+	$ bash tools/gencovers.sh
 
-<p>
 <i>This script requires ImageMagick (convert), netpbm (pngtopnm), and libjpeg (cjpeg) tools to be installed.</i>
 
-<h2>
-About text
-</h2>
+## About text
 
-<p>
 The game landing page on the server has a bit of text introducing the game, and links to rules and other reference material.
 
-<p>Put the about text in the about.html file.
+Put the about text in the about.html file.
 
-<xmp>
-<p>
-Dolorum fugiat dolor temporibus. Debitis ea non illo sed
-debitis cupiditate ipsum illo. Eos eos molestias illo
-quisquam dicta.
+	<p>
+	Dolorum fugiat dolor temporibus. Debitis ea non illo sed
+	debitis cupiditate ipsum illo. Eos eos molestias illo
+	quisquam dicta.
 
-<ul>
-<li> <a href="info/rules.html">Rules</a>
-</ul>
-</xmp>
+	<ul>
+	<li> <a href="info/rules.html">Rules</a>
+	</ul>
 
-<h2>
-Create game options
-</h2>
+## Options
 
-<p>
 When creating a game, the scenarios and common options are handled by the system.
 However, if your game uses custom options these need to be added as form fields.
 
-<p>
 Add a create.html file to inject form fields into the create game page.
 
-<xmp>
-<p>
-Player count:
-<br>
-<select name="players">
-	<option value="2">2 Player</option>
-	<option value="3">3 Player</option>
-	<option value="4">4 Player</option>
-</select>
+	<p>
+	Player count:
+	<br>
+	<select name="players">
+		<option value="2">2 Player</option>
+		<option value="3">3 Player</option>
+		<option value="4">4 Player</option>
+	</select>
 
-<p>
-<label>
-	<input type="checkbox" value="true" name="house_rule">
-	House rule
-</label>
-</xmp>
+	<p>
+	<label>
+		<input type="checkbox" value="true" name="house_rule">
+		House rule
+	</label>
 
-<p>
 This file may be empty if your game doesn't have any custom options.
 
-<h2>
-Client HTML
-</h2>
+## Client HTML
 
-<p>
 The game needs a play.html file using the following template:
 
-<xmp>
-<!doctype html>
-<html lang="en">
-<head>
-	<meta name="viewport" content="width=device-width,
-		height=device-height,
-		user-scalable=no,
-		interactive-widget=resizes-content,
-		viewport-fit=cover">
-	<meta name="theme-color" content="#444">
-	<meta charset="UTF-8">
-	<title>
-		GAME TITLE
-	</title>
-	<link rel="icon" href="favicon.svg">
-	<link rel="stylesheet" href="/fonts/fonts.css">
-	<link rel="stylesheet" href="/common/client.css">
-	<script defer src="/common/client.js"></script>
-	<script defer src="play.js"></script>
-	<style>
-		GAME STYLES
-	</style>
-</head>
-<body>
+	<!doctype html>
+	<html lang="en">
+	<head>
+		<meta name="viewport" content="width=device-width,
+			height=device-height,
+			user-scalable=no,
+			interactive-widget=resizes-content,
+			viewport-fit=cover">
+		<meta name="theme-color" content="#444">
+		<meta charset="UTF-8">
+		<title>
+			GAME TITLE
+		</title>
+		<link rel="icon" href="favicon.svg">
+		<link rel="stylesheet" href="/fonts/fonts.css">
+		<link rel="stylesheet" href="/common/client.css">
+		<link rel="stylesheet" href="play.css">
+		<script defer src="/common/client.js"></script>
+		<script defer src="play.js"></script>
+	</head>
+	<body>
 
-<header>
-	<div id="toolbar">
-		<details>
-			<summary><img src="/images/cog.svg"></summary>
-			<menu>
-				<li><a href="info/rules.html" target="_blank">Rules</a>
-				<li class="separator">
-			</menu>
-		</details>
-	</div>
-</header>
+	<header>
+		<div id="toolbar">
+			<details>
+				<summary><img src="/images/cog.svg"></summary>
+				<menu>
+					<li><a href="info/rules.html" target="_blank">Rules</a>
+					<li class="separator">
+				</menu>
+			</details>
+		</div>
+	</header>
 
-<aside>
-	<div id="roles"></div>
-	<div id="log"></div>
-</aside>
+	<aside>
+		<div id="roles"></div>
+		<div id="log"></div>
+	</aside>
 
-<main data-min-zoom="0.5" data-max-zoom="2.0">
-	GAME AREA
-</main>
+	<main data-min-zoom="0.5" data-max-zoom="2.0">
+		GAME AREA
+	</main>
 
-<footer id="status"></footer>
+	<footer id="status"></footer>
 
-</body>
-</xmp>
+	</body>
 
-<h2> View Program </h2>
+## Client CSS
 
-<p>
+Put the game specific stylesheet in play.css.
+
+If the stylesheet is very small you could also include it inline in play.html.
+
+## Client Program
+
 As you saw above, the client page references a play.js script which should
 contain the code for updating the game. This script must provide a couple of
 functions that are called by the common client code whenever the game state
 changes.
 
-<h3>The view object</h3>
+### The view object
 
-<p>
-TODO
+The view object is passed from the server rules module to the client!
 
-<h3>Framework globals</h3>
+It must contain both some common properties that you shouldn't touch ("log" and
+"prompt" and "actions") and all the information you need to display the current
+board state.
 
-<p>
+### Client script globals
+
 These global variables are provided by the framework for use with your code.
 
 <dl>
@@ -197,9 +172,8 @@ The value may change if the client is in replay mode.
 
 </dl>
 
-<h3>Framework functions</h3>
+### Client script functions
 
-<p>
 These functions are provided to your client code to build the game interface and communicate with the server.
 
 <dl>
@@ -228,79 +202,113 @@ is legal.
 
 </dl>
 
-<h3>function on_update()</h3>
+### function on_update()
 
-<p>
 This function is called whenever the "view" object has updated.
 It should update the visible game representation and highlight possible actions.
 
-<p>
 The client code has already updated the prompt message and log when this is called.
 
-<p>
 The view.actions object contains the list of legal actions to present.
 
-<h3>function on_log(text)</h3>
+### function on_prompt(text)
 
-<p>
+Optional function to implement custom HTML formatting of the prompt text.
+If present, this function must return an HTML _string_.
+
+### function on_log(text)
+
 Optional function to implement custom HTML formatting of log messages.
-If present, this function must return an HTML element representing the given text.
+If present, this function must return an HTML _element_ representing the given text.
 
-<h3>function on_reply(what, response)</h3>
+### function on_reply(what, response)
 
-<p>
 This function is invoked with the result of send_query.
 The what parameter matches the argument to send_query and is used to identify different queries.
 
-<p>See rommel-in-the-desert and wilderness-war for examples of using the query mechanism.
+See rommel-in-the-desert and wilderness-war for examples of using the query mechanism.
 
-<h2> Rules Program </h2>
+## Rules Program
 
-<h3> The game object </h3>
+The rules.js script is loaded by the server.
+Certain properties and functions must be provided by the rules module.
 
-<p>
-TODO...
+> NOTE: See the [module rules](/docs/module/rules) documentation if you want to
+> use the shared rules framework that provides a structured approach to
+> implementing game rules.
 
-<h3> exports.scenarios </h3>
 
-<p>
+### Scenarios
+
 A list of scenarios! If there are no scenarios, it should be a list with one element "Standard".
 
-<h3> exports.roles = function (scenario, options) </h3>
+	exports.scenarios = [ "Standard" ]
 
-<p>
-Either a list of roles, or a function returning a list of roles.
+### Roles
 
-<h3> exports.setup = function (seed, scenario, options) </h3>
+A list of roles, or a function returning a list of roles.
 
-<p>
+	exports.roles = [ "White", "Black" ]
+
+	exports.roles = function (scenario, options) {
+		if (scenario === "3P")
+			return [ "White", "Black", "Red" ]
+		else
+			return [ "White", "Black" ]
+	}
+
+### Setup
+
+	exports.setup = function (seed, scenario, options) {
+		var game = {
+			seed: seed,
+			log: [],
+			undo: [],
+			active: "White",
+		}
+		...
+		return game
+	}
+
 Create the initial game object with a random number seed, scenario, and options object.
 
-<p>
 The "setup" function takes three parameters provided by the server: the random seed (generated by the server when starting the game), the scenario (a string with the scenario name) and options (a plain javascript object with key/value pairs for the options chosen by the user when creating the game).
 
-<p>
 The options object is filled in with values from the create.html form fields.
 
-<h3> exports.view = function (game, player) </h3>
+### View
 
-<p>
+	exports.view = function (game, player) {
+		var view = {
+			log: game.log,
+			...
+		}
+		if (game.active === player) {
+			view.actions = {}
+			// generate list of actions
+		}
+		return view
+	}
+
 Given a game object, a player role, return the view object that is used by the client to display the game state.
 This should contain game state known to the player.
 
-<p>
-TODO: prompt
+### Action
 
-<p>
-TODO: actions
+	exports.action = function (game, player, verb, noun) {
+		// handle action
+		return game
+	}
 
-<h3> exports.action = function (game, player, verb, noun) </h3>
-
-<p>
 Perform an action taken by a player. Return a game object representing the new state. It's okay to mutate the input game object.
 
-<h3> exports.query = function (game, player, what) </h3>
+### Query
 
-<p>
+	exports.query = function (game, player, what) {
+		if (what === "discard")
+			return game.discard[player]
+		return null
+	}
+
 A custom query for information that is normally not presented.
 For example showing a supply line overview, or a list of cards in a discard pile.

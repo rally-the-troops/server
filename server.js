@@ -9,6 +9,7 @@ const { WebSocketServer } = require("ws")
 const express = require("express")
 const url = require("url")
 const sqlite3 = require("better-sqlite3")
+const marked = require("marked")
 
 require("dotenv").config()
 
@@ -4180,6 +4181,43 @@ wss.on("connection", (socket, req) => {
 	} catch (err) {
 		console.log(err)
 		socket.close(1000, err.message)
+	}
+})
+
+/*
+ * DOCUMENTATION - MARKDOWN
+ */
+
+const docs_prolog = `<!doctype html>
+<meta name="viewport" content="width=device-width">
+<link rel="stylesheet" href="/docs/style.css">
+<title>TITLE</title>
+<body><article>`
+
+function render_markdown(path) {
+	var text = fs.readFileSync(path, "utf-8")
+	var html = marked.parse(text)
+	var title = html.match(/<h1>([^>]*)<\/h1>/)?.[1] ?? path
+	return docs_prolog.replace("TITLE", title) + html
+}
+
+app.get("/docs", function (req, res) {
+	res.send(render_markdown("docs/index.md"))
+})
+
+app.get("/docs/:file", function (req, res) {
+	try {
+		res.send(render_markdown("docs/" + req.params.file + ".md"))
+	} catch (err) {
+		res.status(404).send(err.message)
+	}
+})
+
+app.get("/docs/:dir/:file", function (req, res) {
+	try {
+		res.send(render_markdown("docs/" + req.params.dir + "/" + req.params.file + ".md"))
+	} catch (err) {
+		res.status(404).send(err.message)
 	}
 })
 
