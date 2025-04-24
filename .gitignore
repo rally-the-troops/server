@@ -15,3 +15,7 @@ db-wal
 node_modules
 package-lock.json
 tags
+
+# Fuzzer work files
+coverage
+fuzzer
