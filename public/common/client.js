@@ -1,6 +1,6 @@
 "use strict"
 
-/* global on_update, on_reply, on_log */
+/* global on_update, on_reply, on_log, on_prompt */
 
 /* PUBLIC GLOBALS */
 
@@ -485,7 +485,7 @@ function connect_play() {
 			document.querySelector("header").classList.add("disconnected")
 			setTimeout(() => {
 				document.querySelector("header").classList.remove("disconnected")
-				on_update_header()
+				update_header()
 			}, 1000)
 			break
 
@@ -542,11 +542,7 @@ function connect_play() {
 			for (let line of view.log)
 				game_log.push(line)
 
-			on_update_header()
-			on_update_roles()
-			if (typeof on_update === "function")
-				on_update()
-			on_update_log(view.log_start, game_log.length)
+			update_view(view.log_start, game_log.length)
 			break
 
 		case "finished":
@@ -575,11 +571,23 @@ function connect_play() {
 	}
 }
 
+function update_view(log_start, log_end) {
+	update_header()
+	update_roles()
+	try {
+		on_update()
+	} catch (err) {
+		console.error(err)
+		window.alert(err)
+	}
+	update_log(log_start, log_end)
+}
+
 /* HEADER */
 
 let is_your_turn = false
 
-function on_update_header() {
+function update_header() {
 	if (typeof on_prompt === "function")
 		document.getElementById("prompt").innerHTML = on_prompt(view.prompt)
 	else
@@ -600,17 +608,19 @@ function on_update_header() {
 	update_title()
 }
 
-function on_update_roles() {
-	if (view.active !== undefined)
-		for (let role in roles)
+function update_roles() {
+	if (view.active !== undefined) {
+		for (let role in roles) {
 			roles[role].element.classList.toggle("active",
 				view.active === role || view.active === "Both" || view.active.includes(role)
 			)
+		}
+	}
 }
 
 /* LOG */
 
-function on_update_log(change_start, end) {
+function update_log(change_start, end) {
 	let div = document.getElementById("log")
 
 	let to_delete = div.children.length - change_start
@@ -918,10 +928,7 @@ function show_snap(snap_id) {
 		snap_view = view
 	view = snap_cache[snap_id]
 	view.prompt = "Replay " + snap_id + " / " + snap_count + " \u2013 " + snap_active[snap_id]
-	on_update_header()
-	on_update_roles()
-	on_update()
-	on_update_log(view.log, view.log)
+	update_view(view.log, view.log)
 }
 
 function on_snap_first() {
@@ -948,10 +955,7 @@ function on_snap_stop() {
 	if (snap_view) {
 		view = snap_view
 		snap_view = null
-		on_update_header()
-		on_update_roles()
-		on_update()
-		on_update_log(game_log.length, game_log.length)
+		update_view(game_log.length, game_log.length)
 	}
 }
 

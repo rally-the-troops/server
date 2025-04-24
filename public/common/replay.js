@@ -185,9 +185,7 @@ function update_replay_view() {
 	for (let i = log_start; i < view.log.length; ++i)
 		game_log.push(view.log[i])
 
-	on_update_header()
-	on_update()
-	on_update_log(log_start, game_log.length)
+	update_view(log_start, game_log.length)
 }
 
 replay_query = function replay_query(query, params) {
