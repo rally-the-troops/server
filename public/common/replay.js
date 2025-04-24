@@ -257,7 +257,7 @@ function on_replay_play_pause() {
 				on_replay_step_next()
 			else
 				on_replay_play_pause()
-		}, 1000)
+		}, 500)
 	} else {
 		document.getElementById("replay_stop").classList.add("hide")
 		document.getElementById("replay_play").classList.remove("hide")
