@@ -1,9 +1,13 @@
 /* FRAMEWORK */
 
 /*
+"use strict"
 const ROLES = []
 const SCENARIOS = []
 var G, L, R, V, S = {}, P = {}
+function on_setup() {}
+function on_view() {}
+function on_query(q) { return null }
 */
 
 function log(s) {
@@ -79,8 +83,8 @@ exports.setup = function (seed, scenario, options) {
 	V = null
 
 	on_setup(scenario, options)
-	run()
-	save()
+	_run()
+	_save()
 
 	return G
 }
@@ -95,7 +99,7 @@ exports.view = function (state, role) {
 	}
 
 	if ((Array.isArray(G.active) && G.active.includes(R)) || G.active === R) {
-		load()
+		_load()
 		on_view()
 
 		V.actions = {}
@@ -108,11 +112,11 @@ exports.view = function (state, role) {
 		if (V.actions.undo === undefined)
 			button("undo", G.undo?.length > 0)
 
-		save()
+		_save()
 	} else {
-		load()
+		_load()
 		on_view()
-		save()
+		_save()
 
 		if (G.active === "None") {
 			V.prompt = L.message
@@ -143,19 +147,19 @@ exports.action = function (state, role, action, argument) {
 
 	var old_active = G.active
 
-	load()
+	_load()
 
 	var this_state = S[L.P]
 	if (this_state && typeof this_state[action] === "function") {
 		this_state[action](argument)
-		run()
+		_run()
 	} else if (action === "undo" && G.undo.length > 0) {
 		pop_undo()
 	} else {
 		throw new Error("Invalid action: " + action)
 	}
 
-	save()
+	_save()
 
 	if (old_active !== G.active)
 		clear_undo()
@@ -169,14 +173,27 @@ exports.finish = function (state, result, message) {
 	R = null
 	V = null
 
-	load()
+	_load()
 	finish(result, message)
-	save()
+	_save()
 
 	return G
 }
 
-function load() {
+exports.query = function (state, role, q) {
+	G = state
+	L = G.L
+	R = role
+	V = null
+
+	_load()
+	var result = on_query(q)
+	_save()
+
+	return result
+}
+
+function _load() {
 	R = ROLES.indexOf(R)
 	if (Array.isArray(G.active))
 		G.active = G.active.map(r => ROLES.indexOf(r))
@@ -184,14 +201,14 @@ function load() {
 		G.active = ROLES.indexOf(G.active)
 }
 
-function save() {
+function _save() {
 	if (Array.isArray(G.active))
 		G.active = G.active.map(r => ROLES[r])
 	else
 		G.active = ROLES[G.active] ?? "None"
 }
 
-function run() {
+function _run() {
 	for (var i = 0; i < 1000 && L; ++i) {
 		var prog = P[L.P]
 		if (prog) {
@@ -209,7 +226,7 @@ function run() {
 		throw new Error("runaway script")
 }
 
-function parse(text) {
+function _parse(text) {
 	var prog = []
 
 	function lex(s) {
@@ -454,7 +471,7 @@ function parse(text) {
 function script(text) {
 	script.cache ??= {}
 	try {
-		return parse(text).map(inst => script.cache[inst] ??= eval("(function(){" + inst + "})"))
+		return _parse(text).map(inst => script.cache[inst] ??= eval("(function(){" + inst + "})"))
 	} catch (err) {
 		// return the error message so we can attach the script name and re-raise later
 		return err.message
