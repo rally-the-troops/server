@@ -1447,111 +1447,9 @@ const SQL_SELECT_SNAP_COUNT = SQL("select max(snap_id) from game_snap where game
 const SQL_DELETE_GAME_SNAP = SQL("delete from game_snap where game_id=? and snap_id > ?")
 const SQL_DELETE_GAME_REPLAY = SQL("delete from game_replay where game_id=? and replay_id > ?")
 
-const SQL_SELECT_REPLAY = SQL(`
-	select
-		json_object(
-			'players',
-				(select json_group_array(
-						json_object('role', role, 'name', name)
-					)
-					from players
-					left join users using(user_id)
-					where game_id = outer.game_id
-				),
-			'state',
-				(select json(state)
-					from game_state
-					where game_id = outer.game_id
-				),
-			'replay',
-				(select json_group_array(
-						case when arguments is null then
-							json_array(role, action)
-						else
-							json_array(role, action, json(arguments))
-						end
-					)
-					from game_replay
-					where game_id = outer.game_id
-				)
-		) as export
-	from games as outer
-	where game_id = ?
-`).pluck()
-
-const ARCHIVE_SELECT_REPLAY = ENABLE_ARCHIVE ? SQL(`
-	select
-		json_object(
-			'players',
-				(select json_group_array(
-						json_object('role', role, 'name', name)
-					)
-					from players
-					left join users using(user_id)
-					where game_id = outer.game_id
-				),
-			'state',
-				(select json(state)
-					from archive.game_state
-					where game_id = outer.game_id
-				),
-			'replay',
-				(select json_group_array(
-						case when arguments is null then
-							json_array(role, action)
-						else
-							json_array(role, action, json(arguments))
-						end
-					)
-					from archive.game_replay
-					where game_id = outer.game_id
-				)
-		) as export
-	from games as outer
-	where game_id = ?
-`).pluck() : null
-
-const ARCHIVE_SELECT_EXPORT = ENABLE_ARCHIVE ? SQL(`
-	select
-		game_id,
-		json_object(
-			'setup', json_object(
-					'game_id', game_id,
-					'title_id', title_id,
-					'scenario', scenario,
-					'options', json(options),
-					'player_count', player_count,
-					'notice', notice
-				),
-			'players',
-				(select json_group_array(
-						json_object('role', role, 'name', name)
-					)
-					from players
-					left join users using(user_id)
-					where game_id = outer.game_id
-				),
-			'state',
-				(select json(state)
-					from archive.game_state
-					where game_id = outer.game_id
-				),
-			'replay',
-				(select json_group_array(
-						case when arguments is null then
-							json_array(role, action)
-						else
-							json_array(role, action, json(arguments))
-						end
-					)
-					from archive.game_replay
-					where game_id = outer.game_id
-				)
-		) as export
-	from games as outer
-`).pluck() : null
-
+const ARCHIVE_SELECT_EXPORT = ENABLE_ARCHIVE ? SQL("select export from archive.game_export_view where game_id = ?").pluck() : null
 const SQL_SELECT_EXPORT = SQL("select export from game_export_view where game_id=?").pluck()
+const SQL_SELECT_REPLAY = SQL("select export from game_replay_view where game_id = ?").pluck()
 
 const SQL_SELECT_GAME = SQL("SELECT * FROM games WHERE game_id=?")
 const SQL_SELECT_GAME_VIEW = SQL("SELECT * FROM game_view WHERE game_id=?")
@@ -2378,7 +2276,7 @@ app.get("/api/replay/:game_id", function (req, res) {
 		return res.status(401).send("Not authorized to debug.")
 	if (ENABLE_ARCHIVE) {
 		if (game.status === STATUS_ARCHIVED)
-			return res.type("application/json").send(ARCHIVE_SELECT_REPLAY.get(game_id))
+			return res.type("application/json").send(ARCHIVE_SELECT_EXPORT.get(game_id))
 	}
 	return res.type("application/json").send(SQL_SELECT_REPLAY.get(game_id))
 })

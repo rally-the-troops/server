@@ -683,6 +683,39 @@ create view game_export_view as
 	from games as outer
 	;
 
+drop view if exists game_replay_view;
+create view game_replay_view as
+	select
+		game_id,
+		json_object(
+			'players',
+				(select json_group_array(
+						json_object('role', role, 'name', name)
+					)
+					from players
+					left join users using(user_id)
+					where game_id = outer.game_id
+				),
+			'state',
+				(select json(state)
+					from game_state
+					where game_id = outer.game_id
+				),
+			'replay',
+				(select json_group_array(
+						case when arguments is null then
+							json_array(role, action)
+						else
+							json_array(role, action, json(arguments))
+						end
+					)
+					from game_replay
+					where game_id = outer.game_id
+				)
+		) as export
+	from games as outer
+	;
+
 -- Tournaments --
 
 create table if not exists tm_seeds (
