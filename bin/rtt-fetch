@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ $# -eq 2 ]
+then
+	SERVER=$1
+	GAME=$2
+elif [ $# -eq 1 ]
+then
+	SERVER=https://rally-the-troops.com
+	GAME=$1
+else
+	echo 'usage: rtt-fetch [ SERVER ] GAME'
+	exit 1
+fi
+
+FILE=game-$GAME.json
+
+curl -s -S -f -o $FILE -b cookies.txt -L $SERVER/api/export/$GAME && echo $FILE
