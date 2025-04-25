@@ -272,9 +272,9 @@ function patch_title(title_id, options) {
 }
 
 if (process.argv.length < 3) {
-	process.stderr.write("usage: ./tools/patchgame.js <game_id> '{options}'\n")
-	process.stderr.write("   or: ./tools/patchgame.js <title_id> '{options}'\n")
-	process.stderr.write("   or: ./tools/patchgame.js all '{options}'\n")
+	process.stderr.write("usage: rtt-patch <game_id> '{options}'\n")
+	process.stderr.write("   or: rtt-patch <title_id> '{options}'\n")
+	process.stderr.write("   or: rtt-patch all '{options}'\n")
 	process.stderr.write('options: { "validate_actions":true, "delete_invalid":false, "save_snaps":true, "delete_undo":false }\n')
 	process.exit(1)
 }

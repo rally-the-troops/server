@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo installing node packages
+npm install -s
+
+echo creating database
+sqlite3 db < schema.sql
+
+for M in public/*/title.sql
+do
+	echo registering module $(basename $(dirname $M))
+	sqlite3 db < $M
+done

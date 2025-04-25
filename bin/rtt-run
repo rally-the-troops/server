@@ -2,6 +2,8 @@
 while true
 do
 	nodemon --exitcrash server.js
-	echo Restarting soon...
+	echo
+	echo "Restarting soon!"
+	echo "Hit Ctl-C to exit."
 	sleep 3
 done

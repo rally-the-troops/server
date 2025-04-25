@@ -1,0 +1,4 @@
+#!/bin/bash
+FILE=$(date +backup-%Y%m%d-%H%M.db)
+echo $FILE
+sqlite3 db "vacuum into '$FILE'"

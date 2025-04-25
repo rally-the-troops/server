@@ -13,6 +13,7 @@ server instance and how to create new modules.
 
 * [Installing the server](/docs/server/install)
 * [Running a public server](/docs/server/production)
+* [Toolbox](/docs/server/toolbox)
 
 ## System overview
 
@@ -22,7 +23,7 @@ server instance and how to create new modules.
 
 ## Module implementation
 
-* [Step by step guide](/docs/module/guide)
+* [General tips and where to start](/docs/module/guide)
 * [Rules framework](/docs/module/rules)
 	* [Script syntax](/docs/module/script)
 	* [Utility library](/docs/module/library)

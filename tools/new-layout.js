@@ -1,3 +1,5 @@
+#!/usr/bin/env -S node
+
 const print = console.log
 
 if (process.argv.length < 4) {

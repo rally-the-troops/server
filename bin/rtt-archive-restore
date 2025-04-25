@@ -3,7 +3,7 @@
 
 if [ -z "$1" ]
 then
-        echo 'usage: bash tools/unarchive.sh <gameid>'
+        echo "usage: rtt-archive-restore GAME"
         exit 1
 fi
 

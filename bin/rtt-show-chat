@@ -1,0 +1,7 @@
+#!/bin/bash
+if [ -n "$1" ]
+then
+	sqlite3 db ".mode column --wrap 40 -ww" "select time,name,message from game_chat_view where game_id=$1" | less -FX
+else
+	echo "usage: rtt-show-chat GAME"
+fi

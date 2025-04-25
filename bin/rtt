@@ -1,0 +1,31 @@
+#!/bin/bash
+
+cmd=$1
+shift
+
+bindir=$(dirname $(readlink -f $0))
+
+if [ ! -n "$cmd" ]
+then
+	cmd=help
+fi
+
+if [ ! -f ./server.js ]
+then
+	echo "rtt: command must run in the top-level server directory!"
+	exit 1
+fi
+
+if [ ! -f $bindir/rtt-$cmd ]
+then
+	echo "rtt: '$cmd' is not an rtt command"
+	exit 1
+fi
+
+if [ ! -f ./db -a "$cmd" != init -a "$cmd" != "help" ]
+then
+	echo "rtt: the database does not exist!"
+	exit 1
+fi
+
+exec $bindir/rtt-$cmd "$@"

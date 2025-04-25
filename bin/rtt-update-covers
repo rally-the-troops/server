@@ -1,6 +1,16 @@
+#!/bin/bash
+
+if command -v convert && command -v pngtopnm && command -v cjpeg
+then
+	echo "Generating cover images and thumbnails!"
+else
+	echo error: cannot find imagemagick, netpbm, and/or cjpeg
+	exit 1
+fi
+
 for F in public/*/cover.jpg public/*/cover.png
 do
-	echo Processing: $F
+	echo processing $F
 	B=$(echo $F | sed s/.jpg// | sed s/.png//)
 	D=$(dirname $F)
 

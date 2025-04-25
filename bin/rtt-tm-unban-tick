@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Run this script in a cron job to lift tournament bans periodically.
+
 sqlite3 db <<EOF
 
 begin immediate;

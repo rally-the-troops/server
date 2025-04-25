@@ -1,5 +1,7 @@
 #!/usr/bin/env -S node
 
+// Recompute Elo ratings from scratch!
+
 const sqlite3 = require("better-sqlite3")
 
 const db = new sqlite3("db")

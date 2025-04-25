@@ -1,9 +1,12 @@
--- Make a copy of finished games in a separate archive database.
+#!/bin/bash
+sqlite3 <<EOF
 
-pragma busy_timeout=10000;
+-- Make a copy of finished games in a separate archive database.
 
 attach database 'db' as live;
 attach database 'archive.db' as archive;
+
+pragma live.busy_timeout=10000;
 
 -- List finished (and rated) games in live that are not in archive.
 create temporary view candidates as
@@ -99,3 +102,5 @@ insert into archive.games (game_id, title_id, scenario, options, player_count, c
 	from candidates join live.games using(game_id);
 
 commit;
+
+EOF

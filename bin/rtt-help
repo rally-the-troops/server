@@ -1,0 +1,34 @@
+#!/bin/bash
+cat <<EOF
+usage: rtt <subcommand> [ arguments... ]
+
+database management
+	init	-- create database
+	run	-- run server
+	backup	-- backup database
+
+game management
+	export	-- export game
+	import	-- import game
+	patch	-- patch game state (using replay)
+	undo	-- rewind game state (using replay)
+
+module development
+	foreach		-- run a command for each module
+	fuzz		-- fuzz test a module
+
+game debugging
+	show-chat	-- show game chat (for moderation)
+	show-game	-- show game state object
+	show-replay	-- show game replay log
+
+miscellaneous tools
+	update-covers	-- generate cover thumbnails
+	update-elo	-- recalculate Elo ratings
+
+archive database
+	archive-backup	-- backup replay data into archive
+	archive-prune	-- prune replay data from live database
+	archive-restore	-- restore replay data from archive
+
+EOF

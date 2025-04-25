@@ -43,4 +43,3 @@ Register it in the database:
 Open the browser to http://localhost:8080/ and create an account.
 
 The first account created will have administrator privileges.
-

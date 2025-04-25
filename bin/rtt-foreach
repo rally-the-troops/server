@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ -z "$1" ]
+then
+	echo "usage: rtt-foreach <command>"
+	exit 1
+fi
+
+for M in $(sqlite3 db "select title_id from titles")
+do
+	echo "Entering 'public/$M'"
+	if pushd public/$M >/dev/null
+	then
+		"$@"
+		popd >/dev/null
+	fi
+done
