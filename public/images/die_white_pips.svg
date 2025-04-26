@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="336" height="56">
+<g fill="white">
+<g transform="translate(0 0)">
+<circle r="6" cx="28" cy="28"/>
+</g>
+<g transform="translate(56 0)">
+<circle r="6" cx="12" cy="12"/>
+<circle r="6" cx="44" cy="44"/>
+</g>
+<g transform="translate(112 0)">
+<circle r="6" cx="12" cy="44"/>
+<circle r="6" cx="44" cy="12"/>
+<circle r="6" cx="28" cy="28"/>
+</g>
+<g transform="translate(168 0)">
+<circle r="6" cx="12" cy="12"/>
+<circle r="6" cx="12" cy="44"/>
+<circle r="6" cx="44" cy="12"/>
+<circle r="6" cx="44" cy="44"/>
+</g>
+<g transform="translate(224 0)">
+<circle r="6" cx="12" cy="12"/>
+<circle r="6" cx="12" cy="44"/>
+<circle r="6" cx="44" cy="12"/>
+<circle r="6" cx="44" cy="44"/>
+<circle r="6" cx="28" cy="28"/>
+</g>
+<g transform="translate(280 0)">
+<circle r="6" cx="12" cy="12"/>
+<circle r="6" cx="12" cy="28"/>
+<circle r="6" cx="12" cy="44"/>
+<circle r="6" cx="44" cy="12"/>
+<circle r="6" cx="44" cy="28"/>
+<circle r="6" cx="44" cy="44"/>
+</g>
+</g>
+</svg>
