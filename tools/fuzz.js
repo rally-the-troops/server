@@ -115,8 +115,8 @@ exports.fuzz = function (fuzzerInputData) {
 
 		try {
 			ctx.state = rules.action(ctx.state, ctx.active, action, arg)
-			if (typeof rules.assert_state === "function")
-				rules.assert_state(ctx.state)
+			if (typeof rules.assert === "function")
+				rules.assert(ctx.state)
 		} catch (e) {
 			ctx.state = prev_state
 			return log_crash(e, ctx, action, arg)

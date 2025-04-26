@@ -7,7 +7,8 @@ const SCENARIOS = []
 var G, L, R, V, S = {}, P = {}
 function on_setup() {}
 function on_view() {}
-function on_query(q) { return null }
+function on_query(q) {}
+function on_assert() {}
 */
 
 function log(s) {
@@ -191,6 +192,18 @@ exports.query = function (state, role, q) {
 	_save()
 
 	return result
+}
+
+exports.assert = function (state) {
+	if (typeof on_assert === "function") {
+		G = state
+		L = G.L
+		R = null
+		V = null
+		_load()
+		on_assert()
+		_save()
+	}
 }
 
 function _load() {
