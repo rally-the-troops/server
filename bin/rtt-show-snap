@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ $# -eq 1 ]
+then
+	sqlite3 -column db "select snap_id, replay_id, state->>'$.active', coalesce(state->'$.state', state->'$.L.P', 'null') from game_snap where game_id=$1"
+elif [ $# -eq 2 ]
+then
+	sqlite3 -column db "select state from game_snap where game_id=$1 and snap_id=$2"
+else
+	echo "usage: rtt-show-snap GAME"
+fi
