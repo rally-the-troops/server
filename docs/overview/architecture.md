@@ -11,7 +11,7 @@ The "join" page is the most complicated, and also uses javascript and server sen
 
 ## Database
 
-See the [database overview](/docs/overview/database) for a brief introduction to the tables involved.
+See the [database overview](database.md) for a brief introduction to the tables involved.
 
 ## Client/Server
 

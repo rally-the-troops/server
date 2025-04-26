@@ -233,7 +233,7 @@ See rommel-in-the-desert and wilderness-war for examples of using the query mech
 The rules.js script is loaded by the server.
 Certain properties and functions must be provided by the rules module.
 
-> NOTE: See the [module rules](/docs/module/rules) documentation if you want to
+> NOTE: See the [module rules](../module/rules.md) documentation if you want to
 > use the shared rules framework that provides a structured approach to
 > implementing game rules.
 

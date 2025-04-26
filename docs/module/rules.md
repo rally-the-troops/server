@@ -7,7 +7,7 @@ This is exposed to the system via a handful of exported properties and functions
 All of the board state is represented as a plain JS object that is passed to
 and returned from these functions.
 
-See the [module overview](/docs/overview/module) for the details.
+See the [module overview](../overview/module.md) for the details.
 
 ## Copy & Paste
 

@@ -4100,20 +4100,26 @@ function render_markdown(path) {
 }
 
 app.get("/docs", function (req, res) {
-	res.send(render_markdown("docs/index.md"))
+	res.redirect("/docs/index")
 })
 
 app.get("/docs/:file", function (req, res) {
+	var file = req.params.file
+	if (!file.endsWith(".md"))
+		file += ".md"
 	try {
-		res.send(render_markdown("docs/" + req.params.file + ".md"))
+		res.send(render_markdown("docs/" + file))
 	} catch (err) {
 		res.status(404).send(err.message)
 	}
 })
 
 app.get("/docs/:dir/:file", function (req, res) {
+	var file = req.params.file
+	if (!file.endsWith(".md"))
+		file += ".md"
 	try {
-		res.send(render_markdown("docs/" + req.params.dir + "/" + req.params.file + ".md"))
+		res.send(render_markdown("docs/" + req.params.dir + "/" + file))
 	} catch (err) {
 		res.status(404).send(err.message)
 	}

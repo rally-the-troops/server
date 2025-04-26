@@ -6,32 +6,32 @@ server instance and how to create new modules.
 
 ## For players
 
-* [Tips & Tricks](/docs/tips)
-* [Tournaments](/docs/tournaments)
+* [Tips & Tricks](tips.md)
+* [Tournaments](tournaments.md)
 
 ## For developers
 
-* [Installing the server](/docs/server/install)
-* [Running a public server](/docs/server/production)
-* [Toolbox](/docs/server/toolbox)
+* [Installing the server](server/install.md)
+* [Running a public server](server/production.md)
+* [Toolbox](server/toolbox.md)
 
 ## System overview
 
-* [Server architecture](/docs/overview/architecture)
-* [Database schema](/docs/overview/database)
-* [Module architecture](/docs/overview/module)
+* [Server architecture](overview/architecture.md)
+* [Database schema](overview/database.md)
+* [Module architecture](overview/module.md)
 
 ## Module implementation
 
-* [General tips and where to start](/docs/module/guide)
-* [Rules framework](/docs/module/rules)
-	* [Script syntax](/docs/module/script)
-	* [Utility library](/docs/module/library)
+* [General tips and where to start](module/guide.md)
+* [Rules framework](module/rules.md)
+	* [Script syntax](module/script.md)
+	* [Utility library](module/library.md)
 * Create the user interface (todo)
 * Prepare the art assets (todo)
-* [Test with the Fuzzer](/docs/module/fuzzer)
+* [Test with the Fuzzer](module/fuzzer.md)
 
 <!--
-* [Preparing the art assets](/docs/module/assets)
-* [How to write the client](/docs/module/play)
+* [Preparing the art assets](/docs/module/assets.md)
+* [How to write the client](/docs/module/play.md)
 -->

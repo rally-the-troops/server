@@ -11,8 +11,8 @@ and/or publisher for any necessary permissions.
 
 ## Documentation
 
-See public/docs/index.html
+See [docs/index.md](docs/index.md)
 
 ## Installing and getting started
 
-See public/docs/install.html
+See [docs/server/install.md](docs/server/install.md)
