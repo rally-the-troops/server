@@ -14,6 +14,10 @@ All tournament games use time control.
 
 If you let a tournament game time out, you will not be allowed to join future tournaments!
 
+The ban on joining tourmanents is proportional to the number of games you time out.
+If you play actively and prove that you can finish more games than you've timed out
+you will be allowed to join tournaments again.
+
 ### Rounds
 
 Tournaments are round-robin, where each player meets every other player.

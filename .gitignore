@@ -1,21 +1,18 @@
-# Source assets and working files
-WIP*
-HIRES
-vassal
-tmp
-*.ppm
-
 # Live database files
 .env
 db
 db-shm
 db-wal
+archive.db
+archive.db-shm
+archive.db-wal
 
 # Development clutter
 node_modules
 package-lock.json
 tags
+cookies.txt
 
-# Fuzzer work files
+# Fuzzer output
 coverage
 fuzzer
