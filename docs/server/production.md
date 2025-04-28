@@ -91,13 +91,13 @@ Run the archive and purge scripts as part of the backup cron job.
 
 Copy game state data of finished games into archive database.
 
-	sqlite3 < tools/archive.sql
+	rtt archive-backup
 
 Delete game state data of finished games over a certain age.
 
-	sqlite3 < tools/purge.sql
+	rtt archive-prune
 
 Restore archived game state.
 
-	bash tools/unarchive.sh game_id
+	rtt archive-restore game_id
 

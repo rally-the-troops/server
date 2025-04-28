@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TITLE=$1
+export TITLE=$1
 shift
 
 if [ ! -f ./public/$TITLE/rules.js ]
@@ -9,8 +9,11 @@ then
 	exit 1
 fi
 
-mkdir -p fuzzer/corpus-$TITLE
+if [ -z $(npm ls -p jsfuzz) ]
+then
+	echo Installing "jsfuzz" package.
+	npm install -s --no-save jsfuzz
+fi
 
-RULES=../public/$TITLE/rules.js \
-	npx jazzer tools/fuzz.js --sync fuzzer/corpus-$TITLE "$@" -- -exact_artifact_path=/dev/null | \
-		tee fuzzer/log-$TITLE.txt
+mkdir -p fuzzer/corpus-$TITLE
+npx jsfuzz tools/fuzz.js fuzzer/corpus-$TITLE --exact-artifact-path=/dev/null | tee fuzzer/log-$TITLE.txt

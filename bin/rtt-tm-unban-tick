@@ -12,7 +12,7 @@ create temporary view tm_lift_ban_view as
 	select
 		user_id,
 		name,
-		date(timeout_last),
+		date(timeout_last) as timeout_date,
 		timeout_total,
 		games_since_timeout,
 		(games_since_timeout > timeout_total) and (julianday() > julianday(timeout_last)+14) as lift_ban
@@ -23,7 +23,7 @@ create temporary view tm_lift_ban_view as
 	order by lift_ban desc, timeout_last asc
 ;
 
-select * from tm_lift_ban_view;
+select name, timeout_date, timeout_total, games_since_timeout from tm_lift_ban_view where lift_ban;
 
 delete from tm_banned where user_id in (select user_id from tm_lift_ban_view where lift_ban) returning user_id;
 

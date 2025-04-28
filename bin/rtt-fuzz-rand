@@ -1,0 +1,32 @@
+#!/usr/bin/env -S node
+
+"use strict"
+
+const fs = require("fs")
+const crypto = require("crypto")
+
+if (process.argv.length < 3) {
+	console.error("rtt-fuzz-rand TITLE")
+	process.exit(1)
+}
+
+process.env.TITLE = process.argv[2]
+
+const { fuzz } = require("../tools/fuzz.js")
+
+fs.mkdir("fuzzer", ()=>{})
+
+if (process.argv.length > 3) {
+	fuzz(parseInt(process.argv[3]))
+} else {
+	// run for an hour-ish
+	var i, n, a, b
+	for (i = 0; i < 3600; ++i) {
+		a = b = Date.now()
+		for (n = 0; b < a + 5_000; ++n) {
+			fuzz(crypto.randomInt(1, 2**48))
+			b = Date.now()
+		}
+		console.log("# " + Math.round( (1000 * n) / (b-a) ) + " runs/second")
+	}
+}

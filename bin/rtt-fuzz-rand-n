@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# count number of actual cores
+CORES=$(lscpu --all --parse=SOCKET,CORE | grep -v '^#' | sort -u | wc -l)
+# CORES=$(nproc)
+
+for P in $(seq $CORES)
+do
+	./bin/rtt-fuzz-rand $1 &
+done
+
+wait $(jobs -p)

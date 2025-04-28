@@ -170,6 +170,11 @@ There's also a global scope for the main game data (via the G namespace).
 
 ---
 
+The state stack is implmented as a linked list (G.L is the head of the linked
+list, and G.L.L is the next state down the stack, etc.) Invoking call pushes a
+new state at the top of the stack; goto replaces the current top of the stack,
+and end pops the stack.
+
 ## States
 
 The "states" where we wait for user input are kept in the S table.

@@ -15,6 +15,10 @@ Alternatively, you can edit your .profile to add the server bin directory to you
 
 	PATH=$PATH:$HOME/server/bin
 
+Check that the command works by running the command to create the database:
+
+	rtt init
+
 ## Commands
 
 database management
@@ -34,6 +38,7 @@ module development
 
 	foreach		-- run a command for each module
 	fuzz		-- fuzz test a module
+	fuzz-rand	-- fuzz test a module (random)
 
 game debugging
 

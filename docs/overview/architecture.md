@@ -32,24 +32,24 @@ The following files contain the code and styling for the client display:
 
 ## Tools
 
-The "tools" directory holds a number of other useful scripts for administrating the server and debugging modules.
+The "rtt" command (in bin/rtt) is useful for administrating the server and debugging modules.
 
-	bash tools/export-game.sh game_id > file.json
+	rtt export game_id > file.json
 		Export full game state to a JSON file.
 
-	node tools/import-game.js file.json
+	rtt import file.json
 		Import a game from an export JSON file.
 
-	node tools/patchgame.js game_id
+	rtt patch game_id
 		Patch game state for one game (by replaying the action log).
 
-	node tools/patchgame.js title_id
+	rtt patch title_id
 		Patch game state for all active games of one module.
 
-	bash tools/undo.sh game_id
+	rtt undo game_id
 		Undo an action by removing the last entry in the replay log and running patchgame.js
 
-	bash tools/showgame.sh game_id
+	rtt show-game game_id
 		Print game state JSON object for debugging.
 
 <!--

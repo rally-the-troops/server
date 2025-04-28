@@ -1,180 +1,65 @@
 "use strict"
 
-const crypto = require('crypto')
-const fs = require("fs")
-const path = require("path")
-const { FuzzedDataProvider } = require("@jazzer.js/core")
+const fs = require("node:fs")
+const crypto = require("node:crypto")
 
-const RULES_JS_FILE = process.env.RULES || "rules.js"
-const MAX_ERRORS = parseInt(process.env.MAX_ERRORS || 100)
-const MAX_STEPS = parseInt(process.env.MAX_STEPS || 10000)
-const TIMEOUT = parseInt(process.env.TIMEOUT || 250)
+var MAX_TIMEOUT = parseInt(process.env.MAX_TIMEOUT || 250)
+var MAX_ERRORS = parseInt(process.env.MAX_ERRORS || 100)
+var MAX_STEPS = parseInt(process.env.MAX_STEPS || 10000)
+var TITLE = process.env.TITLE
+var SCENARIO = process.env.SCENARIO
+var scenarios
 
-console.log(`Loading fuzzer ${RULES_JS_FILE}`)
+var rules = require("../public/" + TITLE + "/rules.js")
+if (Array.isArray(rules.scenarios))
+	scenarios = rules.scenarios.filter(n => !n.startsWith("Random"))
+else
+	scenarios = Object.values(rules.scenarios).flat().filter(n => !n.startsWith("Random"))
 
-const rules = require(RULES_JS_FILE)
-const title_id = path.basename(path.dirname(RULES_JS_FILE))
+var errors = 0
 
-var error_count = 0
+console.log("Fuzzing", { TITLE, MAX_TIMEOUT, MAX_ERRORS, MAX_STEPS })
 
 globalThis.RTT_FUZZER = true
 
-exports.fuzz = function (fuzzerInputData) {
-	var data = new FuzzedDataProvider(fuzzerInputData)
-	if (data.remainingBytes < 16) {
-		// insufficient bytes to start
-		return
+class MyRandomProvider {
+	constructor(seed) {
+		this.seed = seed
 	}
-
-	var scenarios = Array.isArray(rules.scenarios) ? rules.scenarios : Object.values(rules.scenarios).flat()
-	var scenario = data.pickValue(scenarios)
-	if (scenario.startsWith("Random"))
-		return
-
-	var timeout = Date.now() + TIMEOUT
-
-	var options = {} // TODO: randomize options
-
-	var roles = rules.roles
-	if (typeof roles === "function")
-		roles = roles(scenario, options)
-
-	var seed = data.consumeIntegralInRange(1, 2 ** 35 - 31)
-
-	var ctx = {
-		player_count: roles.length,
-		players: roles.map((r, ix) => ({ role: r, name: "rtt-fuzzer-" + (ix+1) })),
-		scenario,
-		options,
-		replay: [],
-		state: {},
-		active: null,
-		step: 0,
+	get remainingBytes() {
+		return 1 << 20
 	}
-
-	ctx.replay.push([ null, ".setup", [ seed, scenario, options ] ])
-	ctx.state = rules.setup(seed, scenario, options)
-
-	while (ctx.state.active && ctx.state.active !== "None") {
-
-		// insufficient bytes to continue
-		if (data.remainingBytes < 16)
-			return
-
-		ctx.active = ctx.state.active
-
-		// If multiple players can act, we'll pick a random player to go first.
-		if (Array.isArray(ctx.active))
-			ctx.active = data.pickValue(ctx.active)
-		if (ctx.active === "Both")
-			ctx.active = data.pickValue(roles)
-
-		try {
-			ctx.view = rules.view(ctx.state, ctx.active)
-		} catch (e) {
-			return log_crash(e, ctx)
-		}
-
-		if (ctx.step > MAX_STEPS)
-			return log_crash("MaxSteps", ctx)
-		if (Date.now() > timeout)
-			return log_crash("Timeout", ctx)
-
-		if (ctx.view.prompt && ctx.view.prompt.startsWith("TODO:"))
-			return log_crash(ctx.view.prompt, ctx)
-
-		if (!ctx.view.actions)
-			return log_crash("NoMoreActions", ctx)
-
-		var actions = Object.entries(ctx.view.actions).filter(([ action, args ]) => {
-			// remove undo from action list (useful to test for dead-ends)
-			if (action === "undo")
-				return false
-			// remove disabled buttons from action list
-			if (args === 0 || args === false)
-				return false
-			return true
-		})
-
-		if (actions.length === 0)
-			return log_crash("NoMoreActions", ctx)
-
-		var [ action, args ] = data.pickValue(actions)
-		var arg = undefined
-		if (Array.isArray(args)) {
-			for (arg of args) {
-				if (typeof arg !== "number")
-					return log_crash(`BadActionArgs: ${action} ${JSON.stringify(args)}`, ctx)
-			}
-			arg = data.pickValue(args)
-		} else if (args !== 1 && args !== true) {
-			return log_crash(`BadActionArgs: ${action} ${JSON.stringify(args)}`, ctx)
-		}
-
-		var prev_state = object_copy(ctx.state)
-
-		try {
-			ctx.state = rules.action(ctx.state, ctx.active, action, arg)
-			if (typeof rules.assert === "function")
-				rules.assert(ctx.state)
-		} catch (e) {
-			ctx.state = prev_state
-			return log_crash(e, ctx, action, arg)
-		}
-
-		ctx.replay.push([ ctx.active, action, arg ])
-
-		if (ctx.state.undo.length > 0) {
-			if (String(prev_state.active) !== String(ctx.state.active))
-				return log_crash("UndoAfterActiveChange", ctx, action, arg)
-			if (prev_state.seed !== ctx.state.seed)
-				return log_crash("UndoAfterRandom", ctx, action, arg)
-		}
-
-		ctx.step += 1
+	consumeIntegralInRange(min, max) {
+		var range = max - min + 1
+		this.seed = Number(BigInt(this.seed) * 5667072534355537n % 9007199254740881n)
+		// this.seed = this.seed * 200105 % 34359738337
+		return min + this.seed % range
+	}
+	pickValue(array) {
+		return array[this.consumeIntegralInRange(0, array.length - 1)]
 	}
 }
 
-function log_crash(message, ctx, action = undefined, arg = undefined) {
-	if (message instanceof Error)
-		message = message.stack
-
-	var line = `ERROR=${message}`
-	line += `\n\tTITLE=${title_id} ACTIVE=${ctx.active} STATE=${ctx.state?.state ?? ctx.state?.L?.P} STEP=${ctx.step}`
-	line += "SETUP=" + JSON.stringify(ctx.replay[0][2])
-	if (action !== undefined) {
-		line += `\n\t\tACTION=${action}`
-		if (arg !== undefined)
-			line += JSON.stringify(arg)
+class MyBufferProvider {
+	constructor(data) {
+		this.data = data
+		this.offset = 0
 	}
-
-	var game = {
-		setup: {
-			title_id,
-			scenario: ctx.scenario,
-			options: ctx.options,
-			player_count: ctx.player_count,
-		},
-		players: ctx.players,
-		state: ctx.state,
-		replay: ctx.replay,
+	get remainingBytes() {
+		return this.data.length - this.offset
 	}
-
-	var json = JSON.stringify(game)
-	var hash = crypto.createHash("sha1").update(json).digest("hex")
-	var dump = `fuzzer/dump-${title_id}-${hash}.json`
-
-	line += "\n\tDUMP=" + dump
-
-	if (!fs.existsSync(dump)) {
-		console.log(line)
-		fs.writeFileSync(dump, json)
-	} else {
-		console.log(line)
+	consumeIntegralInRange(min, max) {
+		if (min >= max) return min
+		if (this.offset >= this.data.length) return min
+		var range = max - min + 1
+		var n = Math.min(this.data.length - this.offset, Math.ceil(Math.log2(range) / 8))
+		var result = this.data.readUIntBE(this.offset, n)
+		this.offset += n
+		return min + (result % range)
 	}
-
-	if (++error_count >= MAX_ERRORS)
-		throw new Error("too many errors")
+	pickValue(array) {
+		return array[this.consumeIntegralInRange(0, array.length - 1)]
+	}
 }
 
 function object_copy(original) {
@@ -202,3 +87,158 @@ function object_copy(original) {
 		return copy
 	}
 }
+
+function list_roles(scenario, options) {
+	if (typeof rules.roles === "function")
+		return rules.roles(scenario, options)
+	return rules.roles
+}
+
+function list_actions(R, V) {
+	var actions = []
+	if (V.actions) {
+		for (var act in V.actions) {
+			var arg = V.actions[act]
+			if (act === "undo") {
+				// never undo
+			} else if (arg === 0 || arg === false) {
+				// disabled button
+			} else if (arg === 1 || arg === true) {
+				// enabled button
+				actions.push([ R, act ])
+			} else if (Array.isArray(arg)) {
+				// action with arguments
+				for (arg of arg) {
+					if (typeof arg !== "number" && typeof arg !== "string")
+						throw new Error("invalid action: " + act + " " + arg)
+					actions.push([ R, act, arg ])
+				}
+			} else if (typeof arg === "string") {
+				// julius caesar string-button
+				actions.push([ R, act ])
+			} else {
+				throw new Error("invalid action: " + act + " " + arg)
+			}
+		}
+	}
+	return actions
+}
+
+function fuzz(input) {
+	var timeout = Date.now() + MAX_TIMEOUT
+	var steps = 0
+
+	var data
+	if (typeof input === "number")
+		data = new MyRandomProvider(input)
+	else
+		data = new MyBufferProvider(input)
+
+	var seed = data.consumeIntegralInRange(1, 2 ** 35 - 31)
+	var scenario = SCENARIO ?? data.pickValue(scenarios)
+	var options = {} // TODO: select random options
+
+	var roles = list_roles(scenario, options)
+	var ctx = {
+		seed: input,
+		setup: {
+			title_id: TITLE,
+			scenario,
+			options,
+			player_count: roles.length,
+		},
+		players: roles.map((r, ix) => ({ role: r, name: "Fuzz" + (ix+1) })),
+		scenario,
+		options,
+		state: null,
+		replay: [],
+	}
+
+	var G, R, V, actions, action, prev_G
+
+	try {
+		ctx.state = G = rules.setup(seed, scenario, options)
+	} catch (e) {
+		return log_crash(e, ctx)
+	}
+
+	ctx.replay.push([ null, ".setup", [ seed, scenario, options ] ])
+
+	while (G.active && G.active !== "None" && data.remainingBytes > 0) {
+
+		// If multiple players can act, we'll pick a random player to go first.
+		if (Array.isArray(G.active))
+			R = data.pickValue(G.active)
+		else if (G.active === "Both")
+			R = data.pickValue(roles)
+		else
+			R = G.active
+
+		try {
+			V = rules.view(G, R)
+			if (V.prompt && V.prompt.startsWith("TODO:"))
+				throw new Error(V.prompt)
+			actions = list_actions(R, V)
+			if (actions.length === 0)
+				throw new Error("NoMoreActions")
+		} catch (e) {
+			return log_crash(e, ctx)
+		}
+
+		action = data.pickValue(actions)
+		prev_G = object_copy(G)
+		try {
+			ctx.state = G = rules.action(G, action[0], action[1], action[2])
+			ctx.replay.push(action)
+			if (typeof rules.assert === "function")
+				rules.assert(G)
+		} catch (e) {
+			return log_crash(e, ctx, action)
+		}
+
+		if (G.undo.length > 0) {
+			if (String(prev_G.active) !== String(G.active))
+				return log_crash("BadUndo (active " + prev_G.active + " to " + G.active + ", " + G.undo.length + ")", ctx, action)
+			if (prev_G.seed !== G.seed)
+				return log_crash("BadUndo (seed " + prev_G.seed + " to " + G.seed + ", " + G.undo.length + ")", ctx, action)
+		}
+
+		if (++steps > MAX_STEPS)
+			return log_crash("MaxSteps", ctx)
+
+		if (Date.now() > timeout)
+			return log_crash("Timeout at " + steps + " steps", ctx)
+	}
+}
+
+function log_crash(message, ctx, action) {
+	console.log("ERROR", message)
+	console.log("\tSETUP", JSON.stringify(ctx.replay[0][2]))
+	console.log("\tSTATE", JSON.stringify(ctx.state?.state ?? ctx.state?.L?.P ?? null))
+	if (ctx.state.L !== void 0)
+		console.log("\tSTACK", JSON.stringify(ctx.state.L))
+	if (action !== void 0)
+		console.log("\tACTION", JSON.stringify(action))
+
+	var hash
+	if (typeof ctx.seed === "number")
+		hash = String(ctx.seed)
+	else
+		hash = crypto.createHash("sha1").update(ctx.seed).digest("hex")
+
+	var json = JSON.stringify({
+		setup: ctx.setup,
+		players: ctx.players,
+		state: ctx.state,
+		replay: ctx.replay,
+	})
+
+	var dump = `fuzzer/${TITLE}-${hash}.json`
+	fs.writeFileSync(dump, json)
+	console.log("\trtt import", dump)
+
+	if (++errors >= MAX_ERRORS)
+		throw new Error("too many errors")
+}
+
+exports.fuzz = fuzz

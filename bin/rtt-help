@@ -16,6 +16,7 @@ game management
 module development
 	foreach		-- run a command for each module
 	fuzz		-- fuzz test a module
+	fuzz-rand	-- fuzz test a module (random)
 
 game debugging
 	show-chat	-- show game chat (for moderation)

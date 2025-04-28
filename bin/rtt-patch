@@ -1,5 +1,7 @@
 #!/usr/bin/env -S node
 
+"use strict"
+
 const sqlite3 = require("better-sqlite3")
 
 let db = new sqlite3("db")
@@ -7,7 +9,7 @@ let db = new sqlite3("db")
 let select_game = db.prepare("select * from games where game_id=?")
 
 let select_replay = db.prepare("select * from game_replay where game_id=?")
-let delete_replay = db.prepare("delete from game_replay where game_id=? and replay_id>?")
+let delete_replay = db.prepare("delete from game_replay where game_id=?")
 let insert_replay = db.prepare("insert into game_replay (game_id,replay_id,role,action,arguments) values (?,?,?,?,?)")
 
 let select_last_snap = db.prepare("select max(snap_id) from game_snap where game_id=?").pluck()
@@ -260,8 +262,8 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 		db.exec("begin")
 
 		if (need_to_rewrite) {
-			delete_replay.run(game_id, skip_replay_id)
-			for (item of replay)
+			delete_replay.run(game_id)
+			for (let item of replay)
 				if (!item.remove)
 					insert_replay.run(game_id, item.replay_id, item.role, item.action, item.arguments)
 		}
@@ -269,7 +271,7 @@ function patch_game(game_id, {validate_actions=true, save_snaps=true, delete_und
 		if (save_snaps) {
 			delete_snap.run(game_id, start_snap_id)
 			let snap_id = start_snap_id
-			for (item of replay)
+			for (let item of replay)
 				if (item.save)
 					insert_snap.run(game_id, ++snap_id, item.replay_id, item.state)
 		}
