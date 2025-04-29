@@ -16,3 +16,4 @@ cookies.txt
 # Fuzzer output
 coverage
 fuzzer
+.nyc_output

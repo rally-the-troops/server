@@ -17,17 +17,28 @@ Crash dumps are written to the "fuzzer" directory.
 
 There are two fuzzers available:
 
-A fuzzer that uses the "jsfuzz" package.
+A simple fuzzer that plays completely randomly:
+
+	rtt fuzz-rand TITLE
+
+A more advanced fuzzer that uses the "jsfuzz" package.
 With this fuzzer every title gets its own "fuzzer/corpus-title" sub-directory.
 The corpus helps the fuzzer find interesting game states in future runs.
 
 	rtt fuzz TITLE
 
-A simple fuzzer that plays completely randomly:
-
-	rtt fuzz-rand TITLE
-
 The fuzzer will run until you stop it or it has found too many errors.
+
+## Coverage
+
+Jsfuzz will generate a "nyc" coverage report that you can look at,
+to see how much of your code has been tested:
+
+	npx nyc coverage
+
+Or to generate an HTML report in "coverage":
+
+	npx nyc report --reporter=html
 
 ## Debug
 

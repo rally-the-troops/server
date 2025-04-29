@@ -99,8 +99,9 @@ function list_actions(R, V) {
 	if (V.actions) {
 		for (var act in V.actions) {
 			var arg = V.actions[act]
-			if (act === "undo") {
+			if (act === "undo" || act === "ping") {
 				// never undo
+				// never ping
 			} else if (arg === 0 || arg === false) {
 				// disabled button
 			} else if (arg === 1 || arg === true) {
@@ -235,7 +236,8 @@ function log_crash(message, ctx, action) {
 
 	var dump = `fuzzer/${TITLE}-${hash}.json`
 	fs.writeFileSync(dump, json)
-	console.log("\trtt import", dump)
+	console.log("rtt import", dump)
+	console.log("")
 
 	if (++errors >= MAX_ERRORS)
 		throw new Error("too many errors")
