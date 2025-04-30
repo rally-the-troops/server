@@ -19,9 +19,10 @@ module development
 	fuzz-rand	-- fuzz test a module (random)
 
 game debugging
+	show		-- show game state
 	show-chat	-- show game chat (for moderation)
-	show-game	-- show game state object
 	show-replay	-- show game replay log
+	show-snap	-- show game rewind snapshot
 
 miscellaneous tools
 	update-covers	-- generate cover thumbnails

@@ -8,6 +8,7 @@ fi
 
 for M in $(sqlite3 db "select title_id from titles")
 do
+	echo
 	echo "Entering 'public/$M'"
 	if pushd public/$M >/dev/null
 	then
@@ -15,3 +16,4 @@ do
 		popd >/dev/null
 	fi
 done
+echo
