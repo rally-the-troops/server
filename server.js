@@ -661,7 +661,7 @@ app.get("/reset-password/:mail/:token", function (req, res) {
 	res.render("reset_password.pug", { mail: mail, token: token })
 })
 
-app.post("/reset-password", function (req, res) {
+app.post("/reset-password", must_pass_altcha, function (req, res) {
 	let mail = req.body.mail
 	let token = req.body.token
 	let password = req.body.password
