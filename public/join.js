@@ -126,7 +126,7 @@ function format_options(options) {
 function format_time_left(time) {
 	if (time <= 0)
 		return "no time left"
-	if (time <= 2 / 24)
+	if (time <= 0.125)
 		return Math.floor(time * 24 * 60) + " minutes left"
 	if (time <= 3)
 		return Math.floor(time * 24) + " hours left"
