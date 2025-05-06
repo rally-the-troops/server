@@ -9,7 +9,7 @@ These programs can be invoked from the command line by running the "rtt"
 command that is found in the "bin" directory.
 I suggest creating a symlink to the "rtt" command somewhere in your PATH.
 
-	ln -s ~/server/bin/rtt ~/.local/bin
+	ln -s ~/server/bin/rtt ~/.local/bin/rtt
 
 Alternatively, you can edit your .profile to add the server bin directory to your PATH.
 
@@ -20,6 +20,8 @@ Check that the command works by running the command to create the database:
 	rtt init
 
 ## Commands
+
+	usage: rtt <subcommand> [ arguments... ]
 
 database management
 
@@ -42,14 +44,21 @@ module development
 
 game debugging
 
+	show		-- show game state
 	show-chat	-- show game chat (for moderation)
-	show-game	-- show game state object
 	show-replay	-- show game replay log
+	show-snap	-- show game rewind snapshot
 
 miscellaneous tools
 
 	update-covers	-- generate cover thumbnails
 	update-elo	-- recalculate Elo ratings
+
+archive database
+
+	archive-backup	-- backup replay data into archive
+	archive-prune	-- prune replay data from live database
+	archive-restore	-- restore replay data from archive
 
 ## Miscellaneous
 

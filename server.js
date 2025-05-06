@@ -4088,7 +4088,7 @@ wss.on("connection", (socket, req) => {
 
 const docs_prolog = `<!doctype html>
 <meta name="viewport" content="width=device-width">
-<link rel="stylesheet" href="/docs/style.css">
+<link rel="stylesheet" href="/common/markdown.css">
 <title>TITLE</title>
 <body><article>`
 

@@ -18,11 +18,4 @@ pre { padding: 1rem; }
 kbd { background-color: whitesmoke; padding: 0px 4px; border: 1px solid #444; }
 dd { margin-bottom: 0.5rem; }
 hr { margin: 2rem 0; border: none; border-top: 2px dotted brown; }
-article::after {
-	display: block;
-	margin: 2rem 0;
-	color: brown;
-	font-size: 1.8rem;
-	text-align: center;
-	content: "\2766";
-}
+article::after { display: block; margin: 2rem 0; color: brown; font-size: 1.8rem; text-align: center; content: "\2766"; }
