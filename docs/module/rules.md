@@ -255,7 +255,7 @@ to the state (from a nested state), and when the state is departed.
 
 You can use this to do some house-keeping or initialize the L scope.
 
-	S.state.remove_3_pieces = {
+	S.remove_3_pieces = {
 		_begin() {
 			L.count = 3
 		},

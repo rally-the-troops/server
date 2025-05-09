@@ -225,12 +225,16 @@ function _run() {
 	for (var i = 0; i < 1000 && L; ++i) {
 		var prog = P[L.P]
 		if (prog) {
-			if (typeof prog === "function")
+			if (typeof prog === "function") {
 				prog()
-			else if (L.I < prog.length)
-				prog[L.I++]()
-			else
-				end()
+			} else if (Array.isArray(prog)) {
+				if (L.I < prog.length)
+					prog[L.I++]()
+				else
+					end()
+			} else {
+				throw new Error("invalid procedure: P." + L.P)
+			}
 		} else {
 			return
 		}
@@ -483,12 +487,19 @@ function _parse(text) {
 
 function script(text) {
 	script.cache ??= {}
+	var prog = []
 	try {
-		return _parse(text).map(inst => script.cache[inst] ??= eval("(function(){" + inst + "})"))
+		for (var inst of _parse(text)) {
+			try {
+				prog.push(script.cache[inst] ??= eval("(function(){" + inst + "})"))
+			} catch (err) {
+				return err.message + " - " + inst
+			}
+		}
 	} catch (err) {
-		// return the error message so we can attach the script name and re-raise later
 		return err.message
 	}
+	return prog
 }
 
 (function () {
