@@ -2445,9 +2445,6 @@ function update_elo_ratings(game_id) {
 		if (is_winner(p.role, game.result))
 			winners ++
 
-	if (winners === 0)
-		return
-
 	for (let p of players)
 		if (is_winner(p.role, game.result))
 			p.change = elo_change(p, players, 1 / winners)
