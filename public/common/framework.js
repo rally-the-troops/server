@@ -5,7 +5,7 @@
 const ROLES = []
 const SCENARIOS = []
 var G, L, R, V, S = {}, P = {}
-function on_setup() {}
+function on_setup(scenario, options) {}
 function on_view() {}
 function on_query(q) {}
 function on_assert() {}
