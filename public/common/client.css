@@ -1,15 +1,16 @@
 /* COMMON GRID LAYOUT */
 
 :root {
-	--font-normal:  "Source Serif", "Circled Numbers", "Georgia", "Noto Emoji", "Dingbats", serif;
-	--font-small: "Source Serif SmText", "Circled Numbers", "Georgia", "Noto Emoji", "Dingbats", serif;
-	--font-widget: "Source Sans", "Circled Numbers", "Verdana", "Noto Emoji", "Dingbats", sans-serif;
+	--font-normal: "Source Serif", "Circled Numbers", "Noto Emoji", "Dingbats", serif;
+	--font-small: "Source Serif SmText", "Circled Numbers", "Noto Emoji", "Dingbats", serif;
+	--font-widget: "Source Sans", "Circled Numbers", "Noto Emoji", "Dingbats", sans-serif;
 }
 
 html {
 	image-rendering: -webkit-optimize-contrast; /* try to fix chromium's terrible image rescaling */
 	image-rendering: high-quality;
 	-webkit-tap-highlight-color: transparent; /* disable blue flashes when tapping on chrome mobile */
+	font-variant-emoji: text;
 }
 
 header summary::-webkit-details-marker {

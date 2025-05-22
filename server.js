@@ -1968,7 +1968,7 @@ app.get("/rematch/:old_game_id", must_be_logged_in, function (req, res) {
 	if (pool_name)
 		return res.redirect("/tm/pool/" + pool_name)
 
-	let magic = "\u{1F503} " + old_game_id
+	let magic = "\u{1F503}\ufe0e " + old_game_id
 	let new_game_id = SQL_SELECT_REMATCH.get(magic)
 	if (new_game_id)
 		return res.redirect("/join/" + new_game_id)
@@ -1985,7 +1985,7 @@ app.get("/rematch/:old_game_id", must_be_logged_in, function (req, res) {
 
 app.post("/rematch/:old_game_id", must_be_logged_in, function (req, res) {
 	let old_game_id = req.params.old_game_id | 0
-	let magic = "\u{1F503} " + old_game_id
+	let magic = "\u{1F503}\ufe0e " + old_game_id
 	let new_game_id = 0
 	let order = req.body.order
 
